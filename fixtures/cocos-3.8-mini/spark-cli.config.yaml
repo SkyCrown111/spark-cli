@@ -1,0 +1,10 @@
+project:
+  root: .
+  engine: cocos-creator
+model:
+  provider: auto
+security:
+  requireConfirm: true
+  backupBeforeWrite: true
+context:
+  maxTokens: 32000

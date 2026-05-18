@@ -1,0 +1,33 @@
+name: Bug report
+description: Report something broken in SparkCLI
+title: "[bug]: "
+labels: ["bug"]
+body:
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What did you expect?
+  - type: input
+    id: version
+    attributes:
+      label: spark-cli version
+      placeholder: "0.1.0"
+  - type: dropdown
+    id: os
+    attributes:
+      label: OS
+      options:
+        - Windows
+        - macOS
+        - Linux
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs / command output
+      render: shell

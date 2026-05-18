@@ -1,0 +1,18 @@
+{
+  "FileVersion": 3,
+  "Version": 1,
+  "VersionName": "0.1.0",
+  "FriendlyName": "GameCLI Bridge",
+  "Description": "Read-only Editor bridge for GameCLI (Phase 14 prototype)",
+  "Category": "GameCLI",
+  "EnabledByDefault": false,
+  "CanContainContent": false,
+  "IsBetaVersion": true,
+  "Modules": [
+    {
+      "Name": "GameCLIBridge",
+      "Type": "Editor",
+      "LoadingPhase": "Default"
+    }
+  ]
+}

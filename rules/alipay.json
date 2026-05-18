@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "platform": "alipay",
+  "updated": "2026-05-01",
+  "limits": {
+    "mainPackageBytes": 4194304,
+    "subPackageBytes": 4194304,
+    "totalPackageBytes": 16777216,
+    "maxSubpackages": 16
+  },
+  "thresholds": {
+    "mainPackageWarnRatio": 0.85,
+    "textureWarnBytes": 524288,
+    "startupSceneMaxNodes": 80
+  },
+  "requirements": {
+    "appidRequired": true
+  }
+}

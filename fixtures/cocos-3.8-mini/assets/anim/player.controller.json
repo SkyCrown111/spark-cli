@@ -1,0 +1,61 @@
+{
+  "version": 1,
+  "name": "player",
+  "parameters": [
+    {
+      "name": "Speed",
+      "type": "float",
+      "default": 0
+    },
+    {
+      "name": "IsGrounded",
+      "type": "bool",
+      "default": true
+    },
+    {
+      "name": "Jump",
+      "type": "trigger"
+    }
+  ],
+  "states": [
+    {
+      "id": "Idle",
+      "motion": "idle",
+      "speed": 1
+    },
+    {
+      "id": "Run",
+      "motion": "run",
+      "speed": 1
+    },
+    {
+      "id": "Jump",
+      "motion": "jump",
+      "speed": 1
+    }
+  ],
+  "transitions": [
+    {
+      "from": "Idle",
+      "to": "Run",
+      "condition": "Speed > 0.1",
+      "duration": 0.15
+    },
+    {
+      "from": "Run",
+      "to": "Jump",
+      "condition": "RunComplete",
+      "duration": 0.15
+    },
+    {
+      "from": "Jump",
+      "to": "Idle",
+      "condition": "Speed < 0.05",
+      "duration": 0.2
+    }
+  ],
+  "meta": {
+    "generatedBy": "spark-cli",
+    "spec": "Idle->Run->Jump"
+  }
+}

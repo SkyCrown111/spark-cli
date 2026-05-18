@@ -1,0 +1,120 @@
+{
+  "version": 1,
+  "name": "forest",
+  "description": "3条路径 Boss北侧",
+  "zones": [
+    {
+      "id": "spawn",
+      "x": 0,
+      "y": 0,
+      "w": 120,
+      "h": 80,
+      "label": "Spawn"
+    },
+    {
+      "id": "mid",
+      "x": 200,
+      "y": 120,
+      "w": 160,
+      "h": 120,
+      "label": "Mid"
+    },
+    {
+      "id": "boss",
+      "x": 400,
+      "y": 40,
+      "w": 140,
+      "h": 140,
+      "label": "Boss"
+    }
+  ],
+  "paths": [
+    {
+      "id": "route-1",
+      "points": [
+        [
+          0,
+          0
+        ],
+        [
+          120,
+          60
+        ],
+        [
+          240,
+          80
+        ],
+        [
+          400,
+          80
+        ]
+      ]
+    },
+    {
+      "id": "route-2",
+      "points": [
+        [
+          40,
+          0
+        ],
+        [
+          160,
+          60
+        ],
+        [
+          280,
+          80
+        ],
+        [
+          400,
+          80
+        ]
+      ]
+    },
+    {
+      "id": "route-3",
+      "points": [
+        [
+          80,
+          0
+        ],
+        [
+          200,
+          60
+        ],
+        [
+          320,
+          80
+        ],
+        [
+          400,
+          80
+        ]
+      ]
+    }
+  ],
+  "entities": [
+    {
+      "type": "player_spawn",
+      "zoneId": "spawn",
+      "count": 1
+    },
+    {
+      "type": "enemy_patrol",
+      "zoneId": "mid",
+      "count": 2
+    },
+    {
+      "type": "boss",
+      "zoneId": "boss",
+      "count": 1,
+      "props": {
+        "phase": 1
+      }
+    }
+  ],
+  "meta": {
+    "generatedBy": "spark-cli",
+    "template": "1"
+  }
+}

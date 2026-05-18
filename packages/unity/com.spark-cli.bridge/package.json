@@ -1,0 +1,7 @@
+{
+  "name": "com.spark-cli.bridge",
+  "version": "0.1.0",
+  "displayName": "SparkCLI Bridge",
+  "description": "Unity Editor WebSocket bridge for SparkCLI (Phase 14)",
+  "unity": "2021.3"
+}

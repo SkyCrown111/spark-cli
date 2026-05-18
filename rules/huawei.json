@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "platform": "huawei",
+  "updated": "2026-05-01",
+  "limits": {
+    "mainPackageBytes": 5242880,
+    "subPackageBytes": 5242880,
+    "totalPackageBytes": 20971520,
+    "maxSubpackages": 20
+  },
+  "thresholds": {
+    "mainPackageWarnRatio": 0.85,
+    "textureWarnBytes": 524288,
+    "startupSceneMaxNodes": 80
+  },
+  "requirements": {
+    "appidRequired": false
+  }
+}

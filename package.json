@@ -1,0 +1,83 @@
+{
+  "name": "spark-cli",
+  "version": "0.3.0-dev",
+  "description": "AI CLI for game developers — Cocos, Unity, WeChat and minigame workflows",
+  "keywords": [
+    "game",
+    "cocos",
+    "unity",
+    "wechat",
+    "cli",
+    "ai",
+    "mcp",
+    "spark"
+  ],
+  "type": "module",
+  "license": "MIT",
+  "author": "ErpanOmer",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ErpanOmer/spark-cli.git"
+  },
+  "bin": {
+    "spark-cli": "./dist/cli.js"
+  },
+  "files": [
+    "dist",
+    "extensions",
+    "packages",
+    "knowledge",
+    "rules",
+    "templates"
+  ],
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "dev": "node scripts/build.mjs --watch",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:phase1": "node scripts/phase1-accept.mjs",
+    "test:phase2": "node scripts/phase2-accept.mjs",
+    "test:phase3": "node scripts/phase3-accept.mjs",
+    "test:phase4": "node scripts/phase4-accept.mjs",
+    "test:phase5": "node scripts/phase5-accept.mjs",
+    "test:phase6": "node scripts/phase6-accept.mjs",
+    "test:phase7": "node scripts/phase7-accept.mjs",
+    "test:phase8": "node scripts/phase8-accept.mjs",
+    "test:phase9": "node scripts/phase9-accept.mjs",
+    "test:phase10": "node scripts/phase10-accept.mjs",
+    "test:phase11": "node scripts/phase11-accept.mjs",
+    "test:phase12": "node scripts/phase12-accept.mjs",
+    "test:phase13": "node scripts/phase13-accept.mjs",
+    "test:phase14": "node scripts/phase14-accept.mjs",
+    "prepublishOnly": "pnpm run build"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "packageManager": "pnpm@9.2.0",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.12.1",
+    "chalk": "^5.4.1",
+    "commander": "^13.1.0",
+    "cosmiconfig": "^9.0.0",
+    "diff": "^7.0.0",
+    "inquirer": "^12.4.2",
+    "js-yaml": "^4.1.0",
+    "marked": "15",
+    "marked-terminal": "^7.3.0",
+    "ora": "^8.2.0",
+    "undici": "^7.4.0",
+    "zod": "^3.24.2"
+  },
+  "devDependencies": {
+    "@types/diff": "^7.0.0",
+    "@types/js-yaml": "^4.0.9",
+    "@types/node": "^22.13.10",
+    "@types/ws": "^8.18.1",
+    "esbuild": "^0.25.1",
+    "fast-check": "^4.8.0",
+    "typescript": "^5.8.2",
+    "vitest": "^3.0.8",
+    "ws": "^8.18.1"
+  }
+}

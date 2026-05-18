@@ -1,0 +1,6 @@
+{
+  "name": "hello-spark-cli",
+  "version": "0.1.0",
+  "description": "Sample SparkCLI plugin for Phase 8 acceptance",
+  "engines": ["cocos-creator", "unity"]
+}

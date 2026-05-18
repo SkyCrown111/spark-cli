@@ -1,0 +1,22 @@
+{
+  "frames": [
+    {
+      "frame": 0,
+      "ms": 14.2,
+      "samples": [
+        { "name": "Script", "ms": 4.1 },
+        { "name": "Render", "ms": 8.0 },
+        { "name": "Physics", "ms": 2.1 }
+      ]
+    },
+    {
+      "frame": 1,
+      "ms": 18.5,
+      "samples": [
+        { "name": "Script", "ms": 6.2 },
+        { "name": "Render", "ms": 9.1 },
+        { "name": "Physics", "ms": 3.2 }
+      ]
+    }
+  ]
+}

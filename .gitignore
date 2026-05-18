@@ -1,0 +1,49 @@
+# Dependencies & build
+node_modules/
+dist/
+*.tsbuildinfo
+coverage/
+node_modules/.vite/
+
+# Logs & OS
+*.log
+.DS_Store
+Thumbs.db
+
+# Secrets — never commit real API keys or tokens
+.env
+.env.*
+!.env.example
+*.pem
+*.p12
+*.key
+**/secrets/
+
+# Local / user config with possible API keys
+config.local.yaml
+*.local.yaml
+
+# SparkCLI runtime data (per-project or global)
+.spark-cli/
+.gamecli/
+**/.spark-cli/staging/
+**/.spark-cli/cache/
+**/.spark-cli/backups/
+**/.spark-cli/memory/
+**/.spark-cli/replay*.json
+**/.spark-cli/replay*.jsonl
+
+# IDE & local agent tooling (may contain prompts / paths)
+.claude/
+.kiro/
+.cursor/
+
+# Cocos / engine generated
+library/
+temp/
+local/
+build/
+**/build/
+
+# Fixture local deps
+fixtures/**/node_modules/

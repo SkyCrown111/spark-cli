@@ -1,0 +1,8 @@
+project:
+  root: .
+  engine: unreal
+model:
+  provider: auto
+security:
+  requireConfirm: true
+  backupBeforeWrite: true

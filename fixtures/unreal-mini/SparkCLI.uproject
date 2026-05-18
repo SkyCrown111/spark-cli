@@ -1,0 +1,13 @@
+{
+  "FileVersion": 3,
+  "EngineAssociation": "5.4",
+  "Category": "",
+  "Description": "SparkCLI Unreal mini fixture",
+  "Modules": [
+    {
+      "Name": "SparkCLI",
+      "Type": "Runtime",
+      "LoadingPhase": "Default"
+    }
+  ]
+}

@@ -1,0 +1,13 @@
+library/
+temp/
+local/
+build/
+node_modules/
+.env
+.gamecli/staging/
+.gamecli/backups/
+.gamecli/cache/
+.godot/
+Binaries/
+Intermediate/
+DerivedDataCache/

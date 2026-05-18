@@ -1,0 +1,8 @@
+project:
+  root: .
+  engine: unity
+model:
+  provider: auto
+security:
+  requireConfirm: true
+  backupBeforeWrite: true

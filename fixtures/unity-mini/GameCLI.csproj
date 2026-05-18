@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>netstandard2.1</TargetFramework>
+    <LangVersion>9.0</LangVersion>
+    <Nullable>enable</Nullable>
+    <RootNamespace>GameCLI.Fixture</RootNamespace>
+    <AssemblyName>GameCLI.Fixture</AssemblyName>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="Stubs/**/*.cs" />
+    <Compile Include="Assets/Scripts/**/*.cs" />
+  </ItemGroup>
+</Project>

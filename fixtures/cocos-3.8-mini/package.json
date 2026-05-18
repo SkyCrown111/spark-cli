@@ -1,0 +1,9 @@
+{
+  "name": "cocos-3.8-mini-fixture",
+  "private": true,
+  "version": "0.0.0",
+  "description": "SparkCLI test fixture (minimal Cocos-like layout)",
+  "devDependencies": {
+    "typescript": "^5.8.2"
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "version": 1,
+  "updated": "2026-05-01",
+  "source": "SparkCLI defaults — override via project rules/wechat.json or .spark-cli/rules/wechat.json",
+  "limits": {
+    "mainPackageBytes": 4194304,
+    "subPackageBytes": 4194304,
+    "totalPackageBytes": 20971520,
+    "maxSubpackages": 20
+  },
+  "thresholds": {
+    "mainPackageWarnRatio": 0.85,
+    "textureWarnBytes": 524288
+  }
+}

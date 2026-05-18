@@ -1,0 +1,31 @@
+{
+  "name": "LoginScreen",
+  "width": 375,
+  "height": 812,
+  "layers": [
+    {
+      "name": "Background",
+      "type": "rectangle",
+      "x": 0,
+      "y": 0,
+      "width": 375,
+      "height": 812
+    },
+    {
+      "name": "LoginButton",
+      "type": "rectangle",
+      "x": 40,
+      "y": 520,
+      "width": 295,
+      "height": 48
+    },
+    {
+      "name": "Title",
+      "type": "text",
+      "x": 40,
+      "y": 120,
+      "width": 200,
+      "height": 32
+    }
+  ]
+}

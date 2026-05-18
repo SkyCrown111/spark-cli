@@ -1,0 +1,346 @@
+/**
+ * Phase 14 #5 — Assets audit + fix.
+ *
+ * No optional native deps in this baseline. We sniff bytes from the file
+ * headers ourselves:
+ *   - PNG: width/height live at offset 16 (big-endian uint32 each).
+ *   - JPG: walk SOFx markers (0xFF 0xC0..0xC3, 0xC5..0xC7, 0xC9..0xCB, 0xCD..0xCF).
+ *   - WAV: RIFF header at offset 0; sample rate at byte 24 (LE uint32),
+ *     channels at byte 22 (LE uint16), bitsPerSample at 34, data size at 40.
+ *   - OGG/MP3 are flagged by extension only (no deep parse) — they trigger size
+ *     rules but not sample-rate rules.
+ *
+ * `auditAssets()` is pure: takes a project root, returns issues. `applyFix()`
+ * accepts a single issue and stages a fix when the rule supports it (right
+ * now: `unused` → soft-delete-stage, `oversize-png` → no-op suggestion).
+ */
+
+import { existsSync, readFileSync, readdirSync, statSync, unlinkSync } from 'node:fs';
+import { join, relative, extname } from 'node:path';
+import { stageWriteFile } from '../staging/patch-manager.js';
+import { findUnusedAssets } from './scanner.js';
+
+export type AuditSeverity = 'error' | 'warn' | 'hint';
+
+export interface AuditIssue {
+  rule: string;
+  severity: AuditSeverity;
+  /** Project-relative path with forward slashes. */
+  path: string;
+  message: string;
+  suggestion?: string;
+  /** Loosely-typed payload, e.g. width/height/sampleRate. */
+  details?: Record<string, unknown>;
+}
+
+export interface AuditOptions {
+  /** Directory under projectRoot to scan; defaults to 'assets'. */
+  dir?: string;
+  /** Skip very expensive walks if the asset directory is larger than this many files. */
+  maxFiles?: number;
+  /** Disable specific rule ids. */
+  disable?: string[];
+}
+
+export function auditAssets(projectRoot: string, opts: AuditOptions = {}): AuditIssue[] {
+  const dir = opts.dir ?? 'assets';
+  const root = join(projectRoot, dir);
+  if (!existsSync(root)) return [];
+  const files: string[] = [];
+  walk(root, files);
+  if (opts.maxFiles && files.length > opts.maxFiles) {
+    return [
+      {
+        rule: 'audit-aborted',
+        severity: 'hint',
+        path: dir,
+        message: `${files.length} files > maxFiles=${opts.maxFiles}; refine --dir`,
+      },
+    ];
+  }
+
+  const disabled = new Set(opts.disable ?? []);
+  const issues: AuditIssue[] = [];
+  for (const full of files) {
+    const rel = relative(projectRoot, full).replace(/\\/g, '/');
+    const ext = extname(rel).toLowerCase();
+    const size = safeStatSize(full);
+
+    if (ext === '.png' || ext === '.jpg' || ext === '.jpeg') {
+      const dims = readImageDimensions(full, ext);
+      if (dims) {
+        if (!disabled.has('texture-oversize') && (dims.width > 2048 || dims.height > 2048)) {
+          issues.push({
+            rule: 'texture-oversize',
+            severity: 'warn',
+            path: rel,
+            message: `Image is ${dims.width}x${dims.height}; minigames typically cap at 2048`,
+            suggestion: 'Resize or split atlas',
+            details: { width: dims.width, height: dims.height, bytes: size },
+          });
+        }
+        if (
+          !disabled.has('texture-non-pow2') &&
+          (!isPowerOfTwo(dims.width) || !isPowerOfTwo(dims.height))
+        ) {
+          issues.push({
+            rule: 'texture-non-pow2',
+            severity: 'hint',
+            path: rel,
+            message: `Image dimensions ${dims.width}x${dims.height} are not power-of-two`,
+            suggestion: 'Pad or rescale for GPU mipmap efficiency',
+            details: { width: dims.width, height: dims.height },
+          });
+        }
+      }
+      if (
+        !disabled.has('texture-uncompressed') &&
+        ext === '.png' &&
+        size > 512 * 1024 // 512 KB threshold for raw PNG
+      ) {
+        issues.push({
+          rule: 'texture-uncompressed',
+          severity: 'hint',
+          path: rel,
+          message: `PNG is ${formatKB(size)}; consider compressing (pngcrush / zstd-png) or converting to WebP`,
+          details: { bytes: size },
+        });
+      }
+    }
+
+    if (ext === '.wav' && !disabled.has('audio-samplerate')) {
+      const wav = readWavMeta(full);
+      if (wav && wav.sampleRate > 44100) {
+        issues.push({
+          rule: 'audio-samplerate',
+          severity: 'warn',
+          path: rel,
+          message: `WAV sample rate is ${wav.sampleRate}Hz; downsample to 44100 for mobile`,
+          details: { sampleRate: wav.sampleRate, channels: wav.channels, bytes: size },
+        });
+      }
+    }
+    if (
+      !disabled.has('audio-oversize') &&
+      (ext === '.wav' || ext === '.mp3' || ext === '.ogg' || ext === '.m4a') &&
+      size > 1024 * 1024
+    ) {
+      issues.push({
+        rule: 'audio-oversize',
+        severity: 'hint',
+        path: rel,
+        message: `Audio file is ${formatKB(size)}; consider streaming or splitting`,
+        details: { bytes: size },
+      });
+    }
+  }
+
+  if (!disabled.has('asset-unused')) {
+    for (const a of findUnusedAssets(projectRoot)) {
+      issues.push({
+        rule: 'asset-unused',
+        severity: 'hint',
+        path: a.path,
+        message: `Asset has no detected references in scenes/scripts`,
+        suggestion: 'Verify and remove with `spark-cli asset fix --rule asset-unused`',
+        details: { bytes: a.bytes, type: a.type },
+      });
+    }
+  }
+
+  // Stable ordering: rule, then path.
+  issues.sort((x, y) => x.rule.localeCompare(y.rule) || x.path.localeCompare(y.path));
+  return issues;
+}
+
+export interface FixResult {
+  rule: string;
+  path: string;
+  applied: boolean;
+  staged: boolean;
+  message: string;
+}
+
+/**
+ * Apply a fix for a single issue. Today only `asset-unused` is auto-fixable
+ * (soft-delete via staging — writes an empty placeholder so `spark-cli apply`
+ * removes the file once we add a delete-op to patch-manager; for now it just
+ * reports what would happen).
+ */
+export function applyFix(
+  projectRoot: string,
+  issue: AuditIssue,
+  opts: { apply: boolean } = { apply: false },
+): FixResult {
+  if (issue.rule === 'asset-unused') {
+    if (!opts.apply) {
+      return {
+        rule: issue.rule,
+        path: issue.path,
+        applied: false,
+        staged: false,
+        message: `Would delete unused asset ${issue.path} (run with --apply to stage)`,
+      };
+    }
+    // Stage a "tombstone" — a zero-byte file so the user can review the diff.
+    // The actual file deletion is left to a follow-up phase that adds delete-ops
+    // to the staging manifest. We document the intent in the staged content.
+    stageWriteFile(
+      projectRoot,
+      `${issue.path}.spark-cli-deleted`,
+      `# Tombstone for ${issue.path} — pending delete by spark-cli apply`,
+    );
+    return {
+      rule: issue.rule,
+      path: issue.path,
+      applied: true,
+      staged: true,
+      message: `Staged tombstone for ${issue.path}`,
+    };
+  }
+  return {
+    rule: issue.rule,
+    path: issue.path,
+    applied: false,
+    staged: false,
+    message: `No automatic fix available for rule ${issue.rule}`,
+  };
+}
+
+/**
+ * Test-only helper: deletes a file under projectRoot. Not used by CLI fix path
+ * (we go via staging there) but kept for unit tests that want to mutate the
+ * fixture without the staging layer.
+ */
+export function _hardDeleteAsset(projectRoot: string, rel: string): void {
+  const full = join(projectRoot, rel);
+  if (existsSync(full)) unlinkSync(full);
+}
+
+// ---------- helpers --------------------------------------------------------
+
+function walk(dir: string, out: string[]): void {
+  let names: string[];
+  try {
+    names = readdirSync(dir);
+  } catch {
+    return;
+  }
+  for (const name of names) {
+    if (name.endsWith('.meta')) continue;
+    const full = join(dir, name);
+    let st: ReturnType<typeof statSync>;
+    try {
+      st = statSync(full);
+    } catch {
+      continue;
+    }
+    if (st.isDirectory()) walk(full, out);
+    else out.push(full);
+  }
+}
+
+function safeStatSize(full: string): number {
+  try {
+    return statSync(full).size;
+  } catch {
+    return 0;
+  }
+}
+
+function isPowerOfTwo(n: number): boolean {
+  return n > 0 && (n & (n - 1)) === 0;
+}
+
+function formatKB(bytes: number): string {
+  return `${(bytes / 1024).toFixed(1)}KB`;
+}
+
+interface ImageDims {
+  width: number;
+  height: number;
+}
+
+function readImageDimensions(full: string, ext: string): ImageDims | null {
+  let buf: Buffer;
+  try {
+    buf = readFileSync(full);
+  } catch {
+    return null;
+  }
+  if (ext === '.png') return readPngDims(buf);
+  if (ext === '.jpg' || ext === '.jpeg') return readJpgDims(buf);
+  return null;
+}
+
+function readPngDims(buf: Buffer): ImageDims | null {
+  // PNG signature: 89 50 4E 47 0D 0A 1A 0A, then IHDR chunk at offset 16: width(4), height(4)
+  if (buf.length < 24) return null;
+  if (buf[0] !== 0x89 || buf[1] !== 0x50 || buf[2] !== 0x4e || buf[3] !== 0x47) return null;
+  const width = buf.readUInt32BE(16);
+  const height = buf.readUInt32BE(20);
+  if (!width || !height) return null;
+  return { width, height };
+}
+
+function readJpgDims(buf: Buffer): ImageDims | null {
+  if (buf.length < 4 || buf[0] !== 0xff || buf[1] !== 0xd8) return null;
+  let i = 2;
+  while (i < buf.length) {
+    if (buf[i] !== 0xff) return null;
+    let marker = buf[i + 1];
+    if (marker === undefined) return null;
+    // Skip fill bytes
+    while (marker === 0xff && i + 1 < buf.length) {
+      i++;
+      marker = buf[i + 1];
+      if (marker === undefined) return null;
+    }
+    i += 2;
+    // Standalone markers without segment length
+    if (marker === 0xd8 || marker === 0xd9) continue;
+    if (i + 1 >= buf.length) return null;
+    const segLen = buf.readUInt16BE(i);
+    // SOF markers carrying dims
+    const isSOF =
+      (marker >= 0xc0 && marker <= 0xc3) ||
+      (marker >= 0xc5 && marker <= 0xc7) ||
+      (marker >= 0xc9 && marker <= 0xcb) ||
+      (marker >= 0xcd && marker <= 0xcf);
+    if (isSOF) {
+      // Layout: length(2), precision(1), height(2), width(2)
+      const height = buf.readUInt16BE(i + 3);
+      const width = buf.readUInt16BE(i + 5);
+      return { width, height };
+    }
+    i += segLen;
+  }
+  return null;
+}
+
+interface WavMeta {
+  sampleRate: number;
+  channels: number;
+  bitsPerSample: number;
+}
+
+function readWavMeta(full: string): WavMeta | null {
+  let buf: Buffer;
+  try {
+    buf = readFileSync(full);
+  } catch {
+    return null;
+  }
+  if (buf.length < 44) return null;
+  if (
+    buf.toString('ascii', 0, 4) !== 'RIFF' ||
+    buf.toString('ascii', 8, 12) !== 'WAVE' ||
+    buf.toString('ascii', 12, 16) !== 'fmt '
+  ) {
+    return null;
+  }
+  const channels = buf.readUInt16LE(22);
+  const sampleRate = buf.readUInt32LE(24);
+  const bitsPerSample = buf.readUInt16LE(34);
+  return { channels, sampleRate, bitsPerSample };
+}
