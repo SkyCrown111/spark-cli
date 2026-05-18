@@ -1087,7 +1087,7 @@ $ spark-cli adapt wechat --fix
 ## 📝 项目信息
 
 - **项目名**：SparkCLI  
-- **仓库**：https://github.com/ErpanOmer/spark-cli  
+- **仓库**：https://github.com/SkyCrown111/spark-cli  
 - **协议**：MIT  
 - **语言**：TypeScript  
 - **平台**：Windows / macOS / Linux  
