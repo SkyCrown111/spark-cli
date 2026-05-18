@@ -17,7 +17,7 @@
   "author": "ErpanOmer",
   "repository": {
     "type": "git",
-    "url": "https://github.com/ErpanOmer/spark-cli.git"
+    "url": "https://github.com/SkyCrown111/spark-cli.git"
   },
   "bin": {
     "spark-cli": "./dist/cli.js"

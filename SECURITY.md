@@ -10,7 +10,7 @@
 
 Please **do not** open a public GitHub issue for security-sensitive reports.
 
-1. Use [GitHub private vulnerability reporting](https://github.com/ErpanOmer/spark-cli/security/advisories/new) if enabled, or
+1. Use [GitHub private vulnerability reporting](https://github.com/SkyCrown111/spark-cli/security/advisories/new) if enabled, or
 2. Contact the maintainers via the email on their GitHub profile.
 
 We aim to acknowledge reports within 5 business days.
