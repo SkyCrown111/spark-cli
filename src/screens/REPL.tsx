@@ -168,72 +168,98 @@ export const REPL: React.FC<REPLProps> = ({
   // ── Dynamic shortcut hints ──
   const shortcutHints = useShortcutDisplay(undefined, 6);
 
-  // ── Layout strategy ──
-  // The outer Box is fixed to terminal height. Messages area uses
-  // flexGrow={1} so it expands to fill space, and flexShrink={1}
-  // so it can shrink when footer components need their full height.
-  // All footer components (Spinner, PromptInput, Hints, StatusBar)
-  // use flexShrink={0} so they are NEVER compressed — they always
-  // render at their natural height. This guarantees the input box
-  // is always visible, matching Claude Code's layout behavior.
+  // ── Layout strategy (Claude Code FullscreenLayout pattern) ──
+  // Two-section layout that guarantees the input box is ALWAYS visible:
+  //
+  // ┌──────────────────────────────┐
+  // │  Top section (flexGrow=1)    │ ← Messages area, overflow hidden
+  // │  overflow="hidden"           │    Shrinks to accommodate footer
+  // │                              │
+  // ├──────────────────────────────┤
+  // │  Bottom section (shrink=0)   │ ← Pinned footer, NEVER shrinks
+  // │  maxHeight="50%"             │    Capped at half screen
+  // │  ┌─ inner (overflowY hidden)┐│    Contains spinner + input + hints + status
+  // │  │  Spinner (if loading)    ││
+  // │  │  PromptInput             ││
+  // │  │  KeybindingHints         ││
+  // │  │  StatusBar               ││
+  // │  └─────────────────────────┘│
+  // └──────────────────────────────┘
+  //
+  // The bottom section uses flexShrink={0} + maxHeight="50%" with a
+  // nested overflowY="hidden" Box — this is the same pattern Claude Code
+  // uses in FullscreenLayout.tsx. The inner overflowY="hidden" prevents
+  // the bottom section from expanding beyond its allocated space.
+  //
+  // Additionally, we compute a safe maxHeight for the Messages component
+  // as a safety net, ensuring messages never push the footer off screen.
+
+  // Footer height estimate: Spinner(1) + PromptInput(~4) + Hints(1) + StatusBar(~2) = 8 rows
+  const FOOTER_RESERVE = 9; // 1 extra for safety margin
+  const messagesMaxHeight = Math.max(1, height - FOOTER_RESERVE);
 
   return (
     <ErrorBoundary>
     <Box flexDirection="column" width={width} height={height}>
-      {/* Messages area — flexible, shrinks to accommodate footer */}
-      <Box flexDirection="column" flexGrow={1} flexShrink={1} overflow="hidden">
-        <Messages messages={messages} maxHeight={height} />
+      {/* ── Top section: scrollable messages, shrinks to fit ── */}
+      <Box flexDirection="column" flexGrow={1} overflow="hidden">
+        <Messages messages={messages} maxHeight={messagesMaxHeight} />
       </Box>
 
-      {/* Loading spinner — protected from shrink */}
-      {loading && (
-        <Box paddingX={1} flexShrink={0}>
-          <Spinner type="dots" label="Thinking..." color="cyan" />
+      {/* ── Bottom section: pinned footer, NEVER shrinks ── */}
+      <Box flexDirection="column" flexShrink={0} width="100%" maxHeight="50%">
+        <Box flexDirection="column" width="100%" flexGrow={1} overflowY="hidden">
+          {/* Loading spinner — shows during agent turns */}
+          {loading && (
+            <Box paddingX={1} flexShrink={0}>
+              <Spinner type="dots" label="Thinking..." color="cyan" />
+            </Box>
+          )}
+
+          {/* Input area — ALWAYS visible, disabled during loading */}
+          <Box flexShrink={0}>
+            <PromptInput
+              onSubmit={handleSubmit}
+              mode={mode}
+              onModeChange={handleModeChange}
+              disabled={loading}
+              history={historyHook.history}
+              onHistoryNavigate={() => {
+                historyHook.resetNavigation();
+              }}
+              multiline={true}
+              maxLines={5}
+              placeholder={mode === 'plan' ? 'Plan mode — describe your goal...' : 'Type your message...'}
+            />
+          </Box>
+
+          {/* Keyboard shortcut hints — ALWAYS visible */}
+          <Box flexShrink={0}>
+            <KeybindingHints
+              visible={true}
+              hints={shortcutHints.map((h) => ({
+                keys: h.key,
+                description: h.description,
+              }))}
+            />
+          </Box>
+
+          {/* Status bar — ALWAYS visible */}
+          <Box flexShrink={0}>
+            <StatusBar
+              mode={mode}
+              tokensUsed={tokenUsage?.used ?? 0}
+              tokensBudget={tokenUsage?.budget ?? 0}
+              model={model}
+              status={statusText}
+              showBorder={true}
+              showTokenPercentage={true}
+            />
+          </Box>
         </Box>
-      )}
-
-      {/* Input area — ALWAYS visible, NEVER shrinks, disabled during loading */}
-      <Box flexShrink={0}>
-        <PromptInput
-          onSubmit={handleSubmit}
-          mode={mode}
-          onModeChange={handleModeChange}
-          disabled={loading}
-          history={historyHook.history}
-          onHistoryNavigate={() => {
-            historyHook.resetNavigation();
-          }}
-          multiline={true}
-          maxLines={5}
-          placeholder={mode === 'plan' ? 'Plan mode — describe your goal...' : 'Type your message...'}
-        />
       </Box>
 
-      {/* Keyboard shortcut hints — ALWAYS visible, NEVER shrinks */}
-      <Box flexShrink={0}>
-        <KeybindingHints
-          visible={true}
-          hints={shortcutHints.map((h) => ({
-            keys: h.key,
-            description: h.description,
-          }))}
-        />
-      </Box>
-
-      {/* Status bar — ALWAYS visible, NEVER shrinks */}
-      <Box flexShrink={0}>
-        <StatusBar
-          mode={mode}
-          tokensUsed={tokenUsage?.used ?? 0}
-          tokensBudget={tokenUsage?.budget ?? 0}
-          model={model}
-          status={statusText}
-          showBorder={true}
-          showTokenPercentage={true}
-        />
-      </Box>
-
-      {/* Overlay dialogs */}
+      {/* ── Overlay dialogs ── */}
       {showModelPicker && (
         <ModelPicker
           currentModel={model}
