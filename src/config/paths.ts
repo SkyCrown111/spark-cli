@@ -10,6 +10,11 @@ export function getGlobalConfigPath(): string {
   return join(getGlobalConfigDir(), 'config.yaml');
 }
 
+/** Global skills: `~/.spark-cli/skills/<name>/SKILL.md` (same layout as project). */
+export function getGlobalSkillsDir(): string {
+  return join(getGlobalConfigDir(), 'skills');
+}
+
 export function getProjectSparkDir(projectRoot: string): string {
   return join(projectRoot, '.spark-cli');
 }

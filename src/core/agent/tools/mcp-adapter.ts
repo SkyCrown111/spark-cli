@@ -46,7 +46,7 @@ export function wrapMcpTool(meta: McpToolMeta): RegisteredTool {
     mutates,
     async handler(args: Record<string, unknown>, ctx: ToolContext): Promise<ToolResult> {
       try {
-        const result = handleMcpTool(meta.name, args, ctx.projectRoot, ctx.config);
+        const result = await handleMcpTool(meta.name, args, ctx.projectRoot, ctx.config);
         const { text, isError } = flattenContent(result);
         return { content: text, isError };
       } catch (e) {

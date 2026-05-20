@@ -1,7 +1,10 @@
 import { describe, it, expect, afterEach } from 'vitest';
 import {
   isEnvVarName,
+  looksLikePastedApiKey,
+  normalizeEnvVarName,
   resolveCustomProviderApiKey,
+  suggestEnvVarNameForProvider,
 } from './registry.js';
 
 describe('resolveCustomProviderApiKey', () => {
@@ -28,5 +31,20 @@ describe('resolveCustomProviderApiKey', () => {
   it('isEnvVarName accepts MIMO_API_KEY only', () => {
     expect(isEnvVarName('MIMO_API_KEY')).toBe(true);
     expect(isEnvVarName('tp-abc')).toBe(false);
+  });
+
+  it('normalizeEnvVarName uppercases baidu_api_key', () => {
+    expect(normalizeEnvVarName('baidu_api_key')).toBe('BAIDU_API_KEY');
+    expect(normalizeEnvVarName('BAIDU_API_KEY')).toBe('BAIDU_API_KEY');
+  });
+
+  it('suggestEnvVarNameForProvider', () => {
+    expect(suggestEnvVarNameForProvider('baidu')).toBe('BAIDU_API_KEY');
+  });
+
+  it('looksLikePastedApiKey detects secrets', () => {
+    expect(looksLikePastedApiKey('BAIDU_API_KEY')).toBe(false);
+    expect(looksLikePastedApiKey('sk-abc123def456ghi789jkl012')).toBe(true);
+    expect(looksLikePastedApiKey('tp-abc123')).toBe(true);
   });
 });

@@ -6,6 +6,11 @@ import { runInit } from './commands/init.js';
 import { runConfigInit, runConfigShow } from './commands/config-cmd.js';
 import { runDoctor } from './commands/doctor.js';
 import {
+  runSkillsInit,
+  runSkillsList,
+  runSkillsValidate,
+} from './commands/skills.js';
+import {
   runModelCurrent,
   runModelList,
   runModelTest,
@@ -171,6 +176,45 @@ program
   .action(async function (this: Command) {
     const code = await runDoctor(collectGlobals(this));
     process.exitCode = code;
+  });
+
+const skillsCmd = program
+  .command('skills')
+  .description('list, validate, or scaffold agent skills (SKILL.md playbooks)');
+
+skillsCmd
+  .command('list')
+  .description('list skills from bundled, ~/.spark-cli/skills/, and .spark-cli/skills/')
+  .action(async function (this: Command) {
+    try {
+      await runSkillsList(collectGlobals(this.parent as Command));
+    } catch (e) {
+      exitWithError(e);
+    }
+  });
+
+skillsCmd
+  .command('validate')
+  .description('check SKILL.md files for invalid patterns or unknown allowedTools')
+  .action(async function (this: Command) {
+    try {
+      const code = await runSkillsValidate(collectGlobals(this.parent as Command));
+      process.exitCode = code;
+    } catch (e) {
+      exitWithError(e);
+    }
+  });
+
+skillsCmd
+  .command('init <name>')
+  .description('create .spark-cli/skills/<name>/SKILL.md from a template')
+  .option('--force', 'overwrite existing SKILL.md')
+  .action(async function (this: Command, name: string, opts: { force?: boolean }) {
+    try {
+      await runSkillsInit(collectGlobals(this.parent as Command), { name, force: opts.force });
+    } catch (e) {
+      exitWithError(e);
+    }
   });
 
 const modelCmd = program.command('model').description('manage LLM provider and model');
@@ -523,8 +567,8 @@ assetCmd
   .description('lint texture/audio/unused-asset issues under assets/')
   .option('--dir <dir>', 'subdirectory to scan (default: assets)')
   .option('--disable <rules>', 'comma-separated rule ids to skip')
-  .action(function (this: Command, opts: { dir?: string; disable?: string }) {
-    runAssetAudit(collectGlobals(this.parent as Command), opts);
+  .action(async function (this: Command, opts: { dir?: string; disable?: string }) {
+    await runAssetAudit(collectGlobals(this.parent as Command), opts);
   });
 
 assetCmd
@@ -533,8 +577,8 @@ assetCmd
   .requiredOption('--rule <id>', 'rule id from `spark-cli asset audit`')
   .option('--apply', 'stage the fix; without this flag a dry-run plan is printed')
   .option('--dir <dir>', 'subdirectory to scan (default: assets)')
-  .action(function (this: Command, opts: { rule: string; apply?: boolean; dir?: string }) {
-    runAssetFix(collectGlobals(this.parent as Command), opts);
+  .action(async function (this: Command, opts: { rule: string; apply?: boolean; dir?: string }) {
+    await runAssetFix(collectGlobals(this.parent as Command), opts);
   });
 
 assetCmd

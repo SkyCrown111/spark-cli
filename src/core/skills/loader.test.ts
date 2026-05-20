@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { parseSkillFile, loadSkillsFromDisk } from './loader.js';
+import { parseSkillFile, loadSkillsFromDisk, loadSkillsFromParentDir, compileSkillTriggerPattern } from './loader.js';
 import { createSkillRegistry } from './registry.js';
 
 let projectRoot: string;
@@ -40,9 +40,23 @@ describe('parseSkillFile', () => {
   });
 });
 
-describe('loadSkillsFromDisk', () => {
+describe('compileSkillTriggerPattern', () => {
+  it('parses slash-delimited regex', () => {
+    const r = compileSkillTriggerPattern('/foo.bar/i');
+    expect(r?.test('FooXbar')).toBe(true);
+  });
+  it('returns undefined for invalid pattern', () => {
+    expect(compileSkillTriggerPattern('[')).toBeUndefined();
+  });
+});
+
+describe('loadSkillsFromParentDir', () => {
+  function projectSkillsDir(): string {
+    return join(projectRoot, '.spark-cli', 'skills');
+  }
+
   function writeSkill(name: string, raw: string): void {
-    const dir = join(projectRoot, '.spark-cli', 'skills', name);
+    const dir = join(projectSkillsDir(), name);
     mkdirSync(dir, { recursive: true });
     writeFileSync(join(dir, 'SKILL.md'), raw, 'utf8');
   }
@@ -58,7 +72,7 @@ describe('loadSkillsFromDisk', () => {
     );
 
     const reg = createSkillRegistry();
-    loadSkillsFromDisk(reg, projectRoot);
+    loadSkillsFromParentDir(reg, projectSkillsDir());
 
     expect(reg.list().map((s) => s.name).sort()).toEqual(['physics', 'tilemap']);
     expect(reg.get('tilemap')?.body).toBe('body-tile');
@@ -67,15 +81,39 @@ describe('loadSkillsFromDisk', () => {
   it('uses folder name when frontmatter omits name', () => {
     writeSkill('cocos-tilemap', '---\ndescription: x\n---\nbody');
     const reg = createSkillRegistry();
-    loadSkillsFromDisk(reg, projectRoot);
+    loadSkillsFromParentDir(reg, projectSkillsDir());
     expect(reg.get('cocos-tilemap')).toBeTruthy();
   });
 
   it('skips entries without SKILL.md', () => {
-    mkdirSync(join(projectRoot, '.spark-cli', 'skills', 'empty'), { recursive: true });
+    mkdirSync(join(projectSkillsDir(), 'empty'), { recursive: true });
+    const reg = createSkillRegistry();
+    loadSkillsFromParentDir(reg, projectSkillsDir());
+    expect(reg.list()).toEqual([]);
+  });
+
+  it('later directory load overwrites same skill name', () => {
+    const a = join(projectRoot, 'a-skills');
+    const b = join(projectRoot, 'b-skills');
+    mkdirSync(join(a, 'dup'), { recursive: true });
+    mkdirSync(join(b, 'dup'), { recursive: true });
+    writeFileSync(join(a, 'dup', 'SKILL.md'), '---\nname: dup\n---\nfirst', 'utf8');
+    writeFileSync(join(b, 'dup', 'SKILL.md'), '---\nname: dup\n---\nsecond', 'utf8');
+    const reg = createSkillRegistry();
+    loadSkillsFromParentDir(reg, a);
+    loadSkillsFromParentDir(reg, b);
+    expect(reg.get('dup')?.body).toBe('second');
+  });
+});
+
+describe('loadSkillsFromDisk', () => {
+  it('includes project skills when only project dir exists', () => {
+    const dir = join(projectRoot, '.spark-cli', 'skills', 'only');
+    mkdirSync(dir, { recursive: true });
+    writeFileSync(join(dir, 'SKILL.md'), '---\nname: onlyproj\n---\nbody', 'utf8');
     const reg = createSkillRegistry();
     loadSkillsFromDisk(reg, projectRoot);
-    expect(reg.list()).toEqual([]);
+    expect(reg.get('onlyproj')?.body).toBe('body');
   });
 });
 

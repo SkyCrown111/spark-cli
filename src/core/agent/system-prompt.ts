@@ -6,7 +6,8 @@
  *   2. Project context (engine, scenes, scripts) — cached per session
  *   3. Memory block (project + session)
  *   4. Knowledge hits (BM25 over knowledge/*.md)
- *   5. Tool-use preamble (when to call tools, write-mode rules, plan mode)
+ *   5. Skills index + trigger-inlined bodies (when registry present)
+ *   6. Tool-use preamble (when to call tools, write-mode rules, plan mode)
  *
  * The cached project context is the optimization: the previous codepath
  * re-scanned every turn. We scan once per agent session; `read_file` / `glob`
@@ -27,6 +28,7 @@ import type { ToolWriteMode, ToolRunMode } from './tool-registry.js';
 import type { SkillRegistry } from '../skills/registry.js';
 
 const MAX_SKILL_BYTES = 16 * 1024;
+const MAX_SKILL_INDEX_LINES = 48;
 
 const contextCache = new Map<string, ProjectContext>();
 
@@ -48,7 +50,7 @@ function toolPreamble(mode: ToolRunMode, writeMode: ToolWriteMode): string {
     mode === 'plan'
       ? `
 PLAN MODE ENGAGED — read-only.
-- Tools available: read_file, list_dir, glob, grep, and any read-only MCP tools.
+- Tools available: read_file, list_dir, glob, grep, load_skill, and any read-only MCP tools.
 - DO NOT call write_file, edit_file, or bash. They will be refused.
 - When you have enough understanding, summarize your plan in plain prose. The
   user will review and use /exit-plan to approve. Do not write files yourself.
@@ -75,8 +77,9 @@ Order of preference:
 1. list_dir, glob — discover structure quickly.
 2. read_file — read a specific path. Pass offset/limit for large files.
 3. grep — find patterns across the tree.
-4. write_file — create new files. edit_file — modify existing ones.
-5. bash — last resort for build/test commands. 30s timeout.
+4. load_skill — load a named skill (see **Skills (index)** when present in this prompt).
+5. write_file — create new files. edit_file — modify existing ones.
+6. bash — last resort for build/test commands. 30s timeout.
 
 Tool-result loop:
 - After every tool call, you will receive its output as a tool message. Decide
@@ -135,6 +138,32 @@ export function buildAgentSystemPrompt(opts: SystemPromptOpts): string {
         }
         sections.push(lines.join('\n'));
       }
+    }
+  }
+
+  if (opts.skills) {
+    const catalog = opts.skills.list();
+    if (catalog.length > 0) {
+      const lines = [
+        '## Skills (index)',
+        'Playbooks may be bundled with SparkCLI, installed under `~/.spark-cli/skills/`, or in `.spark-cli/skills/`. Later layers override the same skill name.',
+        'Call **`load_skill`** with `{ "name": "<skill>" }` to pull the full body. Matching **triggers** may auto-inline excerpts in a later section.',
+        '',
+      ];
+      for (const s of catalog.slice(0, MAX_SKILL_INDEX_LINES)) {
+        const desc = s.description ? ` — ${s.description}` : '';
+        const trigHint =
+          s.triggers.length > 0
+            ? ` _(triggers: ${s.triggers.slice(0, 5).join(', ')}${s.triggers.length > 5 ? ', …' : ''})_`
+            : '';
+        lines.push(`- **${s.name}**${desc}${trigHint}`);
+      }
+      if (catalog.length > MAX_SKILL_INDEX_LINES) {
+        lines.push(
+          `- _…and ${catalog.length - MAX_SKILL_INDEX_LINES} more (run \`/skills\` or \`spark-cli skills list\`)_`,
+        );
+      }
+      sections.push(lines.join('\n'));
     }
   }
 

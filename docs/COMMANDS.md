@@ -38,11 +38,29 @@ One-shot: `spark-cli chat "…"` runs a single agent turn. `spark-cli gen --agen
 | `spark-cli config init` | Interactive wizard (`~/.spark-cli/config.yaml` or project) |
 | `spark-cli config show` | Print global config path and default model |
 
+## Skills (agent playbooks)
+
+Skills are markdown playbooks with YAML-ish frontmatter, loaded from (lowest → highest precedence; later wins on duplicate **`name`**):
+
+1. Bundled with the CLI (`dist/skills/` in release builds; repo `skills/` in dev)
+2. `~/.spark-cli/skills/<name>/SKILL.md`
+3. `<project>/.spark-cli/skills/<name>/SKILL.md`
+
+| Command | Description |
+|---------|-------------|
+| `spark-cli skills list` | List all loaded skills (`--json` supported) |
+| `spark-cli skills validate` | Check `triggerPattern`, `allowedTools`, shadowing; exit `2` on errors |
+| `spark-cli skills init <name>` | Create `.spark-cli/skills/<name>/SKILL.md` from a template (`--force` overwrite) |
+
+Frontmatter: **`name`**, **`description`**, **`triggers`** (substring list), **`triggerPattern`** (regex, e.g. `/foo/i`), **`allowedTools`** (widens plan/MCP gates after **`load_skill`**). The system prompt includes **Skills (index)** when skills exist; matching triggers may auto-inline the body (byte cap). REPL: **`/skills`**.
+
 Custom provider keys: use `api_key` in YAML **or** `key_env: MIMO_API_KEY` plus `$env:MIMO_API_KEY` (not the token in `key_env`).
 
 ## Agent tools (REPL / `chat`)
 
 Built-ins: `read_file`, `write_file`, `edit_file`, `bash`, `grep`, `glob`, `list_dir`, `task`, `load_skill`, `remember`, `recall`.
+
+Optional `spark-cli.config.yaml`: `agent.maxIterations`, `agent.toolDispatchConcurrency` (max parallel tool calls per provider round; default 3). `subagent.model` uses a different model for `task`-spawned sub-agents (`provider/model` or a model id with the task’s inherited provider); invalid values fail fast at spawn. `subagent.concurrency` is a deprecated alias for `agent.toolDispatchConcurrency` when the latter is unset. `tools.gen.image` (`enabled`, `provider: mock|openai|stability`) and `tools.gen.audio` (`enabled`, `provider: mock|elevenlabs`) — OpenAI images uses the Images API when enabled; Stability/ElevenLabs return explicit errors until implemented.
 
 Engine / editor (when applicable):
 
@@ -60,7 +78,7 @@ Engine / editor (when applicable):
 | Command | Description |
 |---------|-------------|
 | `spark-cli init` | Create `spark-cli.config.yaml`, `.spark-cli/` |
-| `spark-cli doctor` | Node, config, engine, API keys |
+| `spark-cli doctor` | Node, config, engine, API keys; `--json` adds `parity.capabilities` (image/audio gen, cpp index, assets audit backend, optional packages). Editor Bridge: [BRIDGE.md](./BRIDGE.md) |
 | `spark-cli validate` | `tsc` or `dotnet build`, scene integrity (Cocos) |
 
 ## Model

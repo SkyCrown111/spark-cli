@@ -116,7 +116,7 @@
 
 - 新检查项：
   - `agent_tools`：注册的工具数（含 MCP 适配），列出与 Claude Code 标准工具的对照（缺哪个）。
-  - `skills`：扫描 `.spark-cli/skills/`、`~/.spark-cli/skills/` 与 bundled。
+  - `skills`：扫描 bundled `dist/skills/`（开发时 repo `skills/`）、`~/.spark-cli/skills/`、`.spark-cli/skills/`；`spark-cli skills list|validate|init`；`doctor` / `--json` 的 `parity.skills` 含 `errors` / `warnings`。
   - `hooks`：列已配置 hook 数与事件覆盖。
   - `memory`：跨会话 memory 路径是否存在、`MEMORY.md` 行数。
   - `worktree`：`git worktree list` 中 `.spark-cli/worktrees/*` 是否有遗留。

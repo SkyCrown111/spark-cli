@@ -55,6 +55,31 @@ export function isEnvVarName(name: string): boolean {
   return /^[A-Z][A-Z0-9_]*$/.test(name);
 }
 
+/** Normalize user input like `baidu_api_key` → `BAIDU_API_KEY`. */
+export function normalizeEnvVarName(input: string): string {
+  const cleaned = input
+    .trim()
+    .replace(/[^A-Za-z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '');
+  if (!cleaned) return '';
+  return cleaned.toUpperCase();
+}
+
+/** Heuristic: user pasted a secret token instead of an env var name. */
+export function looksLikePastedApiKey(input: string): boolean {
+  const s = input.trim();
+  if (!s) return false;
+  if (isEnvVarName(s)) return false;
+  if (/^(sk|pk|api|tp|bce)-/i.test(s)) return true;
+  if (s.length >= 24 && /[a-z]/.test(s) && /[0-9]/.test(s)) return true;
+  return false;
+}
+
+export function suggestEnvVarNameForProvider(providerId: string): string {
+  const base = normalizeEnvVarName(providerId) || 'SPARK_CLI';
+  return base.endsWith('_API_KEY') ? base : `${base}_API_KEY`;
+}
+
 export function resolveCustomProviderApiKey(custom: {
   api_key?: string;
   key_env?: string;

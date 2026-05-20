@@ -1,9 +1,10 @@
 /**
- * Audio / SFX generation providers (mock-first).
+ * Audio / SFX generation providers (mock-first; ElevenLabs hook).
  */
 
 import type { SparkCLIConfig } from '../../config/schema.js';
 import { stageWriteBuffer } from '../staging/patch-manager.js';
+import { SparkCLIError } from '../../utils/errors.js';
 
 export interface AudioGenRequest {
   prompt: string;
@@ -59,8 +60,22 @@ export function isAudioGenEnabled(config: SparkCLIConfig): boolean {
   return config.tools?.gen?.audio?.enabled === true;
 }
 
-export function resolveAudioGenProvider(_config: SparkCLIConfig): AudioGenProvider {
-  return new MockAudioGenProvider();
+export function resolveAudioGenProviderId(config: SparkCLIConfig): string {
+  const id = config.tools?.gen?.audio?.provider ?? 'mock';
+  if (!isAudioGenEnabled(config)) return 'mock';
+  return id;
+}
+
+export function resolveAudioGenProvider(config: SparkCLIConfig): AudioGenProvider {
+  const effective = resolveAudioGenProviderId(config);
+  if (effective === 'mock') return new MockAudioGenProvider();
+  if (effective === 'elevenlabs') {
+    throw new SparkCLIError(
+      'ElevenLabs audio provider is not implemented yet. Use provider: mock or disable tools.gen.audio.',
+      1,
+    );
+  }
+  throw new SparkCLIError(`Unknown audio provider: ${effective}`, 1);
 }
 
 export async function generateAudioAsset(

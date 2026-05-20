@@ -39,6 +39,7 @@ async function handler(
     completeFn: ctx.subAgent.completeFn,
     parentRegistry: ctx.subAgent.parentRegistry,
     systemPrompt: ctx.subAgent.systemPrompt,
+    hooks: ctx.subAgent.hooks,
   });
 
   return {

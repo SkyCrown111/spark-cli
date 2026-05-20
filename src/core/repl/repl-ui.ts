@@ -90,32 +90,45 @@ function formatModeRight(state: ShellState): string {
   return parts.join(chalk.dim(' · '));
 }
 
+/** Compact token count for status line (e.g. 8.0k, 1M). */
+export function formatTokenCompact(n: number): string {
+  if (n >= 1_000_000) {
+    const m = n / 1_000_000;
+    return Number.isInteger(m) ? `${m}M` : `${m.toFixed(1)}M`;
+  }
+  if (n >= 10_000) return `${Math.round(n / 1000)}k`;
+  if (n >= 1000) return `${(n / 1000).toFixed(1)}k`;
+  return String(n);
+}
+
 /** Format token usage as a compact status bar. */
 function formatTokenUsage(usage: TokenUsageInfo): string {
   const { used, budget } = usage;
   const pct = budget > 0 ? Math.max(0, Math.min(100, Math.round((used / budget) * 100))) : 0;
-  const usedK = used >= 1000 ? `${(used / 1000).toFixed(1)}k` : String(used);
-  const budgetK = budget >= 1000 ? `${(budget / 1000).toFixed(0)}k` : String(budget);
+  const usedLabel = formatTokenCompact(used);
+  const budgetLabel = formatTokenCompact(budget);
   const bar = renderTokenBar(pct);
 
   const pctColor =
     pct > 90 ? chalk.hex('#F87171') : pct > 70 ? chalk.hex('#FBBF24') : chalk.hex('#9CA3AF');
 
-  return chalk.dim('ctx ') + bar + chalk.dim(` ${usedK}/${budgetK} `) + pctColor(`${pct}%`);
+  return chalk.dim('ctx ') + bar + chalk.dim(` ${usedLabel}/${budgetLabel} `) + pctColor(`${pct}%`);
 }
 
 function renderTokenBar(pct: number): string {
   const width = 14;
-  const filled = Math.round((pct / 100) * width);
-  const full = supportsUnicodeUi() ? '█' : '#';
-  const empty = supportsUnicodeUi() ? '─' : '-';
+  const filled = Math.max(0, Math.min(width, Math.round((pct / 100) * width)));
+  const empty = width - filled;
+  const fillChar = supportsUnicodeUi() ? '█' : '#';
+  /** Spaces (not dashes) so 0% reads as an empty bar, not a full one. */
+  const emptyChar = ' ';
   const fillColor =
     pct > 90 ? chalk.hex('#F87171') : pct > 70 ? chalk.hex('#FBBF24') : chalk.hex('#94A3B8');
 
   return (
     chalk.dim('[') +
-    fillColor(full.repeat(filled)) +
-    chalk.hex('#374151')(empty.repeat(Math.max(0, width - filled))) +
+    (filled > 0 ? fillColor(fillChar.repeat(filled)) : '') +
+    chalk.dim(emptyChar.repeat(empty)) +
     chalk.dim(']')
   );
 }

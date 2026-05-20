@@ -45,6 +45,7 @@ function scriptedCompletion(scripts: ProviderResponse[]): CompletionFn {
 beforeEach(() => {
   projectRoot = mkdtempSync(join(tmpdir(), 'spark-cli-subagent-'));
   parentRegistry = createToolRegistry();
+  const stub = async () => ({ content: '' });
   parentRegistry.register({
     name: 'read_file',
     description: '',
@@ -59,6 +60,15 @@ beforeEach(() => {
     mutates: true,
     handler: async () => ({ content: 'wrote' }),
   });
+  for (const name of ['glob', 'grep', 'list_dir', 'load_skill'] as const) {
+    parentRegistry.register({
+      name,
+      description: '',
+      parameters: { type: 'object', properties: {} },
+      planModeAllowed: true,
+      handler: stub,
+    });
+  }
 });
 
 describe('spawnSubAgent', () => {
@@ -133,14 +143,26 @@ describe('spawnSubAgent', () => {
     expect(observedTools).not.toContain('write_file');
   });
 
-  it('defaults to read-only tools when none specified', async () => {
-    parentRegistry.register({
-      name: 'list_dir',
-      description: '',
-      parameters: { type: 'object', properties: {} },
-      planModeAllowed: true,
-      handler: async () => ({ content: '' }),
+  it('refuses when subagent.model cannot be resolved', async () => {
+    const r = await spawnSubAgent({
+      prompt: 'p',
+      parent: ctx({
+        config: makeConfig({
+          subagent: { model: 'missing-provider/unknown-model-xyz' },
+        } as Partial<SparkCLIConfig>),
+      }),
+      parentRegistry,
+      systemPrompt: 's',
+      completeFn: scriptedCompletion([
+        { content: 'x', stop_reason: 'end_turn' } as ProviderResponse,
+      ]),
     });
+    expect(r.isError).toBe(true);
+    expect(r.content).toMatch(/subagent\.model/);
+    expect(r.iterations).toBe(0);
+  });
+
+  it('defaults to read-only tools when none specified', async () => {
     let observedTools: string[] = [];
     const completeFn: CompletionFn = async (_msgs, options) => {
       observedTools = (options.tools ?? []).map((t) => t.function.name);
@@ -153,9 +175,7 @@ describe('spawnSubAgent', () => {
       systemPrompt: 's',
       completeFn,
     });
-    // Default read-only set.
-    expect(observedTools).toContain('read_file');
-    expect(observedTools).toContain('list_dir');
+    expect(observedTools.sort()).toEqual(['glob', 'grep', 'list_dir', 'load_skill', 'read_file'].sort());
     expect(observedTools).not.toContain('write_file');
   });
 });

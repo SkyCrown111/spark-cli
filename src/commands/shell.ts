@@ -24,7 +24,7 @@ import { resolveProjectRoot } from '../utils/output.js';
 import { loadMergedConfig } from '../config/load.js';
 import { scanProjectContext } from '../core/context/project-scanner.js';
 import { resolveModelForTask } from '../core/providers/router.js';
-import { resolveContextBudget } from '../core/providers/model-context.js';
+import { buildTokenUsageSnapshot } from '../core/context/token-usage.js';
 import type { ChatMessage } from '../core/providers/openai-compatible.js';
 import { runAgentTurnForCli } from '../core/agent/run-turn.js';
 import type { ToolWriteMode } from '../core/agent/tool-registry.js';
@@ -49,7 +49,6 @@ import {
 } from '../core/slash/plan-mode.js';
 import { runHooks } from '../core/hooks/runner.js';
 import { loadHookConfig } from '../core/hooks/config.js';
-import { estimateTokens } from '../core/context/token-budget.js';
 import { compactHistory } from '../core/context/compaction.js';
 import { resolveCompletionFn } from '../core/agent/run-turn.js';
 import { appendReplayEvent } from '../core/replay/log.js';
@@ -62,8 +61,7 @@ import {
   printAssistantBlock,
   printAssistantError,
   printInterrupted,
-  printToolCallCard,
-  printToolIteration,
+  printToolBatch,
   printUserTurn,
   startThinkingSpinner,
   type ThinkingSpinner,
@@ -76,6 +74,12 @@ import {
 } from '../core/repl/mascot.js';
 import { ToolPermissionSession } from '../core/agent/tool-permissions.js';
 import { askToolConfirm } from '../core/repl/tool-confirm.js';
+import {
+  clearReplModalHandler,
+  dispatchReplModalKey,
+  registerReplModalHooks,
+} from '../core/repl/repl-prompt-bridge.js';
+import { restoreReplInput } from '../core/repl/restore-input.js';
 import { askUserInRepl } from '../core/repl/ask-user.js';
 import { getBackgroundManager } from '../core/agent/background-tasks.js';
 import { printInlineDiffForPath } from '../core/staging/inline-diff.js';
@@ -164,12 +168,7 @@ async function buildWelcomeText(
       model: opts.model,
     });
     modelLine = `${resolved.providerId}/${resolved.model}`;
-    if (!state.tokenUsage) {
-      state.tokenUsage = {
-        used: estimateTokens(state.history),
-        budget: resolveContextBudget(config, resolved),
-      };
-    }
+    state.tokenUsage = buildTokenUsageSnapshot(config, resolved, state.history);
   } catch (e) {
     modelLine = e instanceof Error ? e.message : String(e);
   }
@@ -405,11 +404,10 @@ export async function _handleSlashImpl(
       provider: opts.provider,
       model: opts.model,
     });
-    const budget = resolveContextBudget(cfg, resolved);
-    const used = estimateTokens(state.history);
-    const pct = budget > 0 ? Math.round((used / budget) * 100) : 0;
+    const snap = buildTokenUsageSnapshot(cfg, resolved, state.history);
+    const pct = snap.budget > 0 ? Math.round((snap.used / snap.budget) * 100) : 0;
     console.log(chalk.dim('messages:'), state.history.length);
-    console.log(chalk.dim('tokens:'), `${used} / ${budget}`, chalk.dim(`(${pct}%)`));
+    console.log(chalk.dim('tokens:'), `${snap.used} / ${snap.budget}`, chalk.dim(`(${pct}%)`));
     console.log(
       chalk.dim('write-mode:'),
       state.writeMode === 'direct' ? chalk.yellow('direct (auto)') : chalk.cyan('staging'),
@@ -607,6 +605,7 @@ export async function runShell(
   const projectRoot = resolveProjectRoot(opts);
   const registry = buildShellRegistry(projectRoot);
   await printBannerAsync(opts, state, shellOpts);
+  writeReplLine('');
   let hookConfig = loadHookConfig(projectRoot);
   runHooks(
     'session_start',
@@ -623,6 +622,16 @@ export async function runShell(
   const inputBox = new InputBox({
     completer: createSlashCompleter(registry),
     onRenderChrome: () => printInputBoxChrome(state, footerMessage),
+  });
+  const turnUi = {
+    stopSpinner: (): void => {},
+    restartSpinner: (): void => {},
+  };
+  registerReplModalHooks({
+    onOpen: () => turnUi.stopSpinner(),
+    onClose: () => {
+      if (activeController) turnUi.restartSpinner();
+    },
   });
   let activeController: AbortController | null = null;
   let pendingSecondCtrlC = false;
@@ -690,7 +699,10 @@ export async function runShell(
   const showPrompt = (): void => {
     pendingSecondCtrlC = false;
     clearFooterMessage();
-    inputBox.show();
+    clearReplModalHandler();
+    if (!inputBox.isVisible) {
+      inputBox.show();
+    }
   };
 
   /** 
@@ -771,6 +783,8 @@ export async function runShell(
       if (opts.json || thinkingSpinner) return;
       thinkingSpinner = startThinkingSpinner('Concocting...');
     };
+    turnUi.stopSpinner = stopThinkingSpinner;
+    turnUi.restartSpinner = restartThinkingSpinner;
     restartThinkingSpinner();
     const expanded = expandAtReferences(projectRoot, userInput);
     if (expanded.refs.length > 0 && !opts.json) {
@@ -796,19 +810,18 @@ export async function runShell(
       askUser: askUserInRepl,
       onToolCompleted: (call) => {
         onStagingToolCompleted(projectRoot, call, state.writeMode);
-        if (!opts.json) {
-          stopThinkingSpinner();
-          printToolCallCard(call.tool, call.durationMs, !!call.result.isError);
-          restartThinkingSpinner();
-        }
       },
       onIteration: (info) => {
-        if (!opts.json) {
-          if (info.toolCalls.length > 0 && !info.dispatched) {
-            stopThinkingSpinner();
-            printToolIteration(info.iteration, info.toolCalls.map((t) => t.function.name).join(', '));
-            restartThinkingSpinner();
-          }
+        if (!opts.json && info.dispatched && info.dispatched.length > 0) {
+          stopThinkingSpinner();
+          printToolBatch(
+            info.dispatched.map((d) => ({
+              tool: d.tool,
+              durationMs: d.durationMs,
+              isError: Boolean(d.result.isError),
+            })),
+          );
+          restartThinkingSpinner();
         }
       },
     }).finally(() => {
@@ -817,19 +830,18 @@ export async function runShell(
     });
     state.history = result.history;
 
-    // Update token usage for the mode line display.
-    if (result.usage) {
-      const promptTokens = result.usage.prompt_tokens ?? 0;
-      const completionTokens = result.usage.completion_tokens ?? 0;
-      const totalUsed = promptTokens + completionTokens;
-      const config = await loadMergedConfig(projectRoot);
-      const resolved = resolveModelForTask(config, 'chat', {
-        provider: opts.provider,
-        model: opts.model,
-      });
-      const budget = resolveContextBudget(config, resolved);
-      state.tokenUsage = { used: totalUsed, budget };
-    }
+    // Update token usage for the mode line (always refresh; API usage preferred).
+    const config = await loadMergedConfig(projectRoot);
+    const resolved = resolveModelForTask(config, 'chat', {
+      provider: opts.provider,
+      model: opts.model,
+    });
+    state.tokenUsage = buildTokenUsageSnapshot(
+      config,
+      resolved,
+      state.history,
+      result.usage,
+    );
 
     if (isPlan && result.finalContent) {
       state.plan = recordPlanTurn(state.plan, userInput, result.finalContent);
@@ -900,6 +912,7 @@ export async function runShell(
       await runTurn(turnText, mode);
     } catch (e) {
       activeController = null;
+      restoreReplInput(inputBox);
       if (e instanceof SparkCLIError) {
         printAssistantError(e.message);
         if (e.hints?.length) {
@@ -934,7 +947,11 @@ export async function runShell(
         }
       }
 
-      // Shift+Tab 闂?cycle mode
+      if (dispatchReplModalKey(chunk, key ?? {})) {
+        return;
+      }
+
+      // Shift+Tab — cycle mode
       if (key && key.name === 'tab' && key.shift) {
         cycleMode();
         return;
@@ -959,7 +976,7 @@ export async function runShell(
     });
   }
 
-  unwatchResize = watchTtyResize(handleTerminalResize);
+  unwatchResize = watchTtyResize(handleTerminalResize, { debounceMs: 200 });
 
   // Show the initial input box
   showPrompt();

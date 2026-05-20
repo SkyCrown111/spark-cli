@@ -2,7 +2,12 @@ import chalk from 'chalk';
 import inquirer from 'inquirer';
 import { loadGlobalConfig, saveGlobalConfig } from '../config/load.js';
 import { getGlobalConfigPath } from '../config/paths.js';
-import { BUILTIN_PROVIDERS } from '../core/providers/registry.js';
+import {
+  BUILTIN_PROVIDERS,
+  looksLikePastedApiKey,
+  normalizeEnvVarName,
+  suggestEnvVarNameForProvider,
+} from '../core/providers/registry.js';
 import type { GlobalOptions } from '../utils/output.js';
 import { resolveProjectRoot } from '../utils/output.js';
 import { runInit, type InitEngine } from './init.js';
@@ -63,23 +68,101 @@ export async function runConfigInit(opts: GlobalOptions): Promise<void> {
     const custom = await inquirer.prompt<{
       name: string;
       base_url: string;
-      key_env: string;
     }>([
-      { type: 'input', name: 'name', message: 'Provider id (e.g. mimo)', validate: (v) => !!v.trim() },
+      { type: 'input', name: 'name', message: 'Provider id (e.g. baidu, mimo)', validate: (v) => !!v.trim() },
       {
         type: 'input',
         name: 'base_url',
         message: 'API base URL (e.g. https://api.example.com/v1)',
         validate: (v) => (v.startsWith('http') ? true : 'Must be a URL'),
       },
-      {
-        type: 'input',
-        name: 'key_env',
-        message: 'Environment variable name for API key (e.g. MIMO_API_KEY)',
-        validate: (v) => (/^[A-Z][A-Z0-9_]*$/.test(v) ? true : 'Use UPPER_SNAKE_CASE name'),
-      },
     ]);
     providerId = custom.name.trim();
+    const envDefault = suggestEnvVarNameForProvider(providerId);
+
+    const { keyMode } = await inquirer.prompt<{ keyMode: 'env' | 'config' }>([
+      {
+        type: 'list',
+        name: 'keyMode',
+        message: 'How do you want to store your API key?',
+        choices: [
+          {
+            name: 'Environment variable (recommended — key not saved in yaml)',
+            value: 'env',
+          },
+          {
+            name: 'Save in ~/.spark-cli/config.yaml as api_key',
+            value: 'config',
+          },
+        ],
+        default: 'env',
+      },
+    ]);
+
+    let keyEnv: string | undefined;
+    let apiKey: string | undefined;
+
+    if (keyMode === 'env') {
+      const { key_env } = await inquirer.prompt<{ key_env: string }>([
+        {
+          type: 'input',
+          name: 'key_env',
+          message:
+            'Env var NAME only (not the secret). Example: BAIDU_API_KEY — lowercase is OK',
+          default: envDefault,
+          validate: (v) => {
+            const raw = v.trim();
+            if (!raw) return 'Enter a name like BAIDU_API_KEY';
+            if (looksLikePastedApiKey(raw)) {
+              return 'That looks like your API key. Enter a NAME (e.g. BAIDU_API_KEY), then paste the key in the next step.';
+            }
+            const normalized = normalizeEnvVarName(raw);
+            if (!normalized || !/^[A-Z][A-Z0-9_]*$/.test(normalized)) {
+              return 'Use letters, numbers, and underscores (e.g. BAIDU_API_KEY)';
+            }
+            return true;
+          },
+        },
+      ]);
+      keyEnv = normalizeEnvVarName(key_env);
+
+      const { keyValue } = await inquirer.prompt<{ keyValue: string }>([
+        {
+          type: 'password',
+          name: 'keyValue',
+          message: `Paste your API key (saved to $env:${keyEnv} for this session)`,
+          mask: '*',
+          validate: (v) => (v.trim().length > 0 ? true : 'API key cannot be empty'),
+        },
+      ]);
+      process.env[keyEnv] = keyValue.trim();
+      console.log(
+        chalk.green('✓'),
+        `Set $env:${keyEnv} for this terminal session.`,
+      );
+      console.log(
+        chalk.dim(
+          `  To persist: System Properties → Environment Variables → New user variable ${keyEnv}`,
+        ),
+      );
+    } else {
+      const { keyValue } = await inquirer.prompt<{ keyValue: string }>([
+        {
+          type: 'password',
+          name: 'keyValue',
+          message: 'Paste your API key (stored in config.yaml — do not commit this file)',
+          mask: '*',
+          validate: (v) => (v.trim().length > 0 ? true : 'API key cannot be empty'),
+        },
+      ]);
+      apiKey = keyValue.trim();
+      console.log(
+        chalk.yellow(
+          '\n  api_key is stored locally. Never commit ~/.spark-cli/config.yaml to git.\n',
+        ),
+      );
+    }
+
     config.providers = {
       ...config.providers,
       custom_providers: [
@@ -87,16 +170,12 @@ export async function runConfigInit(opts: GlobalOptions): Promise<void> {
         {
           name: providerId,
           base_url: custom.base_url.trim(),
-          key_env: custom.key_env.trim(),
+          ...(keyEnv ? { key_env: keyEnv } : {}),
+          ...(apiKey ? { api_key: apiKey } : {}),
           api_mode: 'openai',
         },
       ],
     };
-    console.log(
-      chalk.yellow(
-        `\nSet your key in PowerShell: $env:${custom.key_env.trim()} = "your-token"\n`,
-      ),
-    );
   } else {
     const builtin = BUILTIN_PROVIDERS.find((p) => p.id === providerId);
     if (builtin) {

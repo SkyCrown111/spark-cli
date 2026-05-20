@@ -61,19 +61,18 @@
 
 ---
 
-## 代码与 Phase 错位说明（诚实记录）
+## 历史说明（2026-05 更新）
 
-此前按「继续做」迭代时，部分 **Phase 2/3** 能力已提前写入仓库：
+早期迭代时部分能力先于对应 Phase 文档落地；**Phase 1–13 已全部验收**。下表仅作归档，勿再当作「待办」：
 
-| 能力 | 设计 Phase | 代码现状 |
-|------|----------|----------|
-| `gen` / `ui` / `scene` | 2 | 已有 |
-| `mcp serve`（只读） | 3 | 已有 |
-| `knowledge` / `memory` | 2 | **未做** |
-| Editor Bridge | 3 | **未做** |
-| `build` / `adapt` | 4 | **未做** |
-
-**处理方式**：不删已写代码；在 Phase 2/3 验收时视为「已完成项」勾掉，**补齐该 Phase 其余未做项** 后再进入下一 Phase。
+| 能力 | 设计 Phase | 现状 |
+|------|----------|------|
+| `gen` / `ui` / `scene` | 2 | ✅ |
+| `knowledge` / `memory` | 2 | ✅ CLI：`knowledge` / `memory` |
+| `mcp serve` + 写策略 | 3 | ✅ |
+| Editor Bridge | 3 | ✅ `src/bridge/` + 各引擎扩展 |
+| `build` / `adapt` | 4–5 | ✅ |
+| 实现深度与降级透明 | 0.3.x | 见 [IMPLEMENTATION-DEPTH.md](./IMPLEMENTATION-DEPTH.md) |
 
 ---
 

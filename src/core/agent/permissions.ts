@@ -6,6 +6,7 @@
 
 import type { SparkCLIConfig } from '../../config/schema.js';
 import type { ToolRunMode, ToolWriteMode } from './tool-registry.js';
+import { MCP_WRITE_TOOL_NAMES } from '../../mcp/tools.js';
 
 export interface PermissionInput {
   toolName: string;
@@ -30,18 +31,10 @@ export interface PermissionResult {
 }
 
 /**
- * MCP write tools (mirror of `*_TOOLS.write` packs in `src/mcp/tools.ts`).
+ * MCP write tools: canonical set exported from `src/mcp/tools.ts` as
+ * `MCP_WRITE_TOOL_NAMES` (built from `*_TOOLS.write` + `assets_fix`).
  * Used to gate MCP-adapted tools by both `mcp.allowWrite` AND plan mode.
- *
- * Keep in sync with the actual tool names registered in `src/mcp/tools.ts`.
- * The previous list referenced a non-existent `scene_update_component`; the
- * real name is `component_update`.
  */
-const MCP_WRITE_TOOL_NAMES = new Set<string>([
-  'scene_add_node',
-  'component_update',
-  'stage_project_file',
-]);
 
 export function isMcpWriteToolName(name: string): boolean {
   return MCP_WRITE_TOOL_NAMES.has(name);

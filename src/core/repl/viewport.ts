@@ -79,6 +79,7 @@ export function watchTtyResize(
 ): UnwatchTty {
   const stdout = process.stdout;
   const debounceMs = opts.debounceMs ?? 200; // Task 3.4: Increased from 150ms to 200ms
+  
   // Polling + resize together can fire multiple full redraws on Windows.
   const pollMs =
     opts.pollMs ??

@@ -40,7 +40,7 @@ describe('runAgentTurn', () => {
       baseOpts({ completeFn: stub.complete }),
     );
 
-    expect(result.stopReason).toBe('end_turn');
+    expect(result.stopReason).toBe('no_tools');
     expect(result.iterations).toBe(1);
     expect(result.finalContent).toBe('hello world');
     expect(result.toolCalls).toEqual([]);
@@ -233,7 +233,7 @@ describe('runAgentTurn', () => {
     expect(stub.calls).toHaveLength(0);
   });
 
-  it('aggregates token usage across iterations', async () => {
+  it('tracks last prompt_tokens and sums completion_tokens across iterations', async () => {
     registry.register({
       name: 't',
       description: '',
@@ -266,7 +266,7 @@ describe('runAgentTurn', () => {
       baseOpts({ completeFn: stub.complete }),
     );
 
-    expect(result.usage?.prompt_tokens).toBe(30);
+    expect(result.usage?.prompt_tokens).toBe(20);
     expect(result.usage?.completion_tokens).toBe(10);
   });
 

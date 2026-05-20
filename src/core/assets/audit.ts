@@ -1,10 +1,9 @@
 /**
  * Phase 14 #5 — Assets audit + fix.
  *
- * No optional native deps in this baseline. We sniff bytes from the file
- * headers ourselves:
- *   - PNG: width/height live at offset 16 (big-endian uint32 each).
- *   - JPG: walk SOFx markers (0xFF 0xC0..0xC3, 0xC5..0xC7, 0xC9..0xCB, 0xCD..0xCF).
+ * Image dimensions: optional `sharp` (PNG/JPEG/WebP) when installed, else header sniff:
+ *   - PNG: width/height at offset 16 (big-endian uint32 each).
+ *   - JPG: walk SOFx markers.
  *   - WAV: RIFF header at offset 0; sample rate at byte 24 (LE uint32),
  *     channels at byte 22 (LE uint16), bitsPerSample at 34, data size at 40.
  *   - OGG/MP3 are flagged by extension only (no deep parse) — they trigger size
@@ -19,6 +18,7 @@ import { existsSync, readFileSync, readdirSync, statSync, unlinkSync } from 'nod
 import { join, relative, extname } from 'node:path';
 import { stageWriteFile } from '../staging/patch-manager.js';
 import { findUnusedAssets } from './scanner.js';
+import { readImageDimensions } from './image-dims.js';
 
 export type AuditSeverity = 'error' | 'warn' | 'hint';
 
@@ -42,7 +42,10 @@ export interface AuditOptions {
   disable?: string[];
 }
 
-export function auditAssets(projectRoot: string, opts: AuditOptions = {}): AuditIssue[] {
+export async function auditAssets(
+  projectRoot: string,
+  opts: AuditOptions = {},
+): Promise<AuditIssue[]> {
   const dir = opts.dir ?? 'assets';
   const root = join(projectRoot, dir);
   if (!existsSync(root)) return [];
@@ -66,8 +69,8 @@ export function auditAssets(projectRoot: string, opts: AuditOptions = {}): Audit
     const ext = extname(rel).toLowerCase();
     const size = safeStatSize(full);
 
-    if (ext === '.png' || ext === '.jpg' || ext === '.jpeg') {
-      const dims = readImageDimensions(full, ext);
+    if (ext === '.png' || ext === '.jpg' || ext === '.jpeg' || ext === '.webp') {
+      const dims = await readImageDimensions(full, ext);
       if (dims) {
         if (!disabled.has('texture-oversize') && (dims.width > 2048 || dims.height > 2048)) {
           issues.push({
@@ -254,68 +257,6 @@ function isPowerOfTwo(n: number): boolean {
 
 function formatKB(bytes: number): string {
   return `${(bytes / 1024).toFixed(1)}KB`;
-}
-
-interface ImageDims {
-  width: number;
-  height: number;
-}
-
-function readImageDimensions(full: string, ext: string): ImageDims | null {
-  let buf: Buffer;
-  try {
-    buf = readFileSync(full);
-  } catch {
-    return null;
-  }
-  if (ext === '.png') return readPngDims(buf);
-  if (ext === '.jpg' || ext === '.jpeg') return readJpgDims(buf);
-  return null;
-}
-
-function readPngDims(buf: Buffer): ImageDims | null {
-  // PNG signature: 89 50 4E 47 0D 0A 1A 0A, then IHDR chunk at offset 16: width(4), height(4)
-  if (buf.length < 24) return null;
-  if (buf[0] !== 0x89 || buf[1] !== 0x50 || buf[2] !== 0x4e || buf[3] !== 0x47) return null;
-  const width = buf.readUInt32BE(16);
-  const height = buf.readUInt32BE(20);
-  if (!width || !height) return null;
-  return { width, height };
-}
-
-function readJpgDims(buf: Buffer): ImageDims | null {
-  if (buf.length < 4 || buf[0] !== 0xff || buf[1] !== 0xd8) return null;
-  let i = 2;
-  while (i < buf.length) {
-    if (buf[i] !== 0xff) return null;
-    let marker = buf[i + 1];
-    if (marker === undefined) return null;
-    // Skip fill bytes
-    while (marker === 0xff && i + 1 < buf.length) {
-      i++;
-      marker = buf[i + 1];
-      if (marker === undefined) return null;
-    }
-    i += 2;
-    // Standalone markers without segment length
-    if (marker === 0xd8 || marker === 0xd9) continue;
-    if (i + 1 >= buf.length) return null;
-    const segLen = buf.readUInt16BE(i);
-    // SOF markers carrying dims
-    const isSOF =
-      (marker >= 0xc0 && marker <= 0xc3) ||
-      (marker >= 0xc5 && marker <= 0xc7) ||
-      (marker >= 0xc9 && marker <= 0xcb) ||
-      (marker >= 0xcd && marker <= 0xcf);
-    if (isSOF) {
-      // Layout: length(2), precision(1), height(2), width(2)
-      const height = buf.readUInt16BE(i + 3);
-      const width = buf.readUInt16BE(i + 5);
-      return { width, height };
-    }
-    i += segLen;
-  }
-  return null;
 }
 
 interface WavMeta {

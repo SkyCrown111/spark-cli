@@ -115,13 +115,12 @@ export async function startMcpServer(): Promise<void> {
 
   server.setRequestHandler(CallToolRequestSchema, async (request) => {
     const { name, arguments: args } = request.params;
-    const result = handleMcpTool(
+    return handleMcpTool(
       name,
       (args as Record<string, unknown>) ?? {},
       projectRoot,
       config,
     );
-    return result;
   });
 
   const transport = new StdioServerTransport();

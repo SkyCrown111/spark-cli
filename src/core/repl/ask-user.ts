@@ -3,6 +3,7 @@ import { stdin as input, stdout as output } from 'node:process';
 import chalk from 'chalk';
 import type { AskUserFn, AskUserRequest } from '../agent/tool-permissions.js';
 import { accent, accentBold } from './theme.js';
+import { ensureRawStdin } from './restore-input.js';
 
 /**
  * REPL implementation of `ask_user_question`.
@@ -49,6 +50,7 @@ export const askUserInRepl: AskUserFn = async (req: AskUserRequest) => {
     }
   } finally {
     rl.close();
+    ensureRawStdin();
   }
 
   return { answers };

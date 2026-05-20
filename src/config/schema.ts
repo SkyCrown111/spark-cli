@@ -89,6 +89,11 @@ export const SparkCLIConfigSchema = z.object({
     .object({
       /** Hard cap on ReAct iterations per turn. Default 25. */
       maxIterations: z.number().int().positive().optional(),
+      /**
+       * Max parallel tool calls per model iteration (semaphore in tool dispatcher).
+       * Default 3. Distinct from sub-agent nesting limits.
+       */
+      toolDispatchConcurrency: z.number().int().positive().optional(),
     })
     .optional(),
   compaction: z
@@ -175,7 +180,11 @@ export const SparkCLIConfigSchema = z.object({
     .object({
       /** Hard cap on parent → child nesting (default 1; 0 = parent only). */
       maxDepth: z.number().int().min(0).optional(),
-      /** Max concurrent sub-agents in a single batch (default 3). */
+      /**
+       * @deprecated Prefer `agent.toolDispatchConcurrency`. When set and
+       * `agent.toolDispatchConcurrency` is unset, used as the per-iteration tool
+       * dispatch concurrency (historical mis-name).
+       */
       concurrency: z.number().int().positive().optional(),
       /** Override model used by sub-agents (e.g. cheaper model). */
       model: z.string().optional(),

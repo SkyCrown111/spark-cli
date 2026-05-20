@@ -35,6 +35,13 @@ if (watch) {
     console.log('copied knowledge/ → dist/knowledge/');
   }
 
+  const srcSkills = join(root, '..', 'skills');
+  const destSkills = join(root, '..', 'dist', 'skills');
+  if (existsSync(srcSkills)) {
+    cpSync(srcSkills, destSkills, { recursive: true });
+    console.log('copied skills/ → dist/skills/');
+  }
+
   const srcRules = join(root, '..', 'rules');
   const destRules = join(root, '..', 'dist', 'rules');
   if (existsSync(srcRules)) {

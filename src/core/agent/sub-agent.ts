@@ -28,8 +28,10 @@ import type { HookConfig } from '../hooks/config.js';
 import { runHooks } from '../hooks/runner.js';
 import type { SkillRegistry } from '../skills/registry.js';
 import { appendReplayEvent } from '../replay/log.js';
+import { completeChat, resolveModelForTask } from '../providers/router.js';
+import { resolveOutputMaxTokens } from '../../config/output-tokens.js';
 
-const DEFAULT_SUBAGENT_TOOLS = ['read_file', 'glob', 'grep', 'list_dir'];
+const DEFAULT_SUBAGENT_TOOLS = ['read_file', 'glob', 'grep', 'list_dir', 'load_skill'];
 const DEFAULT_MAX_DEPTH = 1;
 
 export interface SpawnSubAgentOptions {
@@ -65,7 +67,7 @@ export async function spawnSubAgent(
   opts: SpawnSubAgentOptions,
 ): Promise<SubAgentResult> {
   const cfg = opts.parent.config as {
-    subagent?: { maxDepth?: number; maxIterations?: number };
+    subagent?: { maxDepth?: number; maxIterations?: number; model?: string };
   };
   const maxDepth = cfg.subagent?.maxDepth ?? DEFAULT_MAX_DEPTH;
 
@@ -75,6 +77,38 @@ export async function spawnSubAgent(
       iterations: 0,
       isError: true,
     };
+  }
+
+  const subModelRaw = cfg.subagent?.model?.trim();
+  let childCompleteFn: CompletionFn = opts.completeFn;
+  if (subModelRaw) {
+    let resolvedSub;
+    try {
+      const slash = subModelRaw.indexOf('/');
+      resolvedSub =
+        slash >= 0
+          ? resolveModelForTask(opts.parent.config, 'chat', {
+              provider: subModelRaw.slice(0, slash).trim(),
+              model: subModelRaw.slice(slash + 1).trim(),
+            })
+          : resolveModelForTask(opts.parent.config, 'chat', { model: subModelRaw });
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      return {
+        content: `Sub-agent refused: invalid subagent.model "${subModelRaw}" — ${msg}`,
+        iterations: 0,
+        isError: true,
+      };
+    }
+    const maxTok = resolveOutputMaxTokens(opts.parent.config);
+    childCompleteFn = async (messages, options) =>
+      completeChat(resolvedSub, messages, {
+        maxTokens: options.maxTokens ?? maxTok,
+        tools: options.tools,
+        toolChoice: options.toolChoice,
+        config: opts.parent.config,
+        onDelta: options.onDelta,
+      });
   }
 
   const allowedToolNames = new Set(opts.tools ?? DEFAULT_SUBAGENT_TOOLS);
@@ -111,7 +145,7 @@ export async function spawnSubAgent(
     projectRoot: opts.parent.projectRoot,
     config: opts.parent.config,
     registry: childRegistry,
-    completeFn: opts.completeFn,
+    completeFn: childCompleteFn,
     systemPrompt: opts.systemPrompt,
     writeMode: opts.parent.writeMode,
     mode: opts.mode ?? opts.parent.mode,

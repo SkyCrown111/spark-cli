@@ -1,8 +1,9 @@
 /**
  * Phase 14 #4 — Unreal C++ index (regex fallback).
  *
- * Real-deal version would use `tree-sitter-cpp` as an optional dependency. For
- * the baseline acceptance we ship a regex-only implementation that pulls out:
+ * When `tree-sitter` + `tree-sitter-cpp` are installed, `cpp-index-ast.ts` parses
+ * the file and results are merged with regex (AST preferred on name collisions).
+ * Regex-only extraction pulls out:
  *   - UCLASS specifiers and their declared class name + base
  *   - GENERATED_BODY presence (mandatory inside UCLASS)
  *   - UFUNCTION specifiers and the next function declaration
@@ -14,6 +15,7 @@
 
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, relative } from 'node:path';
+import { isTreeSitterCppAvailable, parseCppOutlineAst } from './cpp-index-ast.js';
 
 export interface CppOutlineEntry {
   /** Project-relative path of the .h or .cpp file. */
@@ -48,6 +50,13 @@ export interface CppUProperty {
 
 const CPP_EXTS = new Set(['.h', '.hpp', '.cpp', '.cc']);
 
+export type CppIndexBackend = 'regex' | 'tree-sitter';
+
+/** Reports whether tree-sitter-cpp parsing is available. */
+export function getCppIndexBackend(): CppIndexBackend {
+  return isTreeSitterCppAvailable() ? 'tree-sitter' : 'regex';
+}
+
 export function indexUnrealCppDir(projectRoot: string, dir = 'Source'): CppOutlineEntry[] {
   const root = join(projectRoot, dir);
   const files: string[] = [];
@@ -58,12 +67,28 @@ export function indexUnrealCppDir(projectRoot: string, dir = 'Source'): CppOutli
 export function parseCppFile(projectRoot: string, full: string): CppOutlineEntry {
   const text = readFileSync(full, 'utf8');
   const rel = relative(projectRoot, full).replace(/\\/g, '/');
-  return {
-    file: rel,
+  const regex = {
     uclasses: extractUClasses(text),
     ufunctions: extractUFunctions(text),
     uproperties: extractUProperties(text),
   };
+  const ast = isTreeSitterCppAvailable() ? parseCppOutlineAst(text) : null;
+  if (!ast) {
+    return { file: rel, ...regex };
+  }
+  return {
+    file: rel,
+    uclasses: mergeByName(ast.uclasses, regex.uclasses),
+    ufunctions: mergeByName(ast.ufunctions, regex.ufunctions),
+    uproperties: mergeByName(ast.uproperties, regex.uproperties),
+  };
+}
+
+function mergeByName<T extends { name: string }>(primary: T[], fallback: T[]): T[] {
+  const map = new Map<string, T>();
+  for (const item of fallback) map.set(item.name, item);
+  for (const item of primary) map.set(item.name, item);
+  return [...map.values()];
 }
 
 export function findUClass(entries: CppOutlineEntry[], name: string): CppUClass | undefined {

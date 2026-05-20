@@ -15,11 +15,13 @@ import { isDotnetAvailable } from '../engines/unity/dotnet-validate.js';
 import { buildDefaultRegistry } from '../core/agent/tools/index.js';
 import { createSkillRegistry } from '../core/skills/registry.js';
 import { loadSkillsFromDisk } from '../core/skills/loader.js';
+import { validateSkills } from '../core/skills/validate.js';
 import { loadHookConfig } from '../core/hooks/config.js';
 import { listMemories } from '../core/memory/cross-session-store.js';
 import { listJobs as listCronJobs } from '../core/cron/store.js';
 import { getCrossSessionMemoryDir, getProjectSparkDir } from '../config/paths.js';
 import { listEngineMcpTools } from '../mcp/engine-tools.js';
+import { buildCapabilitySnapshot } from '../core/capabilities/snapshot.js';
 import type { GlobalOptions } from '../utils/output.js';
 import { printJson, resolveProjectRoot } from '../utils/output.js';
 
@@ -173,8 +175,6 @@ export async function runDoctor(opts: GlobalOptions): Promise<number> {
     }
   }
 
-  const allOk = checks.every((c) => c.ok);
-
   // Parity snapshot — surfaces the Phase 13 alignment surface so users can see
   // tools/skills/hooks/memory/worktree/cron at a glance.
   const parity = (() => {
@@ -184,6 +184,9 @@ export async function runDoctor(opts: GlobalOptions): Promise<number> {
     const skillReg = createSkillRegistry();
     if (config) loadSkillsFromDisk(skillReg, root);
     const skills = skillReg.list().map((s) => s.name).sort();
+    const skillValidation = config
+      ? validateSkills(root, config)
+      : { errors: [] as string[], warnings: [] as string[] };
 
     const hooksCfg = loadHookConfig(root);
     const hooks = Object.fromEntries(
@@ -206,10 +209,30 @@ export async function runDoctor(opts: GlobalOptions): Promise<number> {
     const web = config?.tools?.web?.enabled === true;
 
     const engineMcp = config ? listEngineMcpTools(root, config) : [];
+    const capabilities = config ? buildCapabilitySnapshot(config) : null;
+
+    if (capabilities && !capabilities.subagent.modelResolveOk) {
+      checks.push({
+        name: 'subagent_model',
+        ok: false,
+        message: capabilities.subagent.modelResolveMessage ?? 'subagent.model invalid',
+      });
+    } else if (capabilities?.subagent.model) {
+      checks.push({
+        name: 'subagent_model',
+        ok: true,
+        message: `subagent.model: ${capabilities.subagent.model}`,
+      });
+    }
 
     return {
       tools: { count: tools.length, names: tools },
-      skills: { count: skills.length, names: skills },
+      skills: {
+        count: skills.length,
+        names: skills,
+        errors: skillValidation.errors,
+        warnings: skillValidation.warnings,
+      },
       hooks,
       memory: { count: memoryCount, dir: memoryDir },
       worktrees: { dirExists: worktrees, dir: worktreeDir },
@@ -220,8 +243,11 @@ export async function runDoctor(opts: GlobalOptions): Promise<number> {
         available: engineMcp.filter((t) => t.available).map((t) => t.name),
         pending: engineMcp.filter((t) => !t.available).map((t) => t.name),
       },
+      capabilities,
     };
   })();
+
+  const allOk = checks.every((c) => c.ok);
 
   if (opts.json) {
     printJson({ ok: allOk, checks, parity });
@@ -236,12 +262,40 @@ export async function runDoctor(opts: GlobalOptions): Promise<number> {
   console.log(chalk.bold('\nParity'));
   console.log(`  ${chalk.dim('tools')}     ${parity.tools.count} registered`);
   console.log(`  ${chalk.dim('skills')}    ${parity.skills.count} loaded`);
+  if (parity.skills.errors.length > 0) {
+    for (const e of parity.skills.errors) {
+      console.log(`    ${chalk.red('✗')} ${e}`);
+    }
+  }
+  if (parity.skills.warnings.length > 0) {
+    for (const w of parity.skills.warnings.slice(0, 12)) {
+      console.log(`    ${chalk.yellow('!')} ${w}`);
+    }
+    if (parity.skills.warnings.length > 12) {
+      console.log(chalk.dim(`    …and ${parity.skills.warnings.length - 12} more (spark-cli skills validate)`));
+    }
+  }
   const hookSummary = Object.entries(parity.hooks).map(([k, n]) => `${k}=${n}`).join(' ');
   console.log(`  ${chalk.dim('hooks')}     ${hookSummary || '(none)'}`);
   console.log(`  ${chalk.dim('memory')}    ${parity.memory.count} entries`);
   console.log(`  ${chalk.dim('worktree')}  ${parity.worktrees.dirExists ? 'dir present' : 'no worktrees yet'}`);
   console.log(`  ${chalk.dim('cron')}      ${parity.cron.count} job(s)`);
   console.log(`  ${chalk.dim('web')}       ${parity.web.enabled ? 'enabled' : 'disabled'}`);
+  if (parity.capabilities) {
+    const c = parity.capabilities;
+    console.log(`  ${chalk.dim('imageGen')}  ${c.imageGen.enabled ? c.imageGen.effectiveProvider : 'disabled'}`);
+    console.log(`  ${chalk.dim('audioGen')}  ${c.audioGen.enabled ? c.audioGen.effectiveProvider : 'disabled'}`);
+    console.log(
+      `  ${chalk.dim('cppIndex')}  ${c.unrealCppIndex.backend}${c.unrealCppIndex.treeSitterInstalled ? ' (pkg ok)' : ''}`,
+    );
+    console.log(`  ${chalk.dim('assets')}    image dims via ${c.assetsAudit.imageDimBackend}`);
+    const opt = Object.entries(c.optionalPackages)
+      .filter(([, v]) => !v.installed)
+      .map(([k]) => k);
+    if (opt.length > 0) {
+      console.log(`  ${chalk.dim('optional')}  not installed: ${opt.join(', ')}`);
+    }
+  }
   console.log(allOk ? chalk.green('\nAll checks passed.') : chalk.yellow('\nSome checks failed.'));
   return allOk ? 0 : 2;
 }

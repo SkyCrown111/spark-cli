@@ -15,6 +15,25 @@ import type { RegisteredTool, ToolContext, ToolResult } from '../tool-registry.j
 
 const DEFAULT_MAX_BYTES = 256 * 1024;
 
+/** Normalize model-supplied paths before resolveProjectPath. */
+export function normalizeRawToolPath(rawPath: string): string {
+  let p = rawPath.trim();
+  if (
+    (p.startsWith('"') && p.endsWith('"')) ||
+    (p.startsWith("'") && p.endsWith("'"))
+  ) {
+    p = p.slice(1, -1).trim();
+  }
+  p = p.replace(/\\/g, '/');
+  while (p.startsWith('./')) p = p.slice(2);
+  // Models often emit Unix-style "/assets/..." paths. On Windows those are
+  // treated as absolute (drive-root), which escapes the project — strip once.
+  if (p.startsWith('/') && !/^[a-zA-Z]:\//.test(p)) {
+    p = p.slice(1);
+  }
+  return p;
+}
+
 function getMaxBytes(ctx: ToolContext): number {
   const cfg = (ctx.config as { tools?: { read?: { maxBytes?: number } } }).tools?.read;
   const v = cfg?.maxBytes;
@@ -43,21 +62,37 @@ export function resolveProjectPath(
   if (typeof rawPath !== 'string' || rawPath.length === 0) {
     return { ok: false, reason: 'path must be a non-empty string' };
   }
+  const normalizedInput = normalizeRawToolPath(rawPath);
+  if (normalizedInput.length === 0) {
+    return { ok: false, reason: 'path must be a non-empty string' };
+  }
   const allowAbsolute =
     opts.allowAbsolute ??
     ((ctx.config as { tools?: { allowAbsolute?: boolean } }).tools?.allowAbsolute ?? false);
 
+  let projectAbs = ctx.projectRoot;
+  try {
+    projectAbs = realpathSync(ctx.projectRoot);
+  } catch {
+    // projectRoot should always exist; keep the original on failure.
+  }
+
   let abs: string;
-  if (isAbsolute(rawPath)) {
-    if (!allowAbsolute) {
+  if (isAbsolute(normalizedInput)) {
+    abs = normalize(normalizedInput);
+    const relInside = relative(projectAbs, abs);
+    const insideProject =
+      relInside !== '..' &&
+      !relInside.startsWith(`..${sep}`) &&
+      !(isAbsolute(relInside) && process.platform === 'win32');
+    if (!insideProject && !allowAbsolute) {
       return {
         ok: false,
         reason: `Absolute paths are disabled. Pass a path relative to the project root.`,
       };
     }
-    abs = normalize(rawPath);
   } else {
-    abs = resolve(ctx.projectRoot, rawPath);
+    abs = resolve(ctx.projectRoot, normalizedInput);
   }
 
   // Resolve symlinks so that a link inside the root cannot escape it.
@@ -68,13 +103,6 @@ export function resolveProjectPath(
   } catch {
     // Path may not exist yet (e.g. write_file creating new file). Use the
     // un-resolved absolute path; the relative-check below still catches `..`.
-  }
-
-  let projectAbs = ctx.projectRoot;
-  try {
-    projectAbs = realpathSync(ctx.projectRoot);
-  } catch {
-    // projectRoot should always exist; keep the original on failure.
   }
 
   const rel = relative(projectAbs, abs);

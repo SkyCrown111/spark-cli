@@ -61,12 +61,28 @@ function mcpEngine(projectRoot: string, config: SparkCLIConfig) {
   return detectEngine(projectRoot, config.project?.engine).id;
 }
 
-export function handleMcpTool(
+function listScenesForEngine(
+  engine: ReturnType<typeof mcpEngine>,
+  projectRoot: string,
+): string[] {
+  switch (engine) {
+    case 'cocos-creator':
+      return findSceneFiles(projectRoot);
+    case 'unity':
+      return findUnitySceneFiles(projectRoot);
+    case 'godot':
+      return findTscnFiles(projectRoot);
+    default:
+      return [];
+  }
+}
+
+export async function handleMcpTool(
   name: string,
   args: Record<string, unknown> | undefined,
   projectRoot: string,
   config: SparkCLIConfig,
-): CallToolResult {
+): Promise<CallToolResult> {
   const engine = mcpEngine(projectRoot, config);
 
   if (name === 'validate_project') {
@@ -106,7 +122,7 @@ export function handleMcpTool(
     const dir = args?.dir as string | undefined;
     const disable = args?.disable as string[] | undefined;
     try {
-      return textResult({ issues: auditAssets(projectRoot, { dir, disable }) });
+      return textResult({ issues: await auditAssets(projectRoot, { dir, disable }) });
     } catch (e) {
       return textResult({ error: e instanceof Error ? e.message : String(e) }, true);
     }
@@ -120,12 +136,22 @@ export function handleMcpTool(
     const apply = (args?.apply as boolean | undefined) ?? false;
     if (!rule) return textResult({ error: 'rule required' }, true);
     try {
-      const issues = auditAssets(projectRoot).filter((i) => i.rule === rule);
+      const issues = (await auditAssets(projectRoot)).filter((i) => i.rule === rule);
       const results = issues.map((i) => applyFix(projectRoot, i, { apply }));
       return textResult({ rule, applied: apply, results });
     } catch (e) {
       return textResult({ error: e instanceof Error ? e.message : String(e) }, true);
     }
+  }
+
+  if (name === 'scene_list') {
+    const scenes = listScenesForEngine(engine, projectRoot);
+    const payload: Record<string, unknown> = { scenes, engine };
+    if (scenes.length === 0 && engine === 'unknown') {
+      payload.hint =
+        'No game engine detected. Set project.engine in config or run from a Cocos/Unity/Godot project root. Use glob to discover files.';
+    }
+    return textResult(payload);
   }
 
   if (engine === 'godot') {
@@ -402,10 +428,6 @@ export function handleMcpTool(
     );
   }
 
-  if (name === 'scene_list') {
-    return textResult({ scenes: findSceneFiles(projectRoot) });
-  }
-
   if (name === 'scene_analyze') {
     const path = args?.path as string | undefined;
     if (!path) return textResult({ error: 'path required' }, true);
@@ -541,13 +563,15 @@ export function handleMcpTool(
   return textResult({ error: `Unknown tool: ${name}` }, true);
 }
 
+const SCENE_LIST_TOOL = {
+  name: 'scene_list',
+  description:
+    'List scene files for the detected engine (.scene for Cocos, .unity for Unity, .tscn for Godot)',
+  inputSchema: { type: 'object', properties: {}, additionalProperties: false },
+} as const;
+
 const COCOS_TOOLS = {
   read: [
-    {
-      name: 'scene_list',
-      description: 'List all .scene files in the Cocos project',
-      inputSchema: { type: 'object', properties: {}, additionalProperties: false },
-    },
     {
       name: 'scene_analyze',
       description: 'Analyze a scene file and return node tree JSON',
@@ -909,6 +933,26 @@ const UNITY_TOOLS = {
 
 type McpToolDef = (typeof COCOS_TOOLS.read)[number] | (typeof COCOS_TOOLS.write)[number];
 
+/**
+ * Names of MCP tools that stage or mutate project/engine files and require
+ * `mcp.allowWrite: true`. Kept in sync with `handleMcpTool` branches that call
+ * `isMcpWriteAllowed` (plus `assets_fix`, merged at list time).
+ */
+function buildMcpWriteToolNameSet(): ReadonlySet<string> {
+  const s = new Set<string>();
+  const add = (arr: readonly { name: string }[]) => {
+    for (const t of arr) s.add(t.name);
+  };
+  add(COCOS_TOOLS.write);
+  add(GODOT_TOOLS.write);
+  add(UNITY_TOOLS.write);
+  add(UNREAL_TOOLS.write);
+  s.add('assets_fix');
+  return s;
+}
+
+export const MCP_WRITE_TOOL_NAMES: ReadonlySet<string> = buildMcpWriteToolNameSet();
+
 export function listMcpTools(config: SparkCLIConfig, projectRoot: string) {
   const engine = mcpEngine(projectRoot, config);
   const validateTool = {
@@ -952,6 +996,7 @@ export function listMcpTools(config: SparkCLIConfig, projectRoot: string) {
   if (engine === 'unreal') pack = UNREAL_TOOLS;
   if (engine === 'unity') {
     return [
+      SCENE_LIST_TOOL,
       ...UNITY_TOOLS.read,
       validateTool,
       assetsAuditTool,
@@ -959,7 +1004,17 @@ export function listMcpTools(config: SparkCLIConfig, projectRoot: string) {
     ];
   }
 
+  if (engine === 'unknown') {
+    return [
+      SCENE_LIST_TOOL,
+      validateTool,
+      assetsAuditTool,
+      ...(isMcpWriteAllowed(config) ? [assetsFixTool] : []),
+    ];
+  }
+
   return [
+    SCENE_LIST_TOOL,
     ...pack.read,
     validateTool,
     assetsAuditTool,

@@ -67,7 +67,7 @@ Important: `key_env` is an env-var **name**, not a key value. `resolveCustomProv
 
 ### Build pipeline specifics
 
-`scripts/build.mjs` uses esbuild with `packages: 'external'` — runtime deps stay in `node_modules` and are not bundled. After bundling, the script `cpSync`s `knowledge/`, `rules/`, and `editor/public/` into `dist/` because the CLI reads them at runtime relative to its own location. If you add a new runtime asset directory, add it to this script.
+`scripts/build.mjs` uses esbuild with `packages: 'external'` — runtime deps stay in `node_modules` and are not bundled. After bundling, the script `cpSync`s `knowledge/`, `rules/`, `skills/`, and `editor/public/` into `dist/` because the CLI reads them at runtime relative to its own location. If you add a new runtime asset directory, add it to this script.
 
 ## Conventions
 

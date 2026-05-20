@@ -114,9 +114,63 @@ export function printInterrupted(): void {
   );
 }
 
-/** Tool iteration status. */
-export function printToolIteration(iteration: number, tools: string): void {
-  console.log(chalk.dim(`  ${frameChars().middleDot} iter ${iteration}: ${tools}`));
+/** @deprecated Use {@link printToolBatch} — one compact line per tool round. */
+export function printToolIteration(_iteration: number, tools: string): void {
+  console.log(chalk.dim(`  ${frameChars().middleDot} ${tools}`));
+}
+
+export interface ToolBatchCall {
+  tool: string;
+  durationMs: number;
+  isError: boolean;
+}
+
+/** Group parallel tool calls into a single Claude Code–style line. */
+export function summarizeToolBatch(calls: ToolBatchCall[]): {
+  label: string;
+  errorCount: number;
+  totalMs: number;
+} {
+  const byTool = new Map<string, { count: number; errors: number }>();
+  let totalMs = 0;
+  let errorCount = 0;
+  for (const c of calls) {
+    totalMs += c.durationMs;
+    if (c.isError) errorCount++;
+    const prev = byTool.get(c.tool) ?? { count: 0, errors: 0 };
+    prev.count++;
+    if (c.isError) prev.errors++;
+    byTool.set(c.tool, prev);
+  }
+  const parts: string[] = [];
+  for (const [tool, stat] of byTool) {
+    if (stat.errors > 0) {
+      parts.push(
+        stat.count > 1 ? `${tool}×${stat.count} (${stat.errors} failed)` : `${tool} (failed)`,
+      );
+    } else {
+      parts.push(stat.count > 1 ? `${tool}×${stat.count}` : tool);
+    }
+  }
+  return { label: parts.join(', '), errorCount, totalMs };
+}
+
+/**
+ * Claude Code–style tool summary: one line per provider round, not one line per tool.
+ * Example: `  ✓ read_file×4, todo_create×3  128ms`
+ */
+export function printToolBatch(calls: ToolBatchCall[]): void {
+  if (calls.length === 0) return;
+  const { label, errorCount, totalMs } = summarizeToolBatch(calls);
+  const icon =
+    errorCount > 0
+      ? chalk.hex(TOOL_ERR)('✕')
+      : chalk.hex(TOOL_OK)(supportsUnicodeUi() ? '✓' : '+');
+  const errSuffix =
+    errorCount > 0 ? chalk.hex(TOOL_ERR)(` · ${errorCount} failed`) : '';
+  console.log(
+    `  ${icon} ${chalk.dim(label)}${errSuffix} ${chalk.dim(formatDuration(totalMs))}`,
+  );
 }
 
 /**

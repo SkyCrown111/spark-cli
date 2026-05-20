@@ -12,10 +12,44 @@ export class BridgeError extends Error {
   }
 }
 
+export interface BridgeRequestOptions {
+  port?: number;
+  timeoutMs?: number;
+  /** Connection attempts when the editor is not ready (default 2 → 3 tries). */
+  retries?: number;
+  /** Delay between refused-connection retries (default 400ms). */
+  retryDelayMs?: number;
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 export async function bridgeRequest(
   method: string,
   params: Record<string, unknown> = {},
-  options: { port?: number; timeoutMs?: number } = {},
+  options: BridgeRequestOptions = {},
+): Promise<unknown> {
+  const retries = options.retries ?? 2;
+  const retryDelayMs = options.retryDelayMs ?? 400;
+  let lastErr: unknown;
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      return await bridgeRequestOnce(method, params, options);
+    } catch (e) {
+      lastErr = e;
+      const retriable = e instanceof BridgeError && e.code === 'refused' && attempt < retries;
+      if (!retriable) throw e;
+      await sleep(retryDelayMs);
+    }
+  }
+  throw lastErr;
+}
+
+async function bridgeRequestOnce(
+  method: string,
+  params: Record<string, unknown>,
+  options: BridgeRequestOptions,
 ): Promise<unknown> {
   const port = options.port ?? DEFAULT_BRIDGE_PORT;
   const timeoutMs = options.timeoutMs ?? 5000;

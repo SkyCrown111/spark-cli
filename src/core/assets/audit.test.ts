@@ -56,61 +56,63 @@ function makeWav(sampleRate: number, dataBytes = 16): Buffer {
 }
 
 describe('auditAssets', () => {
-  it('returns [] when assets/ does not exist', () => {
+  it('returns [] when assets/ does not exist', async () => {
     const empty = mkdtempSync(join(tmpdir(), 'gcli-assets-empty-'));
     try {
-      expect(auditAssets(empty)).toEqual([]);
+      expect(await auditAssets(empty)).toEqual([]);
     } finally {
       rmSync(empty, { recursive: true, force: true });
     }
   });
 
-  it('flags an oversize PNG (>2048)', () => {
+  it('flags an oversize PNG (>2048)', async () => {
     writeFileSync(join(tmp, 'assets/textures/big.png'), makePng(4096, 2048));
-    const issues = auditAssets(tmp, { disable: ['asset-unused', 'texture-uncompressed'] });
+    const issues = await auditAssets(tmp, { disable: ['asset-unused', 'texture-uncompressed'] });
     const hit = issues.find((i) => i.rule === 'texture-oversize');
     expect(hit).toBeDefined();
     expect(hit!.details?.width).toBe(4096);
   });
 
-  it('flags non-power-of-two dimensions', () => {
+  it('flags non-power-of-two dimensions', async () => {
     writeFileSync(join(tmp, 'assets/textures/odd.png'), makePng(300, 500));
-    const issues = auditAssets(tmp, { disable: ['asset-unused', 'texture-uncompressed'] });
+    const issues = await auditAssets(tmp, { disable: ['asset-unused', 'texture-uncompressed'] });
     expect(issues.find((i) => i.rule === 'texture-non-pow2')).toBeDefined();
   });
 
-  it('does NOT flag a 256x256 png as non-pow2 nor oversize', () => {
+  it('does NOT flag a 256x256 png as non-pow2 nor oversize', async () => {
     writeFileSync(join(tmp, 'assets/textures/ok.png'), makePng(256, 256));
-    const issues = auditAssets(tmp, { disable: ['asset-unused', 'texture-uncompressed'] });
+    const issues = await auditAssets(tmp, { disable: ['asset-unused', 'texture-uncompressed'] });
     expect(issues.find((i) => i.rule === 'texture-oversize')).toBeUndefined();
     expect(issues.find((i) => i.rule === 'texture-non-pow2')).toBeUndefined();
   });
 
-  it('flags a high-sample-rate WAV', () => {
+  it('flags a high-sample-rate WAV', async () => {
     writeFileSync(join(tmp, 'assets/audio/loud.wav'), makeWav(48000));
-    const issues = auditAssets(tmp, { disable: ['asset-unused'] });
+    const issues = await auditAssets(tmp, { disable: ['asset-unused'] });
     const hit = issues.find((i) => i.rule === 'audio-samplerate');
     expect(hit).toBeDefined();
     expect(hit!.details?.sampleRate).toBe(48000);
   });
 
-  it('respects the disable option', () => {
+  it('respects the disable option', async () => {
     writeFileSync(join(tmp, 'assets/textures/big.png'), makePng(4096, 4096));
-    const issues = auditAssets(tmp, { disable: ['texture-oversize', 'asset-unused', 'texture-uncompressed'] });
+    const issues = await auditAssets(tmp, {
+      disable: ['texture-oversize', 'asset-unused', 'texture-uncompressed'],
+    });
     expect(issues.find((i) => i.rule === 'texture-oversize')).toBeUndefined();
   });
 
-  it('lists unused assets when nothing references them', () => {
+  it('lists unused assets when nothing references them', async () => {
     writeFileSync(join(tmp, 'assets/textures/orphan.png'), makePng(64, 64));
-    const issues = auditAssets(tmp);
+    const issues = await auditAssets(tmp);
     expect(issues.find((i) => i.rule === 'asset-unused' && i.path.endsWith('orphan.png'))).toBeDefined();
   });
 });
 
 describe('applyFix', () => {
-  it('reports a dry-run plan for asset-unused without --apply', () => {
+  it('reports a dry-run plan for asset-unused without --apply', async () => {
     writeFileSync(join(tmp, 'assets/textures/orphan.png'), makePng(64, 64));
-    const issues = auditAssets(tmp);
+    const issues = await auditAssets(tmp);
     const issue = issues.find((i) => i.rule === 'asset-unused')!;
     const r = applyFix(tmp, issue, { apply: false });
     expect(r.applied).toBe(false);
@@ -118,9 +120,9 @@ describe('applyFix', () => {
     expect(r.message).toMatch(/Would delete/);
   });
 
-  it('stages a tombstone with --apply', () => {
+  it('stages a tombstone with --apply', async () => {
     writeFileSync(join(tmp, 'assets/textures/orphan.png'), makePng(64, 64));
-    const issues = auditAssets(tmp);
+    const issues = await auditAssets(tmp);
     const issue = issues.find((i) => i.rule === 'asset-unused')!;
     const r = applyFix(tmp, issue, { apply: true });
     expect(r.staged).toBe(true);

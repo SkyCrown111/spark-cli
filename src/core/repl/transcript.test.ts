@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { stripAnsi } from './terminal.js';
 import { renderMarkdown, StreamingRenderer } from './markdown-renderer.js';
-import { printAssistantBlock } from './transcript.js';
+import { printAssistantBlock, summarizeToolBatch } from './transcript.js';
 
 describe('transcript', () => {
   it('markdown renderer produces output for simple text', () => {
@@ -29,6 +29,16 @@ describe('transcript', () => {
     const flushed = sr.flush();
     const plain = stripAnsi(flushed);
     expect(plain).toContain('Hello');
+  });
+
+  it('summarizeToolBatch groups duplicate tool names', () => {
+    const batch = summarizeToolBatch([
+      { tool: 'todo_create', durationMs: 2, isError: false },
+      { tool: 'todo_create', durationMs: 3, isError: false },
+      { tool: 'read_file', durationMs: 10, isError: false },
+    ]);
+    expect(batch.label).toBe('todo_create×2, read_file');
+    expect(batch.totalMs).toBe(15);
   });
 
   it('assistant block uses a clean lead bullet instead of branch glyphs', () => {

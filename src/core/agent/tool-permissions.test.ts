@@ -6,9 +6,11 @@ import {
 } from './tool-permissions.js';
 
 describe('tool-permissions', () => {
-  it('marks bash and write tools sensitive', () => {
+  it('marks bash, file writes, and MCP scene writes sensitive', () => {
     expect(isSensitiveTool('bash')).toBe(true);
     expect(isSensitiveTool('write_file')).toBe(true);
+    expect(isSensitiveTool('scene_remove_node')).toBe(true);
+    expect(isSensitiveTool('unity_scene_set_property')).toBe(true);
     expect(isSensitiveTool('read_file')).toBe(false);
   });
 

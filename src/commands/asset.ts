@@ -92,13 +92,13 @@ export function runAssetImport(
   else console.log(chalk.green('✓'), 'Imported to', chalk.cyan(written));
 }
 
-export function runAssetAudit(
+export async function runAssetAudit(
   opts: GlobalOptions,
   cmdOpts: { dir?: string; disable?: string },
-): void {
+): Promise<void> {
   const root = resolveProjectRoot(opts);
   const disable = cmdOpts.disable ? cmdOpts.disable.split(',').map((s) => s.trim()).filter(Boolean) : undefined;
-  const issues = auditAssets(root, { dir: cmdOpts.dir, disable });
+  const issues = await auditAssets(root, { dir: cmdOpts.dir, disable });
 
   if (opts.json) {
     printJson({ issues });
@@ -121,12 +121,14 @@ export function runAssetAudit(
   }
 }
 
-export function runAssetFix(
+export async function runAssetFix(
   opts: GlobalOptions,
   cmdOpts: { rule: string; apply?: boolean; dir?: string },
-): void {
+): Promise<void> {
   const root = resolveProjectRoot(opts);
-  const issues = auditAssets(root, { dir: cmdOpts.dir }).filter((i: AuditIssue) => i.rule === cmdOpts.rule);
+  const issues = (await auditAssets(root, { dir: cmdOpts.dir })).filter(
+    (i: AuditIssue) => i.rule === cmdOpts.rule,
+  );
   if (!issues.length) {
     if (opts.json) printJson({ rule: cmdOpts.rule, results: [] });
     else console.log(chalk.dim(`No issues match rule "${cmdOpts.rule}"`));

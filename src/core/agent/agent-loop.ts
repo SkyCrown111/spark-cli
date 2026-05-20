@@ -149,6 +149,7 @@ export async function runAgentTurn(
   ];
 
   const allDispatched: DispatchedCall[] = [];
+  /** Last call's prompt_tokens = current context size; completions summed for stats. */
   const usage: { prompt_tokens: number; completion_tokens: number } = {
     prompt_tokens: 0,
     completion_tokens: 0,
@@ -238,8 +239,10 @@ export async function runAgentTurn(
       onDelta: opts.onDelta,
     });
 
-    if (res.usage?.prompt_tokens) usage.prompt_tokens += res.usage.prompt_tokens;
-    if (res.usage?.completion_tokens) usage.completion_tokens += res.usage.completion_tokens;
+    if (res.usage?.prompt_tokens) usage.prompt_tokens = res.usage.prompt_tokens;
+    if (res.usage?.completion_tokens) {
+      usage.completion_tokens += res.usage.completion_tokens;
+    }
 
     const calls = res.tool_calls ?? [];
 
@@ -268,14 +271,18 @@ export async function runAgentTurn(
 
     if (calls.length === 0) {
       // Final answer.
-      return finalize(messages, allDispatched, usage, res.content, 'end_turn', iter);
+      const finalStop: RunAgentTurnResult['stopReason'] =
+        tools.length === 0 ? 'no_tools' : 'end_turn';
+      return finalize(messages, allDispatched, usage, res.content, finalStop, iter);
     }
 
     // Dispatch tool calls; results become role:'tool' messages.
+    const toolDispatchConcurrency =
+      cfgAgent?.toolDispatchConcurrency ?? cfgSubagent?.concurrency ?? 3;
     const dispatched = await dispatchToolCalls(calls, opts.registry, ctx, {
       abortSignal: opts.abortSignal,
       hooks: opts.hooks,
-      concurrency: cfgSubagent?.concurrency,
+      concurrency: toolDispatchConcurrency,
     });
     allDispatched.push(...dispatched);
 

@@ -8,9 +8,9 @@ const fixture = join(process.cwd(), 'fixtures/cocos-3.8-mini');
 const sceneRel = 'assets/scenes/main.scene';
 
 describe('MCP tools', () => {
-  it('rejects scene_add_node when allowWrite is false', () => {
+  it('rejects scene_add_node when allowWrite is false', async () => {
     const config = { ...DEFAULT_CONFIG, mcp: { allowWrite: false, port: 17321 } };
-    const res = handleMcpTool(
+    const res = await handleMcpTool(
       'scene_add_node',
       { path: sceneRel, parentPath: 'Canvas', name: 'TestNode' },
       fixture,
@@ -22,10 +22,10 @@ describe('MCP tools', () => {
     if (block.type === 'text') expect(block.text).toContain('allowWrite');
   });
 
-  it('stages scene_add_node when allowWrite is true', () => {
+  it('stages scene_add_node when allowWrite is true', async () => {
     if (hasStaging(fixture)) clearStaging(fixture);
     const config = { ...DEFAULT_CONFIG, mcp: { allowWrite: true, port: 17321 } };
-    const res = handleMcpTool(
+    const res = await handleMcpTool(
       'scene_add_node',
       { path: sceneRel, parentPath: 'Canvas', name: 'McpTestNode' },
       fixture,

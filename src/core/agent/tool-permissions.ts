@@ -6,9 +6,6 @@ export const SENSITIVE_TOOL_NAMES = new Set([
   'task_stop',
   'write_file',
   'edit_file',
-  'scene_add_node',
-  'component_update',
-  'stage_project_file',
 ]);
 
 export function isSensitiveTool(name: string): boolean {

@@ -1,76 +1,27 @@
-# SparkCLI Editor Bridge
+# Editor Bridge
 
-WebSocket server inside Cocos Creator (`extensions/spark-cli-bridge`) so the CLI can drive the editor.
+SparkCLI talks to game editors over a local WebSocket (**Editor Bridge**).
 
-Default URL: `ws://127.0.0.1:17321` (same as `mcp.port` in `spark-cli.config.yaml`).
+## Requirements
 
-## Install in Cocos Creator 3.8+
+- **Cocos Creator**: install `extensions/spark-cli-bridge` and keep the editor open.
+- **Unity / Unreal**: use the packages under `packages/`; the editor must be running with the bridge extension enabled.
 
-1. Copy or symlink this repo folder:
+## Connection behavior
 
-   ```
-   <your-cocos-project>/extensions/spark-cli-bridge
-   ```
+- Default URL: `ws://127.0.0.1:17322` (see `DEFAULT_BRIDGE_PORT` in `src/bridge/protocol.ts`).
+- `bridgeRequest()` retries **refused** connections (editor still starting) up to **3 attempts** with **400ms** delay by default.
+- Per-request timeout defaults to **5s** (`timeoutMs` option).
 
-   Source: `spark-cli/extensions/spark-cli-bridge/`
+## Limitations
 
-2. Install extension dependencies (once):
-
-   ```bash
-   cd extensions/spark-cli-bridge
-   npm install
-   ```
-
-3. **Extension → Extension Manager** → enable **spark-cli-bridge**.
-
-4. Confirm the console shows: `[spark-cli-bridge] listening on ws://127.0.0.1:17321`
-
-## CLI usage
-
-From your Cocos project root:
-
-```bash
-spark-cli scene open assets/scenes/main.scene
-spark-cli scene open assets/scenes/main.scene --json
-```
-
-## Protocol (JSON over WebSocket)
-
-Request:
-
-```json
-{ "id": "uuid", "method": "scene.open", "params": { "path": "assets/scenes/main.scene" } }
-```
-
-Response:
-
-```json
-{ "id": "uuid", "ok": true, "result": { "opened": "assets/scenes/main.scene", "uuid": "..." } }
-```
-
-| Method | Params | Description |
-|--------|--------|-------------|
-| `scene.open` | `{ "path": "assets/scenes/main.scene" }` | Open scene in editor |
-| `selection.get` | `{}` | Return selected node UUIDs |
-
-## Port override
-
-- Extension: `SPARK_CLI_BRIDGE_PORT=17399` before starting Cocos.
-- CLI: set `mcp.port: 17399` in `spark-cli.config.yaml`.
-
-## Manual verification (Phase 3 acceptance)
-
-1. Open a Cocos 3.8 project with the extension enabled.
-2. Run `spark-cli scene open assets/scenes/<your-scene>.scene`.
-3. Confirm the scene tab opens in the editor.
-4. Select a node in the hierarchy; use a WebSocket client to send `selection.get` and verify UUIDs in the response.
+- Bridge tools only work while the editor process is online; there is no offline scene mutation.
+- Unity/Unreal binary assets (`.uasset`, `.umap`) are not parsed offline — use bridge or staged text formats instead.
 
 ## Troubleshooting
 
-| Symptom | Fix |
-|---------|-----|
-| `Cannot connect to Editor Bridge` | Enable extension; check port; run `npm install` in extension folder |
-| `Asset not found` | Use path relative to project, e.g. `assets/scenes/main.scene` |
-| Port in use | Change `mcp.port` / `SPARK_CLI_BRIDGE_PORT` |
+```bash
+spark-cli doctor --json | jq '.parity.engineMcp'
+```
 
-Scene **file** edits from MCP use staging (`spark-cli diff` / `apply`) and do not require the bridge.
+If connection fails after retries, confirm the extension is enabled and the port is not blocked by a firewall.

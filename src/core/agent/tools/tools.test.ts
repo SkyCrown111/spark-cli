@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { readFileTool } from './read-file.js';
+import { readFileTool, resolveProjectPath, normalizeRawToolPath } from './read-file.js';
 import { writeFileTool } from './write-file.js';
 import { editFileTool } from './edit-file.js';
 import { listDirTool } from './list-dir.js';
@@ -47,6 +47,37 @@ describe('read_file', () => {
     const r = await readFileTool.handler({ path: '.spark-cli/staging/manifest.json' }, ctx());
     expect(r.isError).toBe(true);
     expect(r.content).toMatch(/\.spark-cli/);
+  });
+
+  it('accepts Unix-style /assets/ paths on Windows', async () => {
+    mkdirSync(join(projectRoot, 'assets'), { recursive: true });
+    writeFileSync(join(projectRoot, 'assets', 'foo.txt'), 'ok\n', 'utf8');
+    const r = await readFileTool.handler({ path: '/assets/foo.txt' }, ctx());
+    expect(r.isError).toBeFalsy();
+    expect(r.content).toMatch(/ok/);
+  });
+
+  it('accepts absolute paths inside the project root', async () => {
+    writeFileSync(join(projectRoot, 'inner.ts'), 'inside\n', 'utf8');
+    const abs = join(projectRoot, 'inner.ts');
+    const r = await readFileTool.handler({ path: abs }, ctx());
+    expect(r.isError).toBeFalsy();
+    expect(r.content).toMatch(/inside/);
+  });
+
+  it('normalizes leading ./ and backslashes', () => {
+    expect(normalizeRawToolPath('.\\src\\a.ts')).toBe('src/a.ts');
+    expect(normalizeRawToolPath('./src/a.ts')).toBe('src/a.ts');
+  });
+});
+
+describe('resolveProjectPath', () => {
+  it('maps /assets/... to project-relative on Windows', () => {
+    mkdirSync(join(projectRoot, 'assets'), { recursive: true });
+    writeFileSync(join(projectRoot, 'assets', 'x.txt'), '', 'utf8');
+    const r = resolveProjectPath(ctx(), '/assets/x.txt');
+    expect(r.ok).toBe(true);
+    if (r.ok) expect(r.rel.replace(/\\/g, '/')).toBe('assets/x.txt');
   });
 });
 

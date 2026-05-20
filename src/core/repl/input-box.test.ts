@@ -72,6 +72,16 @@ describe('InputBox', () => {
     expect(writes.some((w) => w.includes('\x1b[6C'))).toBe(true);
   });
 
+  it('submit hides the box until show() is called again', () => {
+    const box = new InputBox({ onRenderChrome: () => 0 });
+    box.show();
+    box.handleKey('x', { name: 'x' });
+    box.submit();
+    expect(box.isVisible).toBe(false);
+    box.show();
+    expect(box.isVisible).toBe(true);
+  });
+
   it('suspend and resume preserve draft text across rerender', () => {
     const writes: string[] = [];
     vi.spyOn(process.stdout, 'write').mockImplementation(((chunk: string | Uint8Array) => {
