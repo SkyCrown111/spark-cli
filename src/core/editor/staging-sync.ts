@@ -4,34 +4,42 @@ import {
   hasStaging,
   loadManifest,
   stageWriteFile,
-  initStaging,
+  type StagedFile,
   type StagingManifest,
 } from '../staging/patch-manager.js';
 import { getStagingDir } from '../../config/paths.js';
 
 export interface StagingSnapshot {
   manifest: StagingManifest | null;
+  entries: StagedFile[];
   files: Record<string, string>;
 }
 
 export function readStagingSnapshot(projectRoot: string): StagingSnapshot {
   if (!hasStaging(projectRoot)) {
-    return { manifest: null, files: {} };
+    return { manifest: null, entries: [], files: {} };
   }
   const manifest = loadManifest(projectRoot);
   const files: Record<string, string> = {};
   const base = join(getStagingDir(projectRoot), 'files');
   for (const f of manifest.files) {
+    if (f.action === 'delete') {
+      files[f.path] = `[delete staged: ${f.path}]`;
+      continue;
+    }
     const staged = join(base, f.path);
     if (existsSync(staged)) {
-      files[f.path] = readFileSync(staged, 'utf8');
+      if (f.kind === 'binary') {
+        files[f.path] = `[binary file staged: ${f.path}]`;
+      } else {
+        files[f.path] = readFileSync(staged, 'utf8');
+      }
     }
   }
-  return { manifest, files };
+  return { manifest, entries: manifest.files, files };
 }
 
 export function writeStagedFile(projectRoot: string, relPath: string, content: string): void {
-  if (!hasStaging(projectRoot)) initStaging(projectRoot);
   stageWriteFile(projectRoot, relPath, content);
 }
 

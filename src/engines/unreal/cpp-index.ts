@@ -15,7 +15,11 @@
 
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, relative } from 'node:path';
-import { isTreeSitterCppAvailable, parseCppOutlineAst } from './cpp-index-ast.js';
+import {
+  isTreeSitterCppAvailable,
+  isTreeSitterCppOperational,
+  parseCppOutlineAst,
+} from './cpp-index-ast.js';
 
 export interface CppOutlineEntry {
   /** Project-relative path of the .h or .cpp file. */
@@ -54,7 +58,7 @@ export type CppIndexBackend = 'regex' | 'tree-sitter';
 
 /** Reports whether tree-sitter-cpp parsing is available. */
 export function getCppIndexBackend(): CppIndexBackend {
-  return isTreeSitterCppAvailable() ? 'tree-sitter' : 'regex';
+  return isTreeSitterCppAvailable() && isTreeSitterCppOperational() ? 'tree-sitter' : 'regex';
 }
 
 export function indexUnrealCppDir(projectRoot: string, dir = 'Source'): CppOutlineEntry[] {
@@ -72,7 +76,7 @@ export function parseCppFile(projectRoot: string, full: string): CppOutlineEntry
     ufunctions: extractUFunctions(text),
     uproperties: extractUProperties(text),
   };
-  const ast = isTreeSitterCppAvailable() ? parseCppOutlineAst(text) : null;
+  const ast = getCppIndexBackend() === 'tree-sitter' ? parseCppOutlineAst(text) : null;
   if (!ast) {
     return { file: rel, ...regex };
   }

@@ -82,7 +82,7 @@ describe('MCP engine routing', () => {
       project: { engine: 'godot' as const },
       mcp: { allowWrite: true, port: 17321 },
     };
-    const rel = '.spark-cli/phase12-test.txt';
+    const rel = 'docs/phase12-test.txt';
     const res = await handleMcpTool(
       'stage_project_file',
       { path: rel, content: 'hello phase12' },

@@ -1,8 +1,9 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { mkdtempSync, rmSync, mkdirSync, writeFileSync, readFileSync, existsSync } from 'node:fs';
+import { mkdtempSync, rmSync, mkdirSync, writeFileSync, existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { auditAssets, applyFix } from './audit.js';
+import { applyStaging, loadManifest } from '../staging/patch-manager.js';
 
 let tmp: string;
 
@@ -120,15 +121,17 @@ describe('applyFix', () => {
     expect(r.message).toMatch(/Would delete/);
   });
 
-  it('stages a tombstone with --apply', async () => {
+  it('stages a delete op with --apply', async () => {
     writeFileSync(join(tmp, 'assets/textures/orphan.png'), makePng(64, 64));
     const issues = await auditAssets(tmp);
     const issue = issues.find((i) => i.rule === 'asset-unused')!;
     const r = applyFix(tmp, issue, { apply: true });
     expect(r.staged).toBe(true);
-    const tombstone = join(tmp, '.spark-cli/staging/files', `${issue.path}.spark-cli-deleted`);
-    expect(existsSync(tombstone)).toBe(true);
-    expect(readFileSync(tombstone, 'utf8')).toMatch(/Tombstone/);
+    expect(loadManifest(tmp).files).toContainEqual(
+      expect.objectContaining({ path: issue.path, action: 'delete' }),
+    );
+    applyStaging(tmp, { yes: true });
+    expect(existsSync(join(tmp, issue.path))).toBe(false);
   });
 
   it('reports no-fix for rules without an automatic remediation', () => {

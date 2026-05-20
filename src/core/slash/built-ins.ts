@@ -24,6 +24,7 @@ import {
   runModelList,
   runModelUse,
 } from '../../commands/model.js';
+import { getTheme, setTheme, listThemes } from '../../theme/theme.js';
 import { refreshProjectContext } from '../agent/system-prompt.js';
 import { resolveProjectRoot } from '../../utils/output.js';
 import { createSkillRegistry } from '../skills/registry.js';
@@ -177,6 +178,23 @@ export function buildBuiltinCommands(): SlashCommand[] {
     }),
     builtin('compact', 'Force-compact the conversation history now', async () => {
       return { kind: 'state-compact-history' };
+    }),
+    builtin('theme', 'Switch theme (dark / light) or show current', async (args) => {
+      const arg = args.trim().toLowerCase();
+      if (!arg) {
+        const current = getTheme();
+        const available = listThemes().join(', ');
+        console.log(chalk.dim(`Current theme: ${current.name} (${current.mode})`));
+        console.log(chalk.dim(`Available: ${available}`));
+        return { kind: 'handled' };
+      }
+      if (setTheme(arg)) {
+        console.log(chalk.green(`Theme set to ${arg}.`));
+        return { kind: 'handled' };
+      }
+      const available = listThemes().join(', ');
+      console.log(chalk.yellow(`Unknown theme "${arg}". Available: ${available}`));
+      return { kind: 'handled' };
     }),
     builtin('skills', 'List installed skills', async (_args, { globalOpts }) => {
       const root = resolveProjectRoot(globalOpts);

@@ -259,15 +259,16 @@ program
   .description('chat with AI (no prompt = interactive session)')
   .option('--auto', 'tools write directly to project tree (default: staging)')
   .option('--no-mascot', 'hide Spark welcome mascot')
+  .option('--ink', 'use Ink-based React UI (experimental)')
   .action(async function (
     this: Command,
     parts: string[],
-    opts: { auto?: boolean; noMascot?: boolean },
+    opts: { auto?: boolean; noMascot?: boolean; ink?: boolean },
   ) {
     const prompt = parts.join(' ');
     const globals = collectGlobals(this);
     if (!prompt) {
-      await runShell(globals, { auto: opts.auto, noMascot: opts.noMascot });
+      await runShell(globals, { auto: opts.auto, noMascot: opts.noMascot, ink: opts.ink });
       return;
     }
     await runChat(globals, prompt, { auto: opts.auto });
@@ -278,12 +279,14 @@ program
   .description('interactive session (default when you run spark-cli with no subcommand)')
   .option('--auto', 'tools write directly to project tree (default: staging)')
   .option('--no-mascot', 'hide Spark welcome mascot')
-  .action(async function (this: Command, opts: { auto?: boolean; noMascot?: boolean }) {
+  .option('--ink', 'use Ink-based React UI (experimental)')
+  .action(async function (this: Command, opts: { auto?: boolean; noMascot?: boolean; ink?: boolean }) {
     const globals = collectGlobals(this);
-    const parent = this.parent?.opts() as { auto?: boolean; noMascot?: boolean } | undefined;
+    const parent = this.parent?.opts() as { auto?: boolean; noMascot?: boolean; ink?: boolean } | undefined;
     const auto = opts.auto ?? parent?.auto;
     const noMascot = opts.noMascot ?? parent?.noMascot;
-    await runShell(globals, { auto, noMascot });
+    const ink = opts.ink ?? parent?.ink;
+    await runShell(globals, { auto, noMascot, ink });
   });
 
 program

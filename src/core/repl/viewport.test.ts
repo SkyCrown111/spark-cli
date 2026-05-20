@@ -25,11 +25,11 @@ describe('viewport', () => {
     } as unknown as NodeJS.WriteStream;
 
     clearTtyViewport(stdout);
-    expect(writes[0]).toBe('\x1b[H\x1b[2J');
+    expect(writes[0]).toBe('\x1b[2J\x1b[3J\x1b[H\x1b[2J');
     expect(writes.some((w) => w.includes('H'))).toBe(true);
   });
 
-  it('does not erase scrollback (no 3J)', () => {
+  it('erases scrollback too', () => {
     const writes: string[] = [];
     const stdout = {
       isTTY: true,
@@ -45,7 +45,7 @@ describe('viewport', () => {
 
     clearTtyViewport(stdout);
     expect(writes.join('')).toContain('\x1b[2J');
-    expect(writes.join('')).not.toContain('\x1b[3J');
+    expect(writes.join('')).toContain('\x1b[3J');
   });
 
   it('uses alternate screen only when opted in', () => {

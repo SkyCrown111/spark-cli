@@ -23,9 +23,32 @@ interface TsParser {
 }
 
 let parserCache: TsParser | null | undefined;
+let parserOperationalCache: boolean | undefined;
 
 export function isTreeSitterCppAvailable(): boolean {
   return probeOptionalRequire('tree-sitter').ok && probeOptionalRequire('tree-sitter-cpp').ok;
+}
+
+export function isTreeSitterCppOperational(): boolean {
+  if (parserOperationalCache !== undefined) return parserOperationalCache;
+  const parser = getParser();
+  if (!parser) {
+    parserOperationalCache = false;
+    return false;
+  }
+  try {
+    const smoke = parseCppOutlineAstWithParser(
+      parser,
+      'UCLASS() class AThing { GENERATED_BODY() UFUNCTION() void DoIt(); UPROPERTY() int32 Count; };',
+    );
+    parserOperationalCache =
+      smoke.uclasses.some((entry) => entry.name === 'AThing') &&
+      smoke.ufunctions.some((entry) => entry.name === 'DoIt') &&
+      smoke.uproperties.some((entry) => entry.name === 'Count');
+  } catch {
+    parserOperationalCache = false;
+  }
+  return parserOperationalCache;
 }
 
 function getParser(): TsParser | null {
@@ -54,7 +77,13 @@ function getParser(): TsParser | null {
 export function parseCppOutlineAst(text: string): Omit<CppOutlineEntry, 'file'> | null {
   const parser = getParser();
   if (!parser) return null;
+  return parseCppOutlineAstWithParser(parser, text);
+}
 
+function parseCppOutlineAstWithParser(
+  parser: TsParser,
+  text: string,
+): Omit<CppOutlineEntry, 'file'> {
   const tree = parser.parse(text);
   const uclasses: CppUClass[] = [];
   const ufunctions: CppUFunction[] = [];
@@ -62,42 +91,48 @@ export function parseCppOutlineAst(text: string): Omit<CppOutlineEntry, 'file'> 
 
   walk(tree.rootNode, (node) => {
     if (node.type === 'class_specifier') {
-      const nameNode = node.childForFieldName('name') ?? findDescendant(node, 'type_identifier');
-      if (!nameNode) return;
       const spec = macroSpecBefore(text, node.startIndex, 'UCLASS');
-      if (!spec) return;
-      const bodySlice = text.slice(node.startIndex, Math.min(text.length, node.endIndex + 80));
-      uclasses.push({
-        name: nameNode.text,
-        base: extractBaseClass(text, node.startIndex),
-        specifiers: splitSpecifiers(spec),
-        line: node.startPosition.row + 1,
-        hasGeneratedBody: /\bGENERATED_BODY\s*\(/.test(bodySlice),
-      });
+      if (spec) {
+        const name = extractDeclaredClassName(text, node.startIndex);
+        if (name) {
+          const bodySlice = text.slice(node.startIndex, Math.min(text.length, node.endIndex + 80));
+          pushUniqueByName(uclasses, {
+            name,
+            base: extractBaseClass(text, node.startIndex),
+            specifiers: splitSpecifiers(spec),
+            line: node.startPosition.row + 1,
+            hasGeneratedBody: /\bGENERATED_BODY\s*\(/.test(bodySlice),
+          });
+        }
+      }
     }
 
-    if (node.type === 'function_definition') {
+    if (node.type === 'function_definition' || node.type === 'declaration') {
       const spec = macroSpecBefore(text, node.startIndex, 'UFUNCTION');
-      if (!spec) return;
-      const name = extractFunctionName(node) ?? extractNameNear(text, node.startIndex, node.endIndex);
-      if (!name) return;
-      ufunctions.push({
-        name,
-        specifiers: splitSpecifiers(spec),
-        line: node.startPosition.row + 1,
-      });
+      if (spec) {
+        const name = extractFunctionName(node) ?? extractNameNear(text, node.startIndex, node.endIndex);
+        if (name) {
+          pushUniqueByName(ufunctions, {
+            name,
+            specifiers: splitSpecifiers(spec),
+            line: node.startPosition.row + 1,
+          });
+        }
+      }
     }
 
-    if (node.type === 'field_declaration') {
+    if (node.type === 'field_declaration' || node.type === 'declaration') {
       const spec = macroSpecBefore(text, node.startIndex, 'UPROPERTY');
-      if (!spec) return;
-      const name = extractFieldName(node) ?? extractNameNear(text, node.startIndex, node.endIndex);
-      if (!name) return;
-      uproperties.push({
-        name,
-        specifiers: splitSpecifiers(spec),
-        line: node.startPosition.row + 1,
-      });
+      if (spec) {
+        const name = extractFieldName(node) ?? extractNameNear(text, node.startIndex, node.endIndex);
+        if (name) {
+          pushUniqueByName(uproperties, {
+            name,
+            specifiers: splitSpecifiers(spec),
+            line: node.startPosition.row + 1,
+          });
+        }
+      }
     }
   });
 
@@ -126,15 +161,28 @@ function findDescendant(node: TsNode, type: string): TsNode | null {
 function macroSpecBefore(text: string, index: number, macro: string): string | null {
   const start = Math.max(0, index - 800);
   const slice = text.slice(start, index);
-  const re = new RegExp(`${macro}\\s*\\(([^)]*)\\)\\s*(?:\\r?\\n\\s*)*$`);
-  const m = slice.match(re);
-  return m ? m[1]! : null;
+  for (let pos = slice.lastIndexOf(macro); pos >= 0; pos = slice.lastIndexOf(macro, pos - 1)) {
+    let cursor = pos + macro.length;
+    while (cursor < slice.length && /\s/.test(slice[cursor]!)) cursor++;
+    if (slice[cursor] !== '(') continue;
+    const end = findMatchingParen(slice, cursor);
+    if (end < 0) continue;
+    if (!/^\s*$/.test(slice.slice(end + 1))) continue;
+    return slice.slice(cursor + 1, end);
+  }
+  return null;
 }
 
 function extractBaseClass(text: string, classStart: number): string | undefined {
   const slice = text.slice(classStart, classStart + 400);
   const m = slice.match(/:\s*public\s+(\w+)/);
   return m?.[1];
+}
+
+function extractDeclaredClassName(text: string, classStart: number): string | null {
+  const slice = text.slice(classStart, classStart + 240);
+  const m = slice.match(/\bclass\s+(?:[A-Z][A-Z0-9_]*_API\s+)?(\w+)/);
+  return m?.[1] ?? null;
 }
 
 function extractFunctionName(node: TsNode): string | null {
@@ -161,6 +209,12 @@ function extractNameNear(text: string, start: number, end: number): string | nul
   const slice = text.slice(start, end);
   const m = slice.match(/\b([A-Za-z_]\w*)\s*\([^;]*\)\s*;/) ?? slice.match(/\b(\w+)\s*[;=]/);
   return m?.[1] ?? null;
+}
+
+function pushUniqueByName<T extends { name: string }>(list: T[], entry: T): void {
+  if (!list.some((item) => item.name === entry.name)) {
+    list.push(entry);
+  }
 }
 
 function splitSpecifiers(s: string): string[] {
@@ -200,4 +254,23 @@ function splitSpecifiers(s: string): string[] {
   const trimmed = buf.trim();
   if (trimmed) out.push(trimmed);
   return out;
+}
+
+function findMatchingParen(text: string, openIndex: number): number {
+  let depth = 0;
+  let inStr = false;
+  for (let i = openIndex; i < text.length; i++) {
+    const ch = text[i];
+    if (ch === '"' && text[i - 1] !== '\\') {
+      inStr = !inStr;
+      continue;
+    }
+    if (inStr) continue;
+    if (ch === '(') depth++;
+    if (ch === ')') {
+      depth--;
+      if (depth === 0) return i;
+    }
+  }
+  return -1;
 }

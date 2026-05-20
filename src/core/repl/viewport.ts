@@ -20,10 +20,10 @@ export function shouldUseAlternateScreen(): boolean {
 /** @deprecated use shouldUseAlternateScreen */
 export const supportsAlternateScreen = shouldUseAlternateScreen;
 
-/** Clear the visible viewport only (keeps scrollback for mouse wheel). */
+/** Clear the viewport and scrollback so full-layout rerenders start from a clean buffer. */
 export function clearTtyViewport(stdout: NodeJS.WriteStream = process.stdout): void {
   if (!stdout.isTTY) return;
-  stdout.write('\x1b[H\x1b[2J');
+  stdout.write('\x1b[2J\x1b[3J\x1b[H\x1b[2J');
   try {
     readline.cursorTo(stdout, 0, 0);
     readline.clearScreenDown(stdout);

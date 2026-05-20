@@ -29,6 +29,19 @@ function sendJson(res: ServerResponse, code: number, body: unknown): void {
   res.end(JSON.stringify(body));
 }
 
+function isTrustedEditorOrigin(req: IncomingMessage): boolean {
+  const origin = req.headers.origin;
+  if (!origin) return true;
+  const host = req.headers.host;
+  if (!host) return false;
+  try {
+    const originUrl = new URL(origin);
+    return originUrl.host === host;
+  } catch {
+    return false;
+  }
+}
+
 async function readBody(req: IncomingMessage): Promise<string> {
   const chunks: Buffer[] = [];
   for await (const chunk of req) chunks.push(chunk as Buffer);
@@ -65,12 +78,21 @@ export function startEditorServer(opts: EditorServerOptions): Promise<{ port: nu
   const server = createServer(async (req, res) => {
     const url = new URL(req.url ?? '/', `http://${host}`);
     const method = req.method ?? 'GET';
+    const trustedOrigin = isTrustedEditorOrigin(req);
 
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+    if (req.headers.origin && trustedOrigin) {
+      res.setHeader('Access-Control-Allow-Origin', req.headers.origin);
+      res.setHeader('Vary', 'Origin');
+      res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+      res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+    }
 
     if (method === 'OPTIONS') {
+      if (!trustedOrigin) {
+        res.writeHead(403);
+        res.end('Forbidden');
+        return;
+      }
       res.writeHead(204);
       res.end();
       return;
@@ -87,6 +109,10 @@ export function startEditorServer(opts: EditorServerOptions): Promise<{ port: nu
     }
 
     if (url.pathname === '/api/staging/file' && method === 'POST') {
+      if (!trustedOrigin) {
+        sendJson(res, 403, { error: 'cross-origin requests are not allowed' });
+        return;
+      }
       try {
         const raw = await readBody(req);
         const body = JSON.parse(raw) as { path: string; content: string };

@@ -16,7 +16,7 @@
 
 import { existsSync, readFileSync, readdirSync, statSync, unlinkSync } from 'node:fs';
 import { join, relative, extname } from 'node:path';
-import { stageWriteFile } from '../staging/patch-manager.js';
+import { stageDeleteFile } from '../staging/patch-manager.js';
 import { findUnusedAssets } from './scanner.js';
 import { readImageDimensions } from './image-dims.js';
 
@@ -166,9 +166,7 @@ export interface FixResult {
 
 /**
  * Apply a fix for a single issue. Today only `asset-unused` is auto-fixable
- * (soft-delete via staging — writes an empty placeholder so `spark-cli apply`
- * removes the file once we add a delete-op to patch-manager; for now it just
- * reports what would happen).
+ * and stages a real delete-op for review/apply.
  */
 export function applyFix(
   projectRoot: string,
@@ -185,20 +183,13 @@ export function applyFix(
         message: `Would delete unused asset ${issue.path} (run with --apply to stage)`,
       };
     }
-    // Stage a "tombstone" — a zero-byte file so the user can review the diff.
-    // The actual file deletion is left to a follow-up phase that adds delete-ops
-    // to the staging manifest. We document the intent in the staged content.
-    stageWriteFile(
-      projectRoot,
-      `${issue.path}.spark-cli-deleted`,
-      `# Tombstone for ${issue.path} — pending delete by spark-cli apply`,
-    );
+    stageDeleteFile(projectRoot, issue.path);
     return {
       rule: issue.rule,
       path: issue.path,
       applied: true,
       staged: true,
-      message: `Staged tombstone for ${issue.path}`,
+      message: `Staged delete for ${issue.path}`,
     };
   }
   return {

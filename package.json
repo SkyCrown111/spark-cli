@@ -49,6 +49,7 @@
     "test:phase12": "node scripts/phase12-accept.mjs",
     "test:phase13": "node scripts/phase13-accept.mjs",
     "test:phase14": "node scripts/phase14-accept.mjs",
+    "test:phase15": "node scripts/phase15-accept.mjs",
     "prepublishOnly": "pnpm run build"
   },
   "engines": {
@@ -57,17 +58,24 @@
   "packageManager": "pnpm@9.2.0",
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.12.1",
+    "@types/react": "^19.2.15",
     "chalk": "^5.4.1",
     "commander": "^13.1.0",
     "cosmiconfig": "^9.0.0",
     "diff": "^7.0.0",
+    "ink": "^7.0.3",
+    "ink-markdown": "^1.0.4",
+    "ink-spinner": "^5.0.0",
+    "ink-text-input": "^6.0.0",
     "inquirer": "^12.4.2",
     "js-yaml": "^4.1.0",
     "marked": "15",
     "marked-terminal": "^7.3.0",
     "ora": "^8.2.0",
+    "react": "^19.2.6",
     "undici": "^7.4.0",
-    "zod": "^3.24.2"
+    "zod": "^3.24.2",
+    "zustand": "^5.0.13"
   },
   "optionalDependencies": {
     "sharp": "^0.33.5",
@@ -81,6 +89,7 @@
     "@types/ws": "^8.18.1",
     "esbuild": "^0.25.1",
     "fast-check": "^4.8.0",
+    "ink-testing-library": "^4.0.0",
     "typescript": "^5.8.2",
     "vitest": "^3.0.8",
     "ws": "^8.18.1"

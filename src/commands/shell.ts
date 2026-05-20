@@ -493,6 +493,8 @@ export interface RunShellOptions {
   auto?: boolean;
   /** Skip Spark mascot (also `SPARK_CLI_NO_MASCOT=1`). */
   noMascot?: boolean;
+  /** Use Ink-based React UI (experimental). */
+  ink?: boolean;
 }
 
 export interface ProcessReplLineResult {
@@ -595,6 +597,16 @@ export async function runShell(
   opts: GlobalOptions,
   shellOpts: RunShellOptions = {},
 ): Promise<void> {
+  // Delegate to Ink-based REPL when --ink flag is set
+  if (shellOpts.ink) {
+    const { runInkRepl } = await import('../core/repl/ink-repl.js');
+    return runInkRepl(opts, shellOpts);
+  }
+
+  // Initialize theme from saved config preference
+  const { initThemeFromConfig } = await import('../theme/theme.js');
+  initThemeFromConfig();
+
   const useAlternateScreen = enterAlternateScreen();
   const state: ShellState = {
     history: [],
