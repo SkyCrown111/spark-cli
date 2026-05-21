@@ -26,18 +26,18 @@ describe('scene-writer', () => {
     clearStaging(fixture);
   });
 
-  it('stages component property update', () => {
+  it('stages component property update', async () => {
     if (hasStaging(fixture)) clearStaging(fixture);
     updateSceneComponentInStaging(fixture, sceneRel, 'Canvas', 'cc.UITransform', {
       _enabled: false,
     });
-    applyStaging(fixture, { yes: true, backup: false });
+    await applyStaging(fixture, { yes: true, backup: false });
     const raw = readFileSync(join(fixture, sceneRel), 'utf8');
     expect(raw).toContain('"_enabled": false');
     // restore enabled for other tests
     updateSceneComponentInStaging(fixture, sceneRel, 'Canvas', 'cc.UITransform', {
       _enabled: true,
     });
-    applyStaging(fixture, { yes: true, backup: false });
+    await applyStaging(fixture, { yes: true, backup: false });
   });
 });

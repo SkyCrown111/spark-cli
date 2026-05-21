@@ -21,7 +21,8 @@ import {
   type ProjectContext,
 } from '../context/project-scanner.js';
 import { formatMemoryForPrompt } from '../memory/store.js';
-import { readMemoryIndex } from '../memory/cross-session-store.js';
+import { readMemoryIndex, listMemories } from '../memory/cross-session-store.js';
+import { selectRelevantMemories, formatRelevantMemoriesForPrompt } from '../memory/relevance.js';
 import { loadIndex } from '../knowledge/indexer.js';
 import { searchKnowledge } from '../knowledge/retriever.js';
 import type { ToolWriteMode, ToolRunMode } from './tool-registry.js';
@@ -100,6 +101,8 @@ export interface SystemPromptOpts {
   userInputForKnowledgeRetrieval?: string;
   /** When provided, trigger-matched skills are inlined into the prompt. */
   skills?: SkillRegistry;
+  /** Reasoning effort level for this turn. */
+  effortLevel?: 'low' | 'medium' | 'high' | 'xhigh' | 'max';
 }
 
 export function buildAgentSystemPrompt(opts: SystemPromptOpts): string {
@@ -125,6 +128,22 @@ export function buildAgentSystemPrompt(opts: SystemPromptOpts): string {
         crossSessionIndex,
       ].join('\n'),
     );
+  }
+
+  // Load top-N relevant memory bodies matching the current topic
+  if (opts.userInputForKnowledgeRetrieval) {
+    const allMemories = listMemories(opts.projectRoot);
+    if (allMemories.length > 0) {
+      const relevant = selectRelevantMemories(
+        allMemories,
+        opts.userInputForKnowledgeRetrieval,
+        3,
+      );
+      if (relevant.length > 0) {
+        const block = formatRelevantMemoriesForPrompt(relevant);
+        if (block) sections.push(block);
+      }
+    }
   }
 
   if (opts.userInputForKnowledgeRetrieval) {
@@ -192,6 +211,18 @@ export function buildAgentSystemPrompt(opts: SystemPromptOpts): string {
   }
 
   sections.push(toolPreamble(opts.mode, opts.writeMode));
+
+  // Effort level annotation
+  if (opts.effortLevel && opts.effortLevel !== 'medium') {
+    const effortNote = opts.effortLevel === 'low'
+      ? 'Reasoning effort: LOW — be brief, skip lengthy explanations, prioritize speed.'
+      : opts.effortLevel === 'high' || opts.effortLevel === 'xhigh'
+        ? `Reasoning effort: ${opts.effortLevel.toUpperCase()} — think carefully, verify assumptions, consider edge cases before responding.`
+        : opts.effortLevel === 'max'
+          ? 'Reasoning effort: MAX — provide the most thorough analysis possible. Consider all alternatives, document reasoning, double-check every claim.'
+          : '';
+    if (effortNote) sections.push(effortNote);
+  }
 
   return sections.join('\n\n');
 }

@@ -1,4 +1,6 @@
 import { isMcpWriteToolName } from './permissions.js';
+import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs';
+import { join } from 'node:path';
 
 export const SENSITIVE_TOOL_NAMES = new Set([
   'bash',
@@ -49,11 +51,27 @@ export type AskUserFn = (
   req: AskUserRequest,
 ) => Promise<{ answers: AskUserAnswer[] } | { unsupported: true; reason: string }>;
 
+/**
+ * Session-scoped tool permission tracker.
+ *
+ * When `persistDir` is provided, "always allow" choices are saved to
+ * `always-allow.json` in that directory and reloaded on subsequent sessions.
+ * When `persistDir` is undefined (or empty), behaves as before — in-memory only.
+ */
 export class ToolPermissionSession {
   private alwaysAllow = new Set<string>();
+  private persistPath?: string;
+
+  constructor(persistPath?: string) {
+    this.persistPath = persistPath;
+    if (persistPath) {
+      this.loadPersisted();
+    }
+  }
 
   allowAlways(tool: string): void {
     this.alwaysAllow.add(tool);
+    this.persist();
   }
 
   isAlwaysAllowed(tool: string): boolean {
@@ -62,6 +80,42 @@ export class ToolPermissionSession {
 
   reset(): void {
     this.alwaysAllow.clear();
+    this.persist();
+  }
+
+  /** Return the set of always-allowed tools (for serialization). */
+  getAlwaysAllowSet(): ReadonlySet<string> {
+    return this.alwaysAllow;
+  }
+
+  private loadPersisted(): void {
+    if (!this.persistPath) return;
+    try {
+      if (existsSync(this.persistPath)) {
+        const data = JSON.parse(readFileSync(this.persistPath, 'utf8'));
+        if (data && Array.isArray(data.tools)) {
+          for (const t of data.tools as string[]) {
+            this.alwaysAllow.add(t);
+          }
+        }
+      }
+    } catch {
+      // Corrupt or missing file — start with empty set
+    }
+  }
+
+  private persist(): void {
+    if (!this.persistPath) return;
+    try {
+      const dir = join(this.persistPath, '..');
+      if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
+      writeFileSync(
+        this.persistPath,
+        JSON.stringify({ tools: Array.from(this.alwaysAllow) }, null, 2),
+      );
+    } catch {
+      // Write failure — don't block the session
+    }
   }
 }
 

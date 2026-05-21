@@ -5,11 +5,13 @@
  * Instead of a static "Thinking..." label, the spinner shows
  * context-appropriate verbs like "Reading file.txt",
  * "Writing", "Searching", etc.
+ *
+ * After P0.3: Uses ShimmeredInput for per-character shimmer
+ * sweep animation, matching Claude Code's shimmer effect.
  */
 
 import React, { useState, useEffect } from 'react';
 import { Box, Text } from 'ink';
-import { Spinner } from '../design-system/Spinner.js';
 import { getVerbForTool, DEFAULT_VERB } from '../../constants/spinnerVerbs.js';
 
 // ── Props ──────────────────────────────────────────────
@@ -23,45 +25,38 @@ export interface SpinnerWithVerbProps {
   verbOverride?: string;
   /** Spinner color */
   color?: string;
-  /** Spinner animation type */
-  type?: 'dots' | 'line' | 'bouncingBar' | 'arc';
 }
 
-// ── Shimmer effect ─────────────────────────────────────
-
-const SHIMMER_CHARS = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
+// ── Component ──────────────────────────────────────────
 
 /**
- * SpinnerWithVerb — dynamic verb spinner.
+ * SpinnerWithVerb — shows ⏺ verb... with elapsed time.
+ * Matches Claude Code's thinking/working indicator format.
  */
 export const SpinnerWithVerb: React.FC<SpinnerWithVerbProps> = ({
   toolId,
   detail,
   verbOverride,
   color = 'cyan',
-  type = 'dots',
 }) => {
-  const [shimmerIdx, setShimmerIdx] = useState(0);
+  const [elapsed, setElapsed] = useState(0);
 
-  // Animate shimmer
   useEffect(() => {
-    const timer = setInterval(() => {
-      setShimmerIdx((prev) => (prev + 1) % SHIMMER_CHARS.length);
-    }, 80);
-    return () => clearInterval(timer);
+    const start = Date.now();
+    const interval = setInterval(() => {
+      setElapsed(Math.round((Date.now() - start) / 100) / 10);
+    }, 100);
+    return () => clearInterval(interval);
   }, []);
 
-  // Determine verb
   const verb = verbOverride ?? (toolId ? getVerbForTool(toolId) : DEFAULT_VERB);
-
-  // Build label
   const label = detail ? `${verb} ${detail}` : verb;
+  const timeStr = elapsed > 0 ? ` (${elapsed.toFixed(1)}s)` : '';
 
   return (
     <Box flexDirection="row" gap={1}>
-      <Spinner type={type} color={color} />
-      <Text color={color}>{label}</Text>
-      <Text dimColor>{SHIMMER_CHARS[shimmerIdx]}</Text>
+      <Text color={color}>{'⏺'}</Text>
+      <Text color={color}>{label}...{timeStr}</Text>
     </Box>
   );
 };

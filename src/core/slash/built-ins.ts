@@ -24,13 +24,14 @@ import {
   runModelList,
   runModelUse,
 } from '../../commands/model.js';
-import { getTheme, setTheme, listThemes } from '../../theme/theme.js';
+import { setTheme, listThemes } from '../../theme/theme.js';
 import { refreshProjectContext } from '../agent/system-prompt.js';
 import { resolveProjectRoot } from '../../utils/output.js';
 import { createSkillRegistry } from '../skills/registry.js';
 import { loadSkillsFromDisk } from '../skills/loader.js';
 import { loadHookConfig } from '../hooks/config.js';
 import { getProjectMemory, getSessionMemory } from '../memory/store.js';
+import { listSessions } from '../session/manager.js';
 import {
   buildAnimAgentPrompt,
   buildGenAgentPrompt,
@@ -47,7 +48,11 @@ export type StatefulOutcome =
   | { kind: 'state-clear-history' }
   | { kind: 'state-set-write-mode'; writeMode: 'staging' | 'direct' | 'toggle' }
   | { kind: 'state-show-status' }
-  | { kind: 'state-compact-history' };
+  | { kind: 'state-compact-history' }
+  | { kind: 'state-show-model-picker' }
+  | { kind: 'state-show-theme-picker' }
+  | { kind: 'state-set-effort'; effortLevel: import('../../state/AppState.js').EffortLevel }
+  | { kind: 'state-resume-session'; sessionId?: string };
 
 export type ExtendedOutcome = SlashOutcome | StatefulOutcome;
 
@@ -156,14 +161,19 @@ export function buildBuiltinCommands(): SlashCommand[] {
       const parts = args.split(/\s+/).filter(Boolean);
       if (parts[0] === 'list') {
         await runModelList(globalOpts, parts[1]);
+        return { kind: 'handled' };
       } else if (parts[0] === 'use') {
         const ref = parts.slice(1).join(' ');
         if (!ref) console.log(chalk.yellow('Usage: /model use provider/model'));
         else await runModelUse(globalOpts, ref);
+        return { kind: 'handled' };
+      } else if (parts.length === 0) {
+        // No args: open interactive model picker (Ink UI) or show current (CLI)
+        return { kind: 'state-show-model-picker' };
       } else {
         await runModelCurrent(globalOpts);
+        return { kind: 'handled' };
       }
-      return { kind: 'handled' };
     }),
     builtin('plan', 'Enter plan mode (read-only; review before apply)', async () => {
       return { kind: 'enter-plan' };
@@ -179,14 +189,21 @@ export function buildBuiltinCommands(): SlashCommand[] {
     builtin('compact', 'Force-compact the conversation history now', async () => {
       return { kind: 'state-compact-history' };
     }),
+    builtin('effort', 'Set reasoning effort level (low|medium|high|xhigh|max)', async (args) => {
+      const VALID_LEVELS = ['low', 'medium', 'high', 'xhigh', 'max'] as const;
+      const arg = args.trim().toLowerCase();
+      if (!arg || !VALID_LEVELS.includes(arg as typeof VALID_LEVELS[number])) {
+        console.log(chalk.yellow(`Usage: /effort <level> where level = ${VALID_LEVELS.join('|')}`));
+        return { kind: 'handled' };
+      }
+      console.log(chalk.green(`Effort set to ${arg}.`));
+      return { kind: 'state-set-effort', effortLevel: arg as typeof VALID_LEVELS[number] };
+    }),
     builtin('theme', 'Switch theme (dark / light) or show current', async (args) => {
       const arg = args.trim().toLowerCase();
       if (!arg) {
-        const current = getTheme();
-        const available = listThemes().join(', ');
-        console.log(chalk.dim(`Current theme: ${current.name} (${current.mode})`));
-        console.log(chalk.dim(`Available: ${available}`));
-        return { kind: 'handled' };
+        // No args: open interactive theme picker (Ink UI) or show current (CLI)
+        return { kind: 'state-show-theme-picker' };
       }
       if (setTheme(arg)) {
         console.log(chalk.green(`Theme set to ${arg}.`));
@@ -282,6 +299,37 @@ export function buildBuiltinCommands(): SlashCommand[] {
       }
       return { kind: 'handled' };
     }),
+    builtin('bash', 'Execute a shell command (or use ! prefix)', async (args) => {
+      const cmd = args.trim();
+      if (!cmd) {
+        console.log(chalk.yellow('Usage: /bash <command>  (or type !<command> directly)'));
+        return { kind: 'handled' };
+      }
+      // Return the command as a bash prompt so the REPL executes it
+      return { kind: 'prompt', text: `!${cmd}`, mode: 'normal' };
+    }),
+    builtin('resume', 'Resume a previous session (list or by ID)', async (args, { globalOpts }) => {
+      const root = resolveProjectRoot(globalOpts);
+      const arg = args.trim();
+      if (!arg) {
+        // List available sessions
+        const sessions = listSessions(root);
+        if (sessions.length === 0) {
+          console.log(chalk.dim('No sessions found.'));
+          return { kind: 'handled' };
+        }
+        console.log(chalk.bold('Available sessions:'));
+        for (const s of sessions.slice(0, 10)) {
+          const updated = s.updatedAt.slice(0, 19).replace('T', ' ');
+          console.log(`  ${chalk.cyan(s.id)}  ${chalk.dim(updated)}  ${s.title || 'Untitled'}`);
+        }
+        console.log(chalk.dim('Use /resume <id> to load a specific session.'));
+        return { kind: 'handled' };
+      }
+      // Resume specific session by ID
+      console.log(chalk.green(`Resuming session ${arg}...`));
+      return { kind: 'state-resume-session', sessionId: arg };
+    }),
     {
       name: 'exit-plan',
       description: 'Exit plan mode and (optionally) apply the proposed plan',
@@ -292,5 +340,49 @@ export function buildBuiltinCommands(): SlashCommand[] {
         return { kind: 'exit-plan', approve };
       },
     },
+    builtin('checkpoint', 'Create a git stash checkpoint', async (_args, { globalOpts }) => {
+      const { createCheckpoint } = await import('../git/checkpoint.js');
+      const root = resolveProjectRoot(globalOpts);
+      try {
+        const cp = await createCheckpoint(root);
+        console.log(chalk.green('Checkpoint created:'), chalk.cyan(cp.id), chalk.dim(cp.timestamp));
+        // Update AppState if available
+        try {
+          const { appState } = await import('../../state/AppState.js');
+          appState.setState({ checkpoint: { id: cp.id, timestamp: cp.timestamp } });
+        } catch { /* CLI-only mode */ }
+        return { kind: 'handled' };
+      } catch (e) {
+        console.error(chalk.red('Checkpoint failed:'), e instanceof Error ? e.message : String(e));
+        return { kind: 'handled' };
+      }
+    }),
+    builtin('rewind', 'Rewind to a checkpoint (last one if no ID given)', async (args, { globalOpts }) => {
+      const { rewindToCheckpoint, listCheckpoints } = await import('../git/checkpoint.js');
+      const root = resolveProjectRoot(globalOpts);
+      const arg = args.trim();
+      const checkpoints = listCheckpoints(root);
+      if (checkpoints.length === 0) {
+        console.log(chalk.dim('No checkpoints available.'));
+        return { kind: 'handled' };
+      }
+      const targetId = arg || checkpoints[checkpoints.length - 1].id;
+      try {
+        const ok = await rewindToCheckpoint(root, targetId);
+        if (ok) {
+          console.log(chalk.green('Rewound to checkpoint:'), chalk.cyan(targetId));
+          try {
+            const { appState } = await import('../../state/AppState.js');
+            appState.setState({ checkpoint: undefined });
+          } catch { /* CLI-only mode */ }
+        } else {
+          console.log(chalk.yellow('Rewind failed — conflict or checkpoint not found.'));
+        }
+        return { kind: 'handled' };
+      } catch (e) {
+        console.error(chalk.red('Rewind failed:'), e instanceof Error ? e.message : String(e));
+        return { kind: 'handled' };
+      }
+    }),
   ];
 }

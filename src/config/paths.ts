@@ -39,3 +39,7 @@ export function getCrossSessionMemoryDir(projectRoot: string): string {
   return join(getGlobalConfigDir(), 'projects', getProjectSlug(projectRoot), 'memory');
 }
 
+export function getAlwaysAllowPath(projectRoot: string): string {
+  return join(getProjectSparkDir(projectRoot), 'permissions', 'always-allow.json');
+}
+

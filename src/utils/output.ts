@@ -7,6 +7,26 @@ export interface GlobalOptions {
   verbose?: boolean;
   yes?: boolean;
   dryRun?: boolean;
+  /** Print/one-shot mode prompt (non-interactive). */
+  print?: string;
+  /** Maximum agent turns in print mode. */
+  maxTurns?: number;
+  /** Maximum estimated USD spend. */
+  maxBudgetUsd?: number;
+  /** Custom system prompt (replaces default). */
+  systemPrompt?: string;
+  /** Append to default system prompt. */
+  appendSystemPrompt?: string;
+  /** Reasoning effort level. */
+  effort?: 'low' | 'medium' | 'high' | 'xhigh' | 'max';
+  /** Resume the most recent session. */
+  continueSession?: boolean;
+  /** Resume a specific session by ID. */
+  resumeSession?: string;
+  /** Load PR context (diff + comments) by PR number. */
+  fromPr?: number;
+  /** Run as a background agent (detached process). */
+  bg?: boolean;
 }
 
 export function resolveProjectRoot(opts: GlobalOptions): string {

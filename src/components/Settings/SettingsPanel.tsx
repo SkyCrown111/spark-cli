@@ -10,6 +10,18 @@ import React, { useCallback, useMemo } from 'react';
 import { Box, Text } from 'ink';
 import { CustomSelect, type SelectOption } from '../CustomSelect/index.js';
 import { useRegisterKeybindingContext } from '../../keybindings/useKeybinding.js';
+import type { PermissionMode } from '../../state/AppState.js';
+
+// ── Permission mode descriptions ──
+
+const PERMISSION_MODE_DESCRIPTIONS: Record<PermissionMode, string> = {
+  default: 'Ask for permission on risky operations',
+  plan: 'Plan mode — propose changes, no auto-apply',
+  auto: 'Automatically approve most operations',
+  acceptEdits: 'Auto-approve file edits; ask for risky ops',
+  dontAsk: 'Only pre-approved tools; auto-deny the rest',
+  bypass: 'Bypass all permission checks (dangerous)',
+};
 
 // ── Props ──────────────────────────────────────────────
 
@@ -17,7 +29,7 @@ export interface SettingsPanelProps {
   /** Current write mode */
   writeMode: 'staging' | 'direct';
   /** Current permission mode */
-  permissionMode: 'default' | 'plan' | 'auto' | 'bypass';
+  permissionMode: PermissionMode;
   /** Whether vim mode is enabled */
   vimEnabled: boolean;
   /** Whether companion sprite is enabled */
@@ -52,13 +64,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
     {
       value: 'permissionMode',
       label: `Permission Mode: ${permissionMode}`,
-      description: permissionMode === 'default'
-        ? 'Ask for permission on risky operations'
-        : permissionMode === 'auto'
-          ? 'Automatically approve most operations'
-          : permissionMode === 'plan'
-            ? 'Plan mode — propose changes, no auto-apply'
-            : 'Bypass all permission checks',
+      description: PERMISSION_MODE_DESCRIPTIONS[permissionMode],
     },
     {
       value: 'vimEnabled',
@@ -91,7 +97,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
     if (value === 'writeMode') {
       onSettingChange('writeMode', writeMode === 'staging' ? 'direct' : 'staging');
     } else if (value === 'permissionMode') {
-      const modes = ['default', 'plan', 'auto', 'bypass'];
+      const modes: PermissionMode[] = ['default', 'acceptEdits', 'plan', 'auto', 'dontAsk', 'bypass'];
       const nextIdx = modes.indexOf(permissionMode) + 1;
       onSettingChange('permissionMode', modes[nextIdx % modes.length]);
     } else if (value === 'vimEnabled') {

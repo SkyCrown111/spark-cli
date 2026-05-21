@@ -130,7 +130,7 @@ describe('applyFix', () => {
     expect(loadManifest(tmp).files).toContainEqual(
       expect.objectContaining({ path: issue.path, action: 'delete' }),
     );
-    applyStaging(tmp, { yes: true });
+    await applyStaging(tmp, { yes: true });
     expect(existsSync(join(tmp, issue.path))).toBe(false);
   });
 

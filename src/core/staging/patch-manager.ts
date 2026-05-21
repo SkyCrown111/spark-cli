@@ -239,10 +239,10 @@ export function showDiff(projectRoot: string): string {
   return parts.join('\n');
 }
 
-export function applyStaging(
+export async function applyStaging(
   projectRoot: string,
   options: { yes?: boolean; backup?: boolean; dryRun?: boolean },
-): string[] {
+): Promise<string[]> {
   if (!hasStaging(projectRoot)) {
     throw new SparkCLIError('No staged changes. Run a command that writes to staging first.', 1, [
       'Try: spark-cli chat "..."',
@@ -303,6 +303,26 @@ export function applyStaging(
   }
 
   clearStaging(projectRoot);
+
+  // Auto-commit if configured
+  if (applied.length > 0) {
+    try {
+      // Dynamic import to avoid circular dependency at module load time
+      const { autoCommit, generateCommitMessage } = await import('../git/auto-commit.js');
+      // We need to check config — use a sync guard since applyStaging is sync
+      // The caller can opt into autoCommit via config.git.autoCommit
+      // We detect it by checking if the project has the config flag set
+      const { loadMergedConfig } = await import('../../config/load.js');
+      const config = await loadMergedConfig(projectRoot);
+      if (config.git?.autoCommit) {
+        const commitMsg = generateCommitMessage(manifest);
+        autoCommit(projectRoot, commitMsg);
+      }
+    } catch {
+      // Auto-commit failures are non-critical
+    }
+  }
+
   return applied;
 }
 

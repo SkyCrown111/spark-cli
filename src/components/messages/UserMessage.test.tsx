@@ -18,7 +18,7 @@ describe('UserMessage component', () => {
     const { lastFrame } = render(<UserMessage message={message} />);
     const output = lastFrame();
     
-    expect(output).toContain('You:');
+    expect(output).toContain('>');
     expect(output).toContain('Hello, world!');
   });
 
@@ -31,7 +31,7 @@ describe('UserMessage component', () => {
     const { lastFrame } = render(<UserMessage message={message} />);
     const output = lastFrame();
     
-    expect(output).toContain('You:');
+    expect(output).toContain('>');
     expect(output).toContain('Line 1');
     expect(output).toContain('Line 2');
     expect(output).toContain('Line 3');
@@ -48,7 +48,7 @@ describe('UserMessage component', () => {
     const { lastFrame } = render(<UserMessage message={message} />);
     const output = lastFrame();
     
-    expect(output).toContain('You:');
+    expect(output).toContain('>');
     expect(output).toContain('Text content');
   });
 
@@ -64,7 +64,7 @@ describe('UserMessage component', () => {
     const { lastFrame } = render(<UserMessage message={message} />);
     const output = lastFrame();
     
-    expect(output).toContain('You:');
+    expect(output).toContain('>');
     expect(output).toContain('Check this image:');
     expect(output).toContain('[Image]');
   });
@@ -78,7 +78,7 @@ describe('UserMessage component', () => {
     const { lastFrame } = render(<UserMessage message={message} />);
     const output = lastFrame();
     
-    expect(output).toContain('You:');
+    expect(output).toContain('>');
   });
 
   it('handles multiple text parts', () => {
@@ -94,7 +94,7 @@ describe('UserMessage component', () => {
     const { lastFrame } = render(<UserMessage message={message} />);
     const output = lastFrame();
     
-    expect(output).toContain('You:');
+    expect(output).toContain('>');
     expect(output).toContain('Part 1');
     expect(output).toContain('Part 2');
     expect(output).toContain('Part 3');
@@ -112,7 +112,7 @@ describe('UserMessage component', () => {
     const { lastFrame } = render(<UserMessage message={message} />);
     const output = lastFrame();
     
-    expect(output).toContain('You:');
+    expect(output).toContain('>');
     expect(output).toContain('Valid text');
   });
 });

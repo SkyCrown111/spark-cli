@@ -11,7 +11,8 @@ import { demoteTools, isToolRelated4xx } from './capabilities.js';
 
 export type ChatContentPart =
   | { type: 'text'; text: string }
-  | { type: 'image_url'; image_url: { url: string; detail?: 'low' | 'high' | 'auto' } };
+  | { type: 'image_url'; image_url: { url: string; detail?: 'low' | 'high' | 'auto' } }
+  | { type: 'thinking'; text: string };
 
 /**
  * Discriminated-union message shape. The OpenAI wire format is canonical
@@ -59,6 +60,8 @@ export interface ChatCompletionOptions {
    * so callers don't need to special-case streaming downstream.
    */
   onDelta?: (delta: string) => void;
+  /** Reasoning effort level (low/medium/high/xhigh/max). Passed as reasoning_effort for supported models. */
+  effortLevel?: 'low' | 'medium' | 'high' | 'xhigh' | 'max';
 }
 
 /** @deprecated Use `ProviderResponse` from `./types.js`. */
@@ -113,6 +116,9 @@ export async function chatCompletion(
   if (opts.tools && opts.tools.length > 0) {
     body.tools = opts.tools;
     body.tool_choice = opts.toolChoice ?? 'auto';
+  }
+  if (opts.effortLevel && opts.effortLevel !== 'medium') {
+    body.reasoning_effort = opts.effortLevel;
   }
 
   const headers: Record<string, string> = {
@@ -219,6 +225,9 @@ async function chatCompletionStream(
   if (opts.tools && opts.tools.length > 0) {
     body.tools = opts.tools;
     body.tool_choice = opts.toolChoice ?? 'auto';
+  }
+  if (opts.effortLevel && opts.effortLevel !== 'medium') {
+    body.reasoning_effort = opts.effortLevel;
   }
 
   const headers: Record<string, string> = {

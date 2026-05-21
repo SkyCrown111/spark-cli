@@ -19,8 +19,9 @@ import { ToolPermissionSession } from '../core/agent/tool-permissions.js';
 
 // ── Types ──────────────────────────────────────────────────────
 
-export type PermissionMode = 'default' | 'plan' | 'auto' | 'bypass';
+export type PermissionMode = 'default' | 'plan' | 'auto' | 'acceptEdits' | 'dontAsk' | 'bypass';
 export type VimMode = 'INSERT' | 'NORMAL';
+export type EffortLevel = 'low' | 'medium' | 'high' | 'xhigh' | 'max';
 
 export interface TokenUsage {
   used: number;
@@ -28,6 +29,10 @@ export interface TokenUsage {
 }
 
 export interface AppState {
+  // ── Session ──
+  /** Current session ID for resume/continue. */
+  sessionId: string;
+
   // ── Conversation ──
   messages: ChatMessage[];
   /** Raw agent history (not displayed directly) */
@@ -64,15 +69,78 @@ export interface AppState {
   showThemePicker: boolean;
   showSettingsPanel: boolean;
   showOnboarding: boolean;
+  showCostThresholdDialog: boolean;
+  showIdleReturnDialog: boolean;
+  showAutoModeOptIn: boolean;
+  showBypassPermissions: boolean;
+  showGlobalSearch: boolean;
+  showTranscript: boolean;
+
+  // ── Global search ──
+  searchQuery: string;
+
+  // ── Transcript ──
+  transcriptSearchQuery: string;
+
+  // ── Thinking ──
+  showThinking: boolean;
+
+  // ── Effort / Fast mode ──
+  /** Reasoning effort level (low = quick, max = deepest). */
+  effortLevel: EffortLevel;
+  /** Fast mode: reduced reasoning for quicker responses. */
+  fastMode: boolean;
+
+  // ── Active tool tracking ──
+  /** Current tool being executed (drives SpinnerWithVerb) */
+  activeToolId: string | undefined;
+  /** Context detail for active tool (e.g. file name) */
+  activeToolDetail: string | undefined;
+
+  // ── Streaming ──
+  /** Partial assistant content being streamed via onDelta */
+  streamingContent: string;
+  /** Whether the agent is currently streaming a response */
+  isStreaming: boolean;
+
+  // ── Permission request ──
+  /** Pending permission request (if any) */
+  permissionRequest: PermissionRequestState | undefined;
 
   // ── Footer items ──
   footerItems: FooterItem[];
+
+  // ── Git: PR badge ──
+  /** PR status badge shown in footer. */
+  prBadge?: { number: number; status: string; url: string };
+
+  // ── Git: checkpoint ──
+  /** Current checkpoint metadata. */
+  checkpoint?: { id: string; timestamp: string };
+
+  // ── Background agents ──
+  /** List of tracked background agent statuses. */
+  backgroundAgents: Array<{ id: string; name: string; status: string }>;
+  /** Currently attached background agent ID (for log streaming). */
+  attachedAgentId?: string;
 }
 
 export interface FooterItem {
   id: string;
   label: string;
   action?: () => void;
+}
+
+/** State for an active permission request dialog */
+export interface PermissionRequestState {
+  /** Tool name requesting permission */
+  tool: string;
+  /** Summary of the tool action */
+  argsSummary: string;
+  /** Whether "always allow" option is available */
+  showAlwaysAllow: boolean;
+  /** Resolve the permission promise */
+  resolve: (answer: 'allow' | 'deny' | 'allow-always') => void;
 }
 
 // ── Store ──────────────────────────────────────────────────────
@@ -86,6 +154,8 @@ function createDefaultPermissionSession(): ToolPermissionSession {
 }
 
 export const appState = create<AppState>(() => ({
+  // Session
+  sessionId: '',
   // Conversation
   messages: [],
   agentHistory: [],
@@ -114,8 +184,37 @@ export const appState = create<AppState>(() => ({
   showThemePicker: false,
   showSettingsPanel: false,
   showOnboarding: false,
+  showCostThresholdDialog: false,
+  showIdleReturnDialog: false,
+  showAutoModeOptIn: false,
+  showBypassPermissions: false,
+  showGlobalSearch: false,
+  showTranscript: false,
+  // Global search
+  searchQuery: '',
+  // Transcript
+  transcriptSearchQuery: '',
+  // Thinking
+  showThinking: false,
+  // Effort / Fast mode
+  effortLevel: 'medium',
+  fastMode: false,
+  // Active tool
+  activeToolId: undefined,
+  activeToolDetail: undefined,
+  // Streaming
+  streamingContent: '',
+  isStreaming: false,
+  // Permission request
+  permissionRequest: undefined,
   // Footer
   footerItems: [],
+  // Git
+  prBadge: undefined,
+  checkpoint: undefined,
+  // Background agents
+  backgroundAgents: [],
+  attachedAgentId: undefined,
 }));
 
 // ── Hooks ──────────────────────────────────────────────────────

@@ -1,0 +1,13 @@
+library/
+temp/
+local/
+build/
+node_modules/
+.env
+.spark-cli/staging/
+.spark-cli/backups/
+.spark-cli/cache/
+.godot/
+Binaries/
+Intermediate/
+DerivedDataCache/

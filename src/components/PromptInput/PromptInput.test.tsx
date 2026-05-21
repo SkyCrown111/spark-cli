@@ -1,5 +1,8 @@
 /**
  * PromptInput component tests
+ *
+ * After P0.4: PromptInput uses PromptInputModeIndicator (❯)
+ * instead of [mode] text. Tests updated accordingly.
  */
 
 import React from 'react';
@@ -11,9 +14,10 @@ describe('PromptInput component', () => {
   it('renders with default props', () => {
     const onSubmit = vi.fn();
     const { lastFrame } = render(<PromptInput onSubmit={onSubmit} />);
-    
+
     const output = lastFrame();
-    expect(output).toContain('[chat]');
+    // Should show the ❯ prompt character (cyan for chat mode)
+    expect(output).toContain('❯');
     expect(output).toContain('Type your message...');
   });
 
@@ -22,27 +26,30 @@ describe('PromptInput component', () => {
     const { lastFrame } = render(
       <PromptInput onSubmit={onSubmit} placeholder="Enter command..." />
     );
-    
+
     expect(lastFrame()).toContain('Enter command...');
   });
 
   it('renders with different modes', () => {
     const onSubmit = vi.fn();
-    
+
     const { lastFrame: chatFrame } = render(
       <PromptInput onSubmit={onSubmit} mode="chat" />
     );
-    expect(chatFrame()).toContain('[chat]');
-    
+    // Chat mode: ❯ prompt
+    expect(chatFrame()).toContain('❯');
+
     const { lastFrame: directFrame } = render(
       <PromptInput onSubmit={onSubmit} mode="direct" />
     );
-    expect(directFrame()).toContain('[direct]');
-    
+    // Direct mode: ❯ prompt (different color, same character)
+    expect(directFrame()).toContain('❯');
+
     const { lastFrame: planFrame } = render(
       <PromptInput onSubmit={onSubmit} mode="plan" />
     );
-    expect(planFrame()).toContain('[plan]');
+    // Plan mode: ❯ prompt (magenta color)
+    expect(planFrame()).toContain('❯');
   });
 
   it('renders disabled state', () => {
@@ -50,14 +57,14 @@ describe('PromptInput component', () => {
     const { lastFrame } = render(
       <PromptInput onSubmit={onSubmit} disabled={true} />
     );
-    
-    expect(lastFrame()).toContain('(disabled)');
+
+    expect(lastFrame()).toContain('Waiting for response...');
   });
 
   it('shows cursor indicator', () => {
     const onSubmit = vi.fn();
     const { lastFrame } = render(<PromptInput onSubmit={onSubmit} />);
-    
+
     // Cursor should be visible (█ character)
     expect(lastFrame()).toContain('█');
   });
@@ -65,14 +72,14 @@ describe('PromptInput component', () => {
   // Note: Interactive input tests (typing, backspace, etc.) cannot be tested with
   // ink-testing-library as useInput doesn't respond to stdin.write().
   // These features require manual integration testing or E2E tests.
-  
+
   it('renders component structure correctly', () => {
     const onSubmit = vi.fn();
     const { lastFrame } = render(<PromptInput onSubmit={onSubmit} />);
-    
+
     const output = lastFrame();
-    // Should have the mode indicator, placeholder, and cursor
-    expect(output).toContain('[chat]');
+    // Should have the ❯ prompt indicator, placeholder, and cursor
+    expect(output).toContain('❯');
     expect(output).toContain('Type your message...');
     expect(output).toContain('█'); // Cursor should be visible
   });
@@ -80,7 +87,7 @@ describe('PromptInput component', () => {
   it('onSubmit callback is provided', () => {
     const onSubmit = vi.fn();
     render(<PromptInput onSubmit={onSubmit} />);
-    
+
     // Callback should be defined (actual invocation requires user input)
     expect(onSubmit).toBeDefined();
     expect(typeof onSubmit).toBe('function');
@@ -89,56 +96,55 @@ describe('PromptInput component', () => {
   it('disabled prop prevents interaction', () => {
     const onSubmit = vi.fn();
     const { lastFrame } = render(<PromptInput onSubmit={onSubmit} disabled={true} />);
-    
+
     // Should show disabled state
-    expect(lastFrame()).toContain('(disabled)');
+    expect(lastFrame()).toContain('Waiting for response...');
   });
 
-  it('shows multiline hint when enabled', () => {
+  it('shows prompt indicator', () => {
     const onSubmit = vi.fn();
     const { lastFrame } = render(
       <PromptInput onSubmit={onSubmit} multiline={true} />
     );
-    
+
     const output = lastFrame();
-    expect(output).toContain('Shift+Enter');
-    expect(output).toContain('new line');
+    expect(output).toContain('❯');
   });
 
-  it('does not show multiline hint when disabled', () => {
+  it('renders prompt indicator with multiline disabled', () => {
     const onSubmit = vi.fn();
     const { lastFrame } = render(
       <PromptInput onSubmit={onSubmit} multiline={false} />
     );
-    
+
     const output = lastFrame();
-    expect(output).not.toContain('Shift+Enter');
+    expect(output).toContain('❯');
   });
 
   it('renders with history', () => {
     const onSubmit = vi.fn();
     const history = ['previous command 1', 'previous command 2'];
-    
+
     const { lastFrame } = render(
       <PromptInput onSubmit={onSubmit} history={history} />
     );
-    
+
     // Should render normally (history is accessed via up/down arrows)
-    expect(lastFrame()).toContain('[chat]');
+    expect(lastFrame()).toContain('❯');
   });
 
   it('handles mode change callback', () => {
     const onSubmit = vi.fn();
     const onModeChange = vi.fn();
-    
+
     render(
-      <PromptInput 
-        onSubmit={onSubmit} 
+      <PromptInput
+        onSubmit={onSubmit}
         mode="chat"
         onModeChange={onModeChange}
       />
     );
-    
+
     // Mode change is triggered by Shift+Tab, which is tested in integration
     expect(onModeChange).not.toHaveBeenCalled(); // Not called on render
   });
@@ -147,15 +153,15 @@ describe('PromptInput component', () => {
     const onSubmit = vi.fn();
     const onHistoryNavigate = vi.fn();
     const history = ['cmd1', 'cmd2'];
-    
+
     render(
-      <PromptInput 
+      <PromptInput
         onSubmit={onSubmit}
         history={history}
         onHistoryNavigate={onHistoryNavigate}
       />
     );
-    
+
     // History navigation is triggered by up/down arrows
     expect(onHistoryNavigate).not.toHaveBeenCalled(); // Not called on render
   });
@@ -165,9 +171,9 @@ describe('PromptInput component', () => {
     const { lastFrame } = render(
       <PromptInput onSubmit={onSubmit} multiline={true} maxLines={3} />
     );
-    
+
     // Component should render (maxLines is enforced during input)
-    expect(lastFrame()).toContain('[chat]');
+    expect(lastFrame()).toContain('❯');
   });
 
   it('handles empty history array', () => {
@@ -175,8 +181,8 @@ describe('PromptInput component', () => {
     const { lastFrame } = render(
       <PromptInput onSubmit={onSubmit} history={[]} />
     );
-    
-    expect(lastFrame()).toContain('[chat]');
+
+    expect(lastFrame()).toContain('❯');
   });
 
   it('renders with all props combined', () => {
@@ -184,9 +190,9 @@ describe('PromptInput component', () => {
     const onModeChange = vi.fn();
     const onHistoryNavigate = vi.fn();
     const history = ['cmd1', 'cmd2'];
-    
+
     const { lastFrame } = render(
-      <PromptInput 
+      <PromptInput
         onSubmit={onSubmit}
         placeholder="Custom placeholder"
         mode="direct"
@@ -198,10 +204,10 @@ describe('PromptInput component', () => {
         maxLines={5}
       />
     );
-    
+
     const output = lastFrame();
-    expect(output).toContain('[direct]');
+    // Direct mode uses ❯ prompt character (not [direct] text)
+    expect(output).toContain('❯');
     expect(output).toContain('Custom placeholder');
-    expect(output).toContain('Shift+Enter');
   });
 });

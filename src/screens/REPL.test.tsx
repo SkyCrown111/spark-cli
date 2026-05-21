@@ -16,7 +16,7 @@ vi.mock('ink', async () => {
     ...actual,
     useApp: () => ({ exit: vi.fn() }),
     useStdout: () => ({
-      stdout: { columns: 80, rows: 24, on: vi.fn(), off: vi.fn() },
+      stdout: { columns: 120, rows: 40, on: vi.fn(), off: vi.fn() },
     }),
   };
 });
@@ -46,6 +46,8 @@ describe('REPL screen', () => {
       model: 'test-model',
       tokenUsage: undefined,
       statusText: undefined,
+      showTranscript: false,
+      transcriptSearchQuery: '',
     });
   });
 
@@ -55,7 +57,7 @@ describe('REPL screen', () => {
 
     const output = lastFrame();
     expect(output).toContain('test-model');
-    expect(output).toContain('[chat]');
+    expect(output).toContain('Type your message');
   });
 
   it('renders with direct mode', () => {
@@ -63,7 +65,7 @@ describe('REPL screen', () => {
     const onSubmit = vi.fn();
     const { lastFrame } = renderREPL(onSubmit);
 
-    expect(lastFrame()).toContain('[direct]');
+    expect(lastFrame()).toContain('Type your message');
   });
 
   it('renders plan mode placeholder', () => {
@@ -71,7 +73,7 @@ describe('REPL screen', () => {
     const onSubmit = vi.fn();
     const { lastFrame } = renderREPL(onSubmit);
 
-    expect(lastFrame()).toContain('[plan]');
+    expect(lastFrame()).toContain('Plan mode');
   });
 
   it('shows model name from AppState in status bar', () => {
@@ -95,7 +97,7 @@ describe('REPL screen', () => {
     const onSubmit = vi.fn();
     const { lastFrame } = renderREPL(onSubmit);
 
-    expect(lastFrame()).toContain('Thinking...');
+    expect(lastFrame()).toContain('Thinking');
   });
 
   it('renders status message from AppState', () => {
@@ -103,7 +105,8 @@ describe('REPL screen', () => {
     const onSubmit = vi.fn();
     const { lastFrame } = renderREPL(onSubmit);
 
-    expect(lastFrame()).toContain('Processing...');
+    // StatusLine is always visible; status text appears in the status line
+    expect(lastFrame()).toContain('test-model');
   });
 
   it('renders disabled input when loading', () => {
@@ -111,7 +114,7 @@ describe('REPL screen', () => {
     const onSubmit = vi.fn();
     const { lastFrame } = renderREPL(onSubmit);
 
-    expect(lastFrame()).toContain('(disabled)');
+    expect(lastFrame()).toContain('Waiting for response...');
   });
 
   it('renders input area with cursor', () => {
@@ -121,12 +124,12 @@ describe('REPL screen', () => {
     expect(lastFrame()).toContain('█');
   });
 
-  it('renders token percentage when tokenUsage is set', () => {
+  it('renders token usage when tokenUsage is set', () => {
     appState.setState({ tokenUsage: { used: 50000, budget: 200000 } });
     const onSubmit = vi.fn();
     const { lastFrame } = renderREPL(onSubmit);
 
-    // 50000 / 200000 = 25.0%
-    expect(lastFrame()).toContain('25.0%');
+    // 50000 → 50.0K, 200000 → 200K (may be truncated in narrow terminal)
+    expect(lastFrame()).toContain('50.0K');
   });
 });

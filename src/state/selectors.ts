@@ -26,6 +26,10 @@ export const selectShowThemePicker = (s: AppState) => s.showThemePicker;
 export const selectShowSettingsPanel = (s: AppState) => s.showSettingsPanel;
 export const selectShowOnboarding = (s: AppState) => s.showOnboarding;
 export const selectFooterItems = (s: AppState) => s.footerItems;
+export const selectStreamingContent = (s: AppState) => s.streamingContent;
+export const selectIsStreaming = (s: AppState) => s.isStreaming;
+export const selectEffortLevel = (s: AppState) => s.effortLevel;
+export const selectFastMode = (s: AppState) => s.fastMode;
 
 // ── Composite selectors ───────────────────────────────────────
 
@@ -51,3 +55,8 @@ export const selectTokenDisplay = (s: AppState) => {
     : String(s.tokenUsage.budget);
   return `${used} / ${budget}`;
 };
+
+// ── Background agents ─────────────────────────────────────────
+
+export const selectBackgroundAgents = (s: AppState) => s.backgroundAgents;
+export const selectAttachedAgentId = (s: AppState) => s.attachedAgentId;

@@ -37,9 +37,9 @@ export const CostThresholdDialog: React.FC<CostThresholdDialogProps> = ({
   useKeybinding('confirm:no', onDeny);
 
   return (
-    <Box flexDirection="column" paddingX={2} paddingY={1} borderStyle="single" borderColor="yellow">
+    <Box flexDirection="column" paddingX={1}>
       <Box>
-        <Text bold color="yellow">⚠ Cost Threshold Warning</Text>
+        <Text bold color="yellow">! Cost Threshold Warning</Text>
       </Box>
 
       <Box marginTop={1}>

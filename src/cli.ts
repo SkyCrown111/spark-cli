@@ -31,7 +31,13 @@ import {
   runKnowledgeSearch,
 } from './commands/knowledge.js';
 import { runMemoryAdd, runMemoryClear, runMemoryShow } from './commands/memory.js';
-import { runMcpServe } from './commands/mcp-cmd.js';
+import {
+  runMcpServe,
+  runMcpAdd,
+  runMcpList,
+  runMcpRemove,
+  runMcpTest,
+} from './commands/mcp-cmd.js';
 import {
   runBuildAnalyze,
   runBuildSuggestSplit,
@@ -77,6 +83,11 @@ import { runAnimNew, runAnimExport, runAnimShow } from './commands/anim.js';
 import { runEditorServe } from './commands/editor-cmd.js';
 import { runShell } from './commands/shell.js';
 import {
+  runSessionsList,
+  runSessionsShow,
+  runSessionsDelete,
+} from './commands/session-cmd.js';
+import {
   runWorktreeAdd,
   runWorktreeList,
   runWorktreeRemove,
@@ -100,6 +111,14 @@ import {
 } from './commands/cloud-cmd.js';
 import { exitWithError } from './utils/errors.js';
 import type { GlobalOptions } from './utils/output.js';
+import { runPrint } from './commands/print.js';
+import {
+  runAgentsList,
+  runAgentAttach,
+  runAgentLogs,
+  runAgentKill,
+} from './commands/agent-cmd.js';
+import { startBackgroundAgent } from './core/agent/background-agent.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const pkg = JSON.parse(
@@ -117,6 +136,16 @@ function collectGlobals(cmd: Command): GlobalOptions {
     verbose: o.verbose,
     yes: o.yes,
     dryRun: o.dryRun,
+    print: o.print,
+    maxTurns: o.maxTurns,
+    maxBudgetUsd: o.maxBudgetUsd,
+    systemPrompt: o.systemPrompt,
+    appendSystemPrompt: o.appendSystemPrompt,
+    effort: o.effort,
+    continueSession: o.continueSession,
+    resumeSession: o.resumeSession,
+    fromPr: o.fromPr,
+    bg: o.bg,
   };
 }
 
@@ -134,7 +163,17 @@ program
   .option('--verbose', 'verbose logging')
   .option('-y, --yes', 'skip confirmation prompts')
   .option('--dry-run', 'do not write to disk')
-  .option('--auto', 'tools write directly to project tree (only used in interactive mode)');
+  .option('--auto', 'tools write directly to project tree (only used in interactive mode)')
+  .option('-p, --print <prompt>', 'non-interactive print mode: run one agent turn and exit')
+  .option('--max-turns <n>', 'maximum agent iterations (print mode)', (v) => parseInt(v, 10))
+  .option('--max-budget-usd <n>', 'maximum estimated USD spend (print mode)', parseFloat)
+  .option('--system-prompt <text>', 'custom system prompt (replaces default)')
+  .option('--append-system-prompt <text>', 'append text to default system prompt')
+  .option('--effort <level>', 'reasoning effort: low|medium|high|xhigh|max')
+  .option('--continue', 'resume the most recent session')
+  .option('--resume <id>', 'resume a specific session by ID')
+  .option('--from-pr <number>', 'load PR context (diff + comments) by number', (v) => parseInt(v, 10))
+  .option('--bg', 'run as a background agent (detached process)');
 
 const configCmd = program.command('config').description('manage SparkCLI configuration');
 
@@ -664,6 +703,53 @@ agentCmd
     process.exitCode = await runAgentFarm(collectGlobals(this.parent as Command), plan);
   });
 
+const agentsCmd = program.command('agents').description('manage background agents');
+
+agentsCmd
+  .command('list')
+  .description('list background agents and agent definitions')
+  .action(async function (this: Command) {
+    try {
+      await runAgentsList(collectGlobals(this.parent as Command));
+    } catch (e) {
+      exitWithError(e);
+    }
+  });
+
+agentsCmd
+  .command('attach <id>')
+  .description('attach to a background agent (show its output)')
+  .action(async function (this: Command, id: string) {
+    try {
+      await runAgentAttach(collectGlobals(this.parent as Command), id);
+    } catch (e) {
+      exitWithError(e);
+    }
+  });
+
+agentsCmd
+  .command('logs <id>')
+  .description('show agent logs')
+  .option('--tail <n>', 'show last N lines', (v) => parseInt(v, 10))
+  .action(async function (this: Command, id: string, opts: { tail?: number }) {
+    try {
+      await runAgentLogs(collectGlobals(this.parent as Command), id, opts.tail);
+    } catch (e) {
+      exitWithError(e);
+    }
+  });
+
+agentsCmd
+  .command('kill <id>')
+  .description('kill a running background agent')
+  .action(async function (this: Command, id: string) {
+    try {
+      await runAgentKill(collectGlobals(this.parent as Command), id);
+    } catch (e) {
+      exitWithError(e);
+    }
+  });
+
 const shaderCmd = program.command('shader').description('shader lint and translation');
 
 shaderCmd
@@ -685,13 +771,75 @@ shaderCmd
     );
   });
 
-const mcpCmd = program.command('mcp').description('Model Context Protocol server');
+const mcpCmd = program.command('mcp').description('Model Context Protocol server & client');
 
 mcpCmd
   .command('serve')
   .description('start MCP server on stdio (for Cursor / Claude Desktop)')
   .action(async function () {
     await runMcpServe();
+  });
+
+mcpCmd
+  .command('add <name>')
+  .description('add an MCP server to config')
+  .option('--transport <type>', 'stdio or sse', 'stdio')
+  .option('--command <cmd>', 'executable for stdio transport')
+  .option('--args <args>', 'space-separated arguments for stdio command')
+  .option('--url <url>', 'server URL for sse transport')
+  .option('--env <vars>', 'comma-separated KEY=VALUE environment variables')
+  .option('--global', 'write to global config instead of project config')
+  .action(async function (
+    this: Command,
+    name: string,
+    opts: {
+      transport?: 'stdio' | 'sse';
+      command?: string;
+      args?: string;
+      url?: string;
+      env?: string;
+      global?: boolean;
+    },
+  ) {
+    try {
+      await runMcpAdd(collectGlobals(this.parent as Command), name, opts);
+    } catch (e) {
+      exitWithError(e);
+    }
+  });
+
+mcpCmd
+  .command('list')
+  .description('list configured MCP servers')
+  .action(async function (this: Command) {
+    try {
+      await runMcpList(collectGlobals(this.parent as Command));
+    } catch (e) {
+      exitWithError(e);
+    }
+  });
+
+mcpCmd
+  .command('remove <name>')
+  .description('remove an MCP server from config')
+  .option('--global', 'remove from global config instead of project config')
+  .action(async function (this: Command, name: string, opts: { global?: boolean }) {
+    try {
+      await runMcpRemove(collectGlobals(this.parent as Command), name, opts);
+    } catch (e) {
+      exitWithError(e);
+    }
+  });
+
+mcpCmd
+  .command('test <name>')
+  .description('test connectivity to a configured MCP server')
+  .action(async function (this: Command, name: string) {
+    try {
+      await runMcpTest(collectGlobals(this.parent as Command), name);
+    } catch (e) {
+      exitWithError(e);
+    }
   });
 
 const replayCmd = program.command('replay').description('export session replay bundles');
@@ -821,6 +969,29 @@ editorCmd
     } catch (e) {
       exitWithError(e);
     }
+  });
+
+const sessionsCmd = program.command('sessions').description('manage REPL session history');
+
+sessionsCmd
+  .command('list')
+  .description('list all sessions for this project')
+  .action(async function (this: Command) {
+    await runSessionsList(collectGlobals(this.parent as Command));
+  });
+
+sessionsCmd
+  .command('show <id>')
+  .description('show session details')
+  .action(async function (this: Command, id: string) {
+    await runSessionsShow(collectGlobals(this.parent as Command), id);
+  });
+
+sessionsCmd
+  .command('delete <id>')
+  .description('delete a session by ID')
+  .action(async function (this: Command, id: string) {
+    await runSessionsDelete(collectGlobals(this.parent as Command), id);
   });
 
 const cloudCmd = program.command('cloud').description('SparkCLI Cloud (login, keys, sync)');
@@ -1022,10 +1193,68 @@ cronCmd
   });
 
 async function main(): Promise<void> {
+  // If --print/-p is specified, run non-interactive print mode immediately
+  // before Commander parses subcommands. This avoids the REPL entry point.
+  const argv = process.argv;
+  const printIdx = argv.findIndex((a) => a === '-p' || a === '--print');
+  if (printIdx !== -1 && printIdx + 1 < argv.length) {
+    const prompt = argv[printIdx + 1];
+    const isBg = argv.includes('--bg');
+    // Parse the global flags manually for print mode
+    const globals: GlobalOptions = {
+      project: findArgValue(argv, '-P', '--project') ?? process.cwd(),
+      config: findArgValue(argv, '-c', '--config'),
+      provider: findArgValue(argv, '--provider'),
+      model: findArgValue(argv, '-m', '--model'),
+      json: argv.includes('--json'),
+      verbose: argv.includes('--verbose'),
+      yes: argv.includes('-y') || argv.includes('--yes'),
+      dryRun: argv.includes('--dry-run'),
+      print: prompt,
+      maxTurns: findArgValue(argv, '--max-turns') ? parseInt(findArgValue(argv, '--max-turns')!, 10) : undefined,
+      maxBudgetUsd: findArgValue(argv, '--max-budget-usd') ? parseFloat(findArgValue(argv, '--max-budget-usd')!) : undefined,
+      systemPrompt: findArgValue(argv, '--system-prompt'),
+      appendSystemPrompt: findArgValue(argv, '--append-system-prompt'),
+      effort: findArgValue(argv, '--effort') as GlobalOptions['effort'],
+    };
+
+    // --bg: spawn a detached background agent and return immediately
+    if (isBg) {
+      const { id } = await startBackgroundAgent({
+        projectRoot: globals.project ?? process.cwd(),
+        prompt,
+        model: globals.model,
+      });
+      if (globals.json) {
+        console.log(JSON.stringify({ id, status: 'running' }));
+      } else {
+        console.log(`Background agent started: ${id}`);
+      }
+      return;
+    }
+
+    await runPrint(globals, prompt, {
+      maxTurns: globals.maxTurns,
+      maxBudgetUsd: globals.maxBudgetUsd,
+      systemPrompt: globals.systemPrompt,
+      appendSystemPrompt: globals.appendSystemPrompt,
+    });
+    return;
+  }
+
   // `shell` is registered with `{ isDefault: true }` so bare `spark-cli` enters
   // the REPL. Do not call `program.parse([])` without a subcommand — Commander
   // prints help and exits before any action runs.
   await program.parseAsync(process.argv);
+}
+
+/** Find the value for a CLI argument that takes a value. */
+function findArgValue(argv: string[], ...flags: string[]): string | undefined {
+  for (const flag of flags) {
+    const idx = argv.indexOf(flag);
+    if (idx !== -1 && idx + 1 < argv.length) return argv[idx + 1];
+  }
+  return undefined;
 }
 
 main().catch((err) => exitWithError(err));

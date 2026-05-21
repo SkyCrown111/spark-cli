@@ -48,8 +48,8 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
       const message = this.state.error?.message ?? 'Unknown error';
 
       return (
-        <Box flexDirection="column" borderStyle="round" borderColor="red" paddingX={1}>
-          <Text bold color="red">✗ Component Error</Text>
+        <Box flexDirection="column" paddingX={1}>
+          <Text bold color="red">! Component Error</Text>
           <Text color="red">{message}</Text>
           <Box marginTop={1}>
             <Text dimColor>The component crashed. Press Ctrl+L to clear and try again.</Text>

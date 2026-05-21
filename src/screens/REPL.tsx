@@ -1,6 +1,6 @@
 /**
  * REPL screen — Main interactive REPL interface.
- * Composes Messages, PromptInput, StatusBar, and Spinner into a unified UI.
+ * Composes Messages, PromptInput, StatusLine, and Spinner into a unified UI.
  *
  * After Phase 16-A: reads most state from AppState (Zustand) instead of props.
  * Only imperative callbacks (onSubmit, onExit) remain as props for
@@ -12,18 +12,27 @@
  * always sees the input prompt regardless of agent activity.
  */
 
-import React, { useCallback, useRef } from 'react';
+import React, { useCallback, useRef, useState } from 'react';
 import { Box, useApp } from 'ink';
 import { Messages } from '../components/messages/Messages.js';
 import { PromptInput, type InputMode } from '../components/PromptInput/PromptInput.js';
-import { StatusBar } from '../components/StatusBar/StatusBar.js';
-import { KeybindingHints } from '../components/StatusBar/KeybindingHints.js';
-import { Spinner } from '../components/design-system/Spinner.js';
+import { SpinnerWithVerb } from '../components/Spinner/SpinnerWithVerb.js';
+import { StatusLine } from '../components/StatusLine.js';
+import { PermissionRequest } from '../components/permissions/PermissionRequest.js';
+import { ScrollBox } from '../ink/components/ScrollBox.js';
 import { ErrorBoundary } from '../components/messages/ErrorBoundary.js';
 import { ModelPicker } from '../components/ModelPicker.js';
 import { ThemePicker } from '../components/ThemePicker.js';
 import { SettingsPanel } from '../components/Settings/SettingsPanel.js';
 import { Onboarding } from '../components/Onboarding.js';
+import { CostThresholdDialog } from '../components/CostThresholdDialog.js';
+import { IdleReturnDialog } from '../components/IdleReturnDialog.js';
+import { AutoModeOptInDialog } from '../components/AutoModeOptInDialog.js';
+import { BypassPermissionsDialog } from '../components/BypassPermissionsDialog.js';
+import { GlobalSearchDialog } from '../components/GlobalSearchDialog.js';
+import { TranscriptOverlay } from '../components/TranscriptOverlay.js';
+import { TokenWarning } from '../components/TokenWarning.js';
+import { AlternateScreen } from '../ink/components/AlternateScreen.js';
 import { useTerminalSize } from '../hooks/useTerminalSize.js';
 import { useInputHistory } from '../hooks/useInputHistory.js';
 import { useKeybindings, commonKeybindings } from '../hooks/useKeybindings.js';
@@ -43,6 +52,8 @@ import {
   selectModel,
   selectTokenUsage,
   selectStatusText,
+  selectStreamingContent,
+  selectIsStreaming,
 } from '../state/selectors.js';
 
 export interface REPLProps {
@@ -60,7 +71,7 @@ export interface REPLProps {
  *   2. Spinner (visible during agent turns)
  *   3. PromptInput
  *   4. KeybindingHints
- *   5. StatusBar
+ *   5. StatusLine
  */
 export const REPL: React.FC<REPLProps> = ({
   onSubmit,
@@ -77,18 +88,34 @@ export const REPL: React.FC<REPLProps> = ({
   const model = useAppState(selectModel);
   const tokenUsage = useAppState(selectTokenUsage);
   const statusText = useAppState(selectStatusText);
+  const streamingContent = useAppState(selectStreamingContent);
+  const isStreaming = useAppState(selectIsStreaming);
   const showModelPicker = useAppState((s) => s.showModelPicker);
   const showThemePicker = useAppState((s) => s.showThemePicker);
   const showSettingsPanel = useAppState((s) => s.showSettingsPanel);
   const showOnboarding = useAppState((s) => s.showOnboarding);
+  const showCostThresholdDialog = useAppState((s) => s.showCostThresholdDialog);
+  const showIdleReturnDialog = useAppState((s) => s.showIdleReturnDialog);
+  const showAutoModeOptIn = useAppState((s) => s.showAutoModeOptIn);
+  const showBypassPermissions = useAppState((s) => s.showBypassPermissions);
+  const showGlobalSearch = useAppState((s) => s.showGlobalSearch);
+  const showTranscript = useAppState((s) => s.showTranscript);
+  const searchQuery = useAppState((s) => s.searchQuery);
+  const transcriptSearchQuery = useAppState((s) => s.transcriptSearchQuery);
+  const agentHistory = useAppState((s) => s.agentHistory);
   const writeMode = useAppState((s) => s.writeMode);
   const permissionMode = useAppState((s) => s.permissionMode);
   const vimEnabled = useAppState((s) => s.vimEnabled);
+  const vimMode = useAppState((s) => s.vimMode);
   const companionEnabled = useAppState((s) => s.companionEnabled);
+  const activeToolId = useAppState((s) => s.activeToolId);
+  const activeToolDetail = useAppState((s) => s.activeToolDetail);
+  const permissionRequest = useAppState((s) => s.permissionRequest);
 
   // ── Local state ──
   const historyHook = useInputHistory({ maxHistory: 100 });
   const pendingExit = useRef(false);
+  const [transcriptSearchActive, setTranscriptSearchActive] = useState(false);
 
   // ── Mode cycling ──
   const handleModeChange = useCallback((nextMode: InputMode) => {
@@ -105,6 +132,35 @@ export const REPL: React.FC<REPLProps> = ({
     [mode, onSubmit, historyHook, setAppState],
   );
 
+  // ── Bash submit handler ──
+  const handleBashSubmit = useCallback(
+    (command: string) => {
+      historyHook.addToHistory(`!${command}`);
+      setAppState({ statusText: `Running: ${command}` });
+
+      // Execute shell command asynchronously
+      import('node:child_process').then(({ exec }) => {
+        exec(command, { encoding: 'utf8', timeout: 30000 }, (err, stdout, stderr) => {
+          const output = stdout || '';
+          const errorOutput = stderr || '';
+          const result = err
+            ? `Error: ${errorOutput || err.message}`
+            : (output || '(no output)') + (errorOutput ? `\nstderr: ${errorOutput}` : '');
+
+          setAppState((prev) => ({
+            messages: [
+              ...prev.messages,
+              { role: 'user', content: `!${command}` },
+              { role: 'assistant', content: result },
+            ],
+            statusText: undefined,
+          }));
+        });
+      });
+    },
+    [historyHook, setAppState],
+  );
+
   // ── Keybindings ──
   useKeybindings({
     bindings: [
@@ -117,11 +173,13 @@ export const REPL: React.FC<REPLProps> = ({
           exit();
         } else {
           pendingExit.current = true;
-          setAppState({ statusText: 'Ctrl-D again to exit' });
+          setAppState({ statusText: 'Press Ctrl-D again to exit, or wait to cancel' });
           setTimeout(() => {
-            pendingExit.current = false;
-            setAppState({ statusText: undefined });
-          }, 2000);
+            if (pendingExit.current) {
+              pendingExit.current = false;
+              setAppState({ statusText: undefined });
+            }
+          }, 3000);
         }
       }),
       commonKeybindings.clear(() => {
@@ -148,6 +206,20 @@ export const REPL: React.FC<REPLProps> = ({
     setAppState({ showModelPicker: true });
   }, !loading);
 
+  // Ctrl+F: Global search
+  useKeybinding('chat:search', () => {
+    setAppState({ showGlobalSearch: true });
+  }, !loading && !showGlobalSearch);
+
+  // Ctrl+O: Toggle transcript overlay
+  useKeybinding('app:toggleTranscript', () => {
+    setAppState((prev) => ({
+      showTranscript: !prev.showTranscript,
+      transcriptSearchQuery: '',
+    }));
+    setTranscriptSearchActive(false);
+  }, !loading);
+
   // ── Overlay action handlers ──
   const handleModelSelect = useCallback((selectedModel: string) => {
     setAppState({ model: selectedModel, showModelPicker: false });
@@ -166,53 +238,75 @@ export const REPL: React.FC<REPLProps> = ({
   }, [setAppState]);
 
   // ── Dynamic shortcut hints ──
-  const shortcutHints = useShortcutDisplay(undefined, 6);
+  const shortcutHints = useShortcutDisplay(undefined, 3);
 
-  // ── Layout strategy (Claude Code FullscreenLayout pattern) ──
-  // Two-section layout that guarantees the input box is ALWAYS visible:
+  // ── Layout strategy ──
+  // Two-section layout that guarantees the input box is ALWAYS visible.
+  // Uses explicit height calculations instead of percentage-based maxHeight,
+  // because Ink's Yoga layout does not reliably enforce maxHeight="50%"
+  // when the top section has flexGrow={1}.
   //
   // ┌──────────────────────────────┐
-  // │  Top section (flexGrow=1)    │ ← Messages area, overflow hidden
-  // │  overflow="hidden"           │    Shrinks to accommodate footer
+  // │  Top section                 │ ← height = total - FOOTER_RESERVE
+  // │  overflow="hidden"           │    Fixed height, messages scroll inside
   // │                              │
   // ├──────────────────────────────┤
-  // │  Bottom section (shrink=0)   │ ← Pinned footer, NEVER shrinks
-  // │  maxHeight="50%"             │    Capped at half screen
-  // │  ┌─ inner (overflowY hidden)┐│    Contains spinner + input + hints + status
+  // │  Bottom section (shrink=0)   │ ← height = FOOTER_RESERVE (fixed)
+  // │  ┌─────────────────────────┐│    Contains spinner + input + hints + status
   // │  │  Spinner (if loading)    ││
   // │  │  PromptInput             ││
   // │  │  KeybindingHints         ││
-  // │  │  StatusBar               ││
+  // │  │  StatusLine              ││
   // │  └─────────────────────────┘│
   // └──────────────────────────────┘
-  //
-  // The bottom section uses flexShrink={0} + maxHeight="50%" with a
-  // nested overflowY="hidden" Box — this is the same pattern Claude Code
-  // uses in FullscreenLayout.tsx. The inner overflowY="hidden" prevents
-  // the bottom section from expanding beyond its allocated space.
-  //
-  // Additionally, we compute a safe maxHeight for the Messages component
-  // as a safety net, ensuring messages never push the footer off screen.
 
-  // Footer height estimate: Spinner(1) + PromptInput(~4) + Hints(1) + StatusBar(~2) = 8 rows
-  const FOOTER_RESERVE = 9; // 1 extra for safety margin
-  const messagesMaxHeight = Math.max(1, height - FOOTER_RESERVE);
+  // Footer height: Spinner(1) + PromptInput(~2) + StatusLine(1) + padding = 5 rows
+  // Always reserve max height to prevent layout shift when spinner appears/disappears
+  const FOOTER_RESERVE = 5;
+  const messagesHeight = Math.max(1, height - FOOTER_RESERVE);
 
   return (
     <ErrorBoundary>
+    <AlternateScreen mouseTracking={true}>
     <Box flexDirection="column" width={width} height={height}>
-      {/* ── Top section: scrollable messages, shrinks to fit ── */}
-      <Box flexDirection="column" flexGrow={1} overflow="hidden">
-        <Messages messages={messages} maxHeight={messagesMaxHeight} />
+      {/* ── Top section: scrollable messages, fixed height ── */}
+      <Box flexDirection="column" height={messagesHeight} overflow="hidden">
+        <ScrollBox
+          rowCount={messages.length}
+          estimatedRowHeight={3}
+          maxHeight={messagesHeight}
+          autoPinToBottom={true}
+          scrollingEnabled={!loading}
+        >
+          {(visibleStart, visibleEnd) => (
+            <Messages
+              messages={messages}
+              maxHeight={messagesHeight}
+              visibleRange={[visibleStart, visibleEnd]}
+              streamingContent={streamingContent}
+              isStreaming={isStreaming}
+            />
+          )}
+        </ScrollBox>
+
+        {/* Token usage warning — shown when approaching budget */}
+        {tokenUsage && (
+          <TokenWarning used={tokenUsage.used} budget={tokenUsage.budget} />
+        )}
       </Box>
 
-      {/* ── Bottom section: pinned footer, NEVER shrinks ── */}
-      <Box flexDirection="column" flexShrink={0} width="100%" maxHeight="50%">
-        <Box flexDirection="column" width="100%" flexGrow={1} overflowY="hidden">
-          {/* Loading spinner — shows during agent turns */}
+      {/* ── Bottom section: pinned footer, fixed height, NEVER shrinks ── */}
+      <Box flexDirection="column" flexShrink={0} width="100%" height={FOOTER_RESERVE} overflow="hidden">
+        <Box flexDirection="column" width="100%">
+          {/* Loading spinner — shows during agent turns with dynamic verb */}
           {loading && (
             <Box paddingX={1} flexShrink={0}>
-              <Spinner type="dots" label="Thinking..." color="cyan" />
+              <SpinnerWithVerb
+                toolId={activeToolId}
+                detail={activeToolDetail}
+                verbOverride={activeToolId ? undefined : 'Thinking'}
+                color="cyan"
+              />
             </Box>
           )}
 
@@ -220,6 +314,7 @@ export const REPL: React.FC<REPLProps> = ({
           <Box flexShrink={0}>
             <PromptInput
               onSubmit={handleSubmit}
+              onBashSubmit={handleBashSubmit}
               mode={mode}
               onModeChange={handleModeChange}
               disabled={loading}
@@ -230,30 +325,20 @@ export const REPL: React.FC<REPLProps> = ({
               multiline={true}
               maxLines={5}
               placeholder={mode === 'plan' ? 'Plan mode — describe your goal...' : 'Type your message...'}
+              vimEnabled={vimEnabled}
+              vimMode={vimMode}
+              onVimModeChange={(m) => setAppState({ vimMode: m })}
             />
           </Box>
 
-          {/* Keyboard shortcut hints — ALWAYS visible */}
+          {/* Status line — single row: model + tokens + hints */}
           <Box flexShrink={0}>
-            <KeybindingHints
-              visible={true}
-              hints={shortcutHints.map((h) => ({
-                keys: h.key,
-                description: h.description,
-              }))}
-            />
-          </Box>
-
-          {/* Status bar — ALWAYS visible */}
-          <Box flexShrink={0}>
-            <StatusBar
-              mode={mode}
+            <StatusLine
+              model={model}
               tokensUsed={tokenUsage?.used ?? 0}
               tokensBudget={tokenUsage?.budget ?? 0}
-              model={model}
+              hints={shortcutHints}
               status={statusText}
-              showBorder={true}
-              showTokenPercentage={true}
             />
           </Box>
         </Box>
@@ -288,7 +373,79 @@ export const REPL: React.FC<REPLProps> = ({
           onDismiss={handleDismissOnboarding}
         />
       )}
+      {showCostThresholdDialog && (
+        <CostThresholdDialog
+          estimatedCost={(tokenUsage?.used ?? 0) * 0.00001}
+          threshold={1.0}
+          onApprove={() => setAppState({ showCostThresholdDialog: false })}
+          onDeny={() => setAppState({ showCostThresholdDialog: false })}
+        />
+      )}
+      {showIdleReturnDialog && (
+        <IdleReturnDialog
+          idleDuration="a while"
+          messageCount={messages.length}
+          onContinue={() => setAppState({ showIdleReturnDialog: false })}
+          onStartFresh={() => {
+            setAppState({ messages: [], agentHistory: [], showIdleReturnDialog: false });
+          }}
+        />
+      )}
+      {showAutoModeOptIn && (
+        <AutoModeOptInDialog
+          onConfirm={() => setAppState({ permissionMode: 'auto', showAutoModeOptIn: false })}
+          onCancel={() => setAppState({ showAutoModeOptIn: false })}
+        />
+      )}
+      {showBypassPermissions && (
+        <BypassPermissionsDialog
+          onConfirm={() => setAppState({ permissionMode: 'bypass', showBypassPermissions: false })}
+          onCancel={() => setAppState({ showBypassPermissions: false })}
+        />
+      )}
+      {showGlobalSearch && (
+        <GlobalSearchDialog
+          query={searchQuery}
+          onQueryChange={(q) => setAppState({ searchQuery: q })}
+          matchCount={0}
+          focusIndex={0}
+          onNextMatch={() => {}}
+          onPrevMatch={() => {}}
+          onClose={() => setAppState({ showGlobalSearch: false, searchQuery: '' })}
+        />
+      )}
+      {showTranscript && (
+        <TranscriptOverlay
+          agentHistory={agentHistory}
+          searchQuery={transcriptSearchQuery}
+          onSearchQueryChange={(q) => setAppState({ transcriptSearchQuery: q })}
+          searchActive={transcriptSearchActive}
+          onToggleSearch={() => setTranscriptSearchActive((v) => !v)}
+          onClose={() => {
+            setAppState({ showTranscript: false, transcriptSearchQuery: '' });
+            setTranscriptSearchActive(false);
+          }}
+        />
+      )}
+
+      {/* ── Permission confirmation dialog ── */}
+      {permissionRequest && (
+        <PermissionRequest
+          tool={permissionRequest.tool}
+          argsSummary={permissionRequest.argsSummary}
+          showAlwaysAllow={permissionRequest.showAlwaysAllow}
+          onApprove={(always) => {
+            permissionRequest.resolve(always ? 'allow-always' : 'allow');
+            setAppState({ permissionRequest: undefined });
+          }}
+          onDeny={() => {
+            permissionRequest.resolve('deny');
+            setAppState({ permissionRequest: undefined });
+          }}
+        />
+      )}
     </Box>
+    </AlternateScreen>
     </ErrorBoundary>
   );
 };

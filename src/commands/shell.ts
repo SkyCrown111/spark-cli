@@ -22,6 +22,7 @@ import chalk from 'chalk';
 import type { GlobalOptions } from '../utils/output.js';
 import { resolveProjectRoot } from '../utils/output.js';
 import { loadMergedConfig } from '../config/load.js';
+import { getAlwaysAllowPath } from '../config/paths.js';
 import { scanProjectContext } from '../core/context/project-scanner.js';
 import { resolveModelForTask } from '../core/providers/router.js';
 import { buildTokenUsageSnapshot } from '../core/context/token-usage.js';
@@ -75,6 +76,14 @@ import {
 import { ToolPermissionSession } from '../core/agent/tool-permissions.js';
 import { askToolConfirm } from '../core/repl/tool-confirm.js';
 import {
+  createSession,
+  saveSession,
+  loadSession,
+  findMostRecent,
+  type SessionSnapshot,
+} from '../core/session/manager.js';
+import { flushMemoryOnSessionEnd } from '../core/memory/flush.js';
+import {
   clearReplModalHandler,
   dispatchReplModalKey,
   registerReplModalHooks,
@@ -99,6 +108,12 @@ export interface ShellState {
   toolPermissionSession: ToolPermissionSession;
   /** Token usage info for the status line. */
   tokenUsage?: { used: number; budget: number };
+  /** Current session ID for persistence. */
+  sessionId?: string;
+  /** Session title (derived from first user message). */
+  sessionTitle?: string;
+  /** Current checkpoint for rewind. */
+  checkpoint?: { id: string; timestamp: string };
 }
 
 /** @internal test helper */
@@ -397,6 +412,47 @@ export async function _handleSlashImpl(
     return { state: { ...state, writeMode: next }, handled: true };
   }
 
+  if (outcome.kind === 'state-set-effort') {
+    try {
+      const { appState } = await import('../state/AppState.js');
+      appState.setState({ effortLevel: outcome.effortLevel });
+    } catch {
+      // CLI-only mode: store locally for next turn
+    }
+    return { state, handled: true };
+  }
+
+  if (outcome.kind === 'state-show-model-picker') {
+    // Ink REPL handles this via AppState; in CLI mode just show current
+    try {
+      const { appState } = await import('../state/AppState.js');
+      appState.setState({ showModelPicker: true });
+    } catch {
+      // Fallback: just show current model
+      const root = resolveProjectRoot(opts);
+      const cfg = await loadMergedConfig(root);
+      const resolved = resolveModelForTask(cfg, 'chat', {
+        provider: opts.provider,
+        model: opts.model,
+      });
+      console.log(chalk.dim('Current model:'), resolved);
+    }
+    return { state, handled: true };
+  }
+
+  if (outcome.kind === 'state-show-theme-picker') {
+    // Ink REPL handles this via AppState; in CLI mode just list themes
+    try {
+      const { appState } = await import('../state/AppState.js');
+      appState.setState({ showThemePicker: true });
+    } catch {
+      const { listThemes: listT } = await import('../theme/theme.js');
+      const available = listT().join(', ');
+      console.log(chalk.dim(`Available themes: ${available}`));
+    }
+    return { state, handled: true };
+  }
+
   if (outcome.kind === 'state-show-status') {
     const root = resolveProjectRoot(opts);
     const cfg = await loadMergedConfig(root);
@@ -482,6 +538,37 @@ export async function _handleSlashImpl(
         text: outcome.text,
         mode: outcome.mode === 'plan' ? 'plan' : 'normal',
       },
+    };
+  }
+
+  if (outcome.kind === 'state-resume-session') {
+    const root = resolveProjectRoot(opts);
+    const targetId = outcome.sessionId;
+    let loaded: SessionSnapshot | undefined;
+    if (targetId) {
+      loaded = loadSession(root, targetId);
+      if (!loaded) {
+        console.log(chalk.yellow(`Session ${targetId} not found.`));
+        return { state, handled: true };
+      }
+    } else {
+      loaded = findMostRecent(root);
+      if (!loaded) {
+        console.log(chalk.dim('No sessions to resume.'));
+        return { state, handled: true };
+      }
+    }
+    console.log(chalk.green(`Resumed session: ${loaded.title || loaded.id}`));
+    return {
+      state: {
+        ...state,
+        history: loaded.history,
+        writeMode: loaded.writeMode as ToolWriteMode,
+        plan: loaded.plan as PlanState,
+        sessionId: loaded.id,
+        sessionTitle: loaded.title,
+      },
+      handled: true,
     };
   }
 
@@ -608,13 +695,48 @@ export async function runShell(
   initThemeFromConfig();
 
   const useAlternateScreen = enterAlternateScreen();
-  const state: ShellState = {
-    history: [],
-    writeMode: shellOpts.auto ? 'direct' : 'staging',
-    plan: createPlanState(),
-    toolPermissionSession: new ToolPermissionSession(),
-  };
   const projectRoot = resolveProjectRoot(opts);
+  const persistPath = getAlwaysAllowPath(projectRoot);
+  const toolPermissionSession = new ToolPermissionSession(persistPath);
+
+  // Load or create session based on --continue/--resume flags
+  let snapshot: SessionSnapshot | undefined;
+  if (opts.resumeSession) {
+    snapshot = loadSession(projectRoot, opts.resumeSession);
+    if (!snapshot) {
+      console.error(chalk.yellow(`Session ${opts.resumeSession} not found.`));
+    }
+  }
+  if (!snapshot && opts.continueSession) {
+    snapshot = findMostRecent(projectRoot);
+  }
+
+  const state: ShellState = snapshot
+    ? {
+        history: snapshot.history,
+        writeMode: snapshot.writeMode as ToolWriteMode,
+        plan: snapshot.plan as PlanState,
+        toolPermissionSession,
+        sessionId: snapshot.id,
+        sessionTitle: snapshot.title,
+      }
+    : {
+        history: [],
+        writeMode: shellOpts.auto ? 'direct' : 'staging',
+        plan: createPlanState(),
+        toolPermissionSession,
+      };
+
+  // Create a new session if not resuming
+  if (!state.sessionId) {
+    const model = 'unknown'; // resolved later in buildWelcomeText
+    const newSession = createSession(projectRoot, model);
+    state.sessionId = newSession.id;
+  }
+
+  if (snapshot) {
+    console.log(chalk.green(`Resumed session: ${snapshot.title || snapshot.id}`));
+  }
   const registry = buildShellRegistry(projectRoot);
   await printBannerAsync(opts, state, shellOpts);
   writeReplLine('');
@@ -859,6 +981,30 @@ export async function runShell(
       state.plan = recordPlanTurn(state.plan, userInput, result.finalContent);
     }
 
+    // Auto-save session after each turn
+    if (state.sessionId) {
+      try {
+        const snapshot: SessionSnapshot = {
+          id: state.sessionId,
+          projectRoot,
+          history: state.history,
+          messages: [],
+          writeMode: state.writeMode,
+          permissionMode: 'default',
+          effortLevel: 'medium',
+          alwaysAllowSet: [...state.toolPermissionSession.getAlwaysAllowSet()],
+          plan: state.plan,
+          model: resolved.model,
+          title: state.sessionTitle || '',
+          startedAt: '',
+          updatedAt: '',
+        };
+        saveSession(projectRoot, snapshot);
+      } catch {
+        // Session save failures are non-critical
+      }
+    }
+
     if (result.stopReason === 'aborted') {
       // Interrupted message printed by SIGINT handler.
     } else if (result.finalContent) {
@@ -892,6 +1038,21 @@ export async function runShell(
         projectRoot,
         { config: hookConfig },
       );
+
+      // Auto-extract memory facts in the background (non-blocking)
+      if (state.history.length >= 2) {
+        resolveCompletionFn(opts)
+          .then(({ completeFn }) =>
+            flushMemoryOnSessionEnd({
+              projectRoot,
+              history: state.history,
+              completeFn,
+            }),
+          )
+          .catch(() => {
+            // Memory flush failures are non-critical
+          });
+      }
     }
   };
 
@@ -984,6 +1145,25 @@ export async function runShell(
         activeController.abort();
         activeController = null;
         printInterrupted();
+        return;
+      }
+
+      // Esc+Esc — rewind to last checkpoint (when no agent is running)
+      if (key?.name === 'escape' && !activeController && state.checkpoint) {
+        (async () => {
+          try {
+            const { rewindToCheckpoint } = await import('../core/git/checkpoint.js');
+            const ok = await rewindToCheckpoint(projectRoot, state.checkpoint!.id);
+            if (ok) {
+              console.log(chalk.green('Rewound to checkpoint:'), chalk.cyan(state.checkpoint!.id));
+              state.checkpoint = undefined;
+            } else {
+              console.log(chalk.yellow('Rewind failed.'));
+            }
+          } catch (e) {
+            console.error(chalk.red('Rewind error:'), e instanceof Error ? e.message : String(e));
+          }
+        })();
       }
     });
   }

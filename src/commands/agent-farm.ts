@@ -4,6 +4,7 @@ import chalk from 'chalk';
 import { loadMergedConfig } from '../config/load.js';
 import { acquireStagingLock, releaseStagingLock } from '../core/staging/locks.js';
 import { runAgentTurnForCli } from '../core/agent/run-turn.js';
+import { startBackgroundAgent } from '../core/agent/background-agent.js';
 import type { GlobalOptions } from '../utils/output.js';
 import { printJson, resolveProjectRoot } from '../utils/output.js';
 
@@ -12,6 +13,7 @@ interface FarmNode {
   prompt: string;
   depends_on?: string[];
   lock_paths?: string[];
+  bg?: boolean;
 }
 
 interface FarmPlan {
@@ -41,6 +43,8 @@ function parseFarmYaml(text: string): FarmPlan {
         .split(',')
         .map((s) => s.trim())
         .filter(Boolean);
+    } else if (cur && t.startsWith('bg:')) {
+      cur.bg = t.slice(3).trim().toLowerCase() === 'true';
     }
   }
   if (cur) nodes.push(cur);
@@ -78,19 +82,32 @@ export async function runAgentFarm(opts: GlobalOptions, planPath: string): Promi
         const locks = node.lock_paths ?? [];
         if (locks.length) acquireStagingLock(root, locks, owner);
         try {
-          const r = await runAgentTurnForCli({
-            globalOpts: opts,
-            history: [],
-            userInput: node.prompt,
-            writeMode: 'staging',
-            mode: 'normal',
-            agentId: owner,
-            configOverride: config,
-          });
-          results[node.id] = {
-            iterations: r.iterations,
-            preview: (r.finalContent ?? '').slice(0, 200),
-          };
+          if (node.bg) {
+            // Background mode: spawn detached process and record the agent ID
+            const { id: bgId } = await startBackgroundAgent({
+              projectRoot: root,
+              prompt: node.prompt,
+            });
+            results[node.id] = {
+              background: true,
+              agentId: bgId,
+              preview: `Background agent ${bgId} started`,
+            };
+          } else {
+            const r = await runAgentTurnForCli({
+              globalOpts: opts,
+              history: [],
+              userInput: node.prompt,
+              writeMode: 'staging',
+              mode: 'normal',
+              agentId: owner,
+              configOverride: config,
+            });
+            results[node.id] = {
+              iterations: r.iterations,
+              preview: (r.finalContent ?? '').slice(0, 200),
+            };
+          }
         } finally {
           if (locks.length) releaseStagingLock(root, owner);
         }

@@ -29,6 +29,8 @@ const chatBindings: Record<string, string> = {
   'enter':      'chat:submit',
   'shift+tab':  'chat:cycleMode',
   'meta+p':     'chat:modelPicker',
+  'meta+t':     'chat:toggleThinking',
+  'meta+o':     'chat:toggleFastMode',
   'ctrl+g':     'chat:externalEditor',
   'ctrl+s':     'chat:stash',
   'ctrl+v':     'chat:imagePaste',
@@ -58,6 +60,7 @@ const autocompleteBindings: Record<string, string> = {
 const confirmationBindings: Record<string, string> = {
   'y':      'confirm:yes',
   'enter':  'confirm:yes',
+  'a':      'confirm:always',
   'n':      'confirm:no',
   'escape': 'confirm:no',
 };
@@ -95,8 +98,14 @@ const tabsBindings: Record<string, string> = {
 // ── Transcript ──────────────────────────────────────────
 
 const transcriptBindings: Record<string, string> = {
-  'escape': 'transcript:close',
-  'ctrl+f': 'transcript:search',
+  'escape':     'transcript:close',
+  'ctrl+f':     'transcript:search',
+  'pageup':     'transcript:pageUp',
+  'pagedown':   'transcript:pageDown',
+  '{':          'transcript:paragraphUp',
+  '}':          'transcript:paragraphDown',
+  'v':          'transcript:openInEditor',
+  '[':          'transcript:writeToScrollback',
 };
 
 // ── HistorySearch ───────────────────────────────────────

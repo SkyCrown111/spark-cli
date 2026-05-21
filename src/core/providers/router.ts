@@ -76,7 +76,7 @@ export function resolveModelForTask(
   } else {
     apiKey = resolveConfiguredApiKey(config, providerId);
     baseUrl =
-      (config.model?.provider === providerId ? config.model?.base_url : undefined) ??
+      config.model?.base_url ??
       DEFAULT_BASE_URLS[providerId] ??
       (providerId === 'ollama' ? process.env.OLLAMA_HOST ?? DEFAULT_BASE_URLS.ollama : undefined);
   }
@@ -161,6 +161,8 @@ export async function completeChat(
      * silently so callers don't have to special-case providers.
      */
     onDelta?: (delta: string) => void;
+    /** Reasoning effort level (low/medium/high/xhigh/max). */
+    effortLevel?: 'low' | 'medium' | 'high' | 'xhigh' | 'max';
   },
 ): Promise<ProviderResponse> {
   return withRetry(() => completeChatOnce(resolved, messages, options));
@@ -213,6 +215,7 @@ async function completeChatOnce(
     tools?: ToolDefinition[];
     toolChoice?: 'auto' | 'none' | 'required';
     onDelta?: (delta: string) => void;
+    effortLevel?: 'low' | 'medium' | 'high' | 'xhigh' | 'max';
   },
 ): Promise<ProviderResponse> {
   const config = options?.config;
@@ -253,6 +256,7 @@ async function completeChatOnce(
     toolChoice: options?.toolChoice,
     providerId: resolved.providerId,
     onDelta: options?.onDelta,
+    effortLevel: options?.effortLevel,
   });
 }
 

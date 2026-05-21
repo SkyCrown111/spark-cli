@@ -38,7 +38,7 @@ export const IdleReturnDialog: React.FC<IdleReturnDialogProps> = ({
   useKeybinding('confirm:no', onStartFresh);
 
   return (
-    <Box flexDirection="column" paddingX={2} paddingY={1} borderStyle="single" borderColor="cyan">
+    <Box flexDirection="column" paddingX={1}>
       <Box>
         <Text bold color="cyan">Welcome back!</Text>
       </Box>

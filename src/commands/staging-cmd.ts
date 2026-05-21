@@ -19,10 +19,10 @@ export function runDiff(opts: GlobalOptions): void {
   console.log(diff || chalk.dim('(empty diff)'));
 }
 
-export function runApply(opts: GlobalOptions): void {
+export async function runApply(opts: GlobalOptions): Promise<void> {
   const root = resolveProjectRoot(opts);
   try {
-    const files = applyStaging(root, {
+    const files = await applyStaging(root, {
       yes: opts.yes,
       backup: true,
       dryRun: opts.dryRun,

@@ -31,9 +31,11 @@ import {
   type ToolConfirmFn,
   type ToolPermissionSession,
 } from './tool-permissions.js';
+import { connectMcpClients } from '../../mcp/client-pool.js';
 
 export async function resolveCompletionFn(
   globalOpts: GlobalOptions,
+  effortLevel?: 'low' | 'medium' | 'high' | 'xhigh' | 'max',
 ): Promise<{ completeFn: CompletionFn; model: string }> {
   const root = resolveProjectRoot(globalOpts);
   const config = await loadMergedConfig(root);
@@ -49,6 +51,7 @@ export async function resolveCompletionFn(
       toolChoice: options.toolChoice,
       config,
       onDelta: options.onDelta,
+      effortLevel,
     });
   };
   return { completeFn, model: `${resolved.providerId}/${resolved.model}` };
@@ -75,6 +78,18 @@ export interface RunTurnOptions {
   confirmTool?: ToolConfirmFn;
   askUser?: AskUserFn;
   contextBudget?: number;
+  /** Maximum agent iterations (overrides config). */
+  maxTurns?: number;
+  /** Maximum estimated USD spend; aborts when reached. */
+  maxBudgetUsd?: number;
+  /** Custom system prompt (replaces default). */
+  systemPromptOverride?: string;
+  /** Append text to default system prompt. */
+  appendSystemPrompt?: string;
+  /** Reasoning effort level for this turn. */
+  effortLevel?: 'low' | 'medium' | 'high' | 'xhigh' | 'max';
+  /** Current permission mode. */
+  permissionMode?: import('../../state/AppState.js').PermissionMode;
 }
 
 export interface RunTurnResult extends RunAgentTurnResult {
@@ -109,15 +124,45 @@ export async function runAgentTurnForCli(
   const userMessage = buildAgentUserMessage(agentText, opts.visualContext);
 
   const registry = buildDefaultRegistry({ projectRoot: root, config });
+
+  // Connect to MCP client servers and register their tools
+  const mcpServers = config.mcp?.servers?.filter((s) => s.enabled !== false) ?? [];
+  let mcpPool: import('../../mcp/client-pool.js').McpClientPool | undefined;
+  if (mcpServers.length > 0) {
+    try {
+      const mcpResult = await connectMcpClients(config);
+      mcpPool = mcpResult.pool;
+      for (const tool of mcpResult.tools) {
+        registry.register(tool);
+      }
+    } catch (e) {
+      console.error(`[spark-cli] MCP client connection error: ${(e as Error).message}`);
+    }
+  }
+
   const skills = createSkillRegistry();
   loadSkillsFromDisk(skills, root);
-  const systemPrompt = buildAgentSystemPrompt({
-    projectRoot: root,
-    writeMode: opts.writeMode,
-    mode: opts.mode,
-    userInputForKnowledgeRetrieval: opts.userInput,
-    skills,
-  });
+  const systemPrompt = opts.systemPromptOverride
+    ? opts.appendSystemPrompt
+      ? `${opts.systemPromptOverride}\n\n${opts.appendSystemPrompt}`
+      : opts.systemPromptOverride
+    : opts.appendSystemPrompt
+      ? `${buildAgentSystemPrompt({
+          projectRoot: root,
+          writeMode: opts.writeMode,
+          mode: opts.mode,
+          userInputForKnowledgeRetrieval: opts.userInput,
+          skills,
+          effortLevel: opts.effortLevel,
+        })}\n\n${opts.appendSystemPrompt}`
+      : buildAgentSystemPrompt({
+          projectRoot: root,
+          writeMode: opts.writeMode,
+          mode: opts.mode,
+          userInputForKnowledgeRetrieval: opts.userInput,
+          skills,
+          effortLevel: opts.effortLevel,
+        });
   const maxTokens = resolveOutputMaxTokens(config);
   const contextBudget = opts.contextBudget ?? resolveContextBudget(config, resolved);
 
@@ -136,31 +181,43 @@ export async function runAgentTurnForCli(
       toolChoice: options.toolChoice,
       config,
       onDelta: options.onDelta,
+      effortLevel: opts.effortLevel,
     });
   };
 
-  const result = await runAgentTurn(opts.history, opts.userInput, {
-    projectRoot: root,
-    config,
-    registry,
-    completeFn,
-    systemPrompt,
-    writeMode: opts.writeMode,
-    mode: opts.mode,
-    agentId: opts.agentId,
-    maxTokens,
-    abortSignal: opts.abortSignal,
-    onIteration: opts.onIteration,
-    onDelta: opts.onDelta,
-    onToolCompleted: opts.onToolCompleted,
-    userMessage,
-    hooks: loadHookConfig(root),
-    skills,
-    toolPermissionSession: opts.toolPermissionSession,
-    confirmTool: opts.confirmTool,
-    askUser: opts.askUser,
-    contextBudget,
-  });
+  let result: RunAgentTurnResult;
+  try {
+    result = await runAgentTurn(opts.history, opts.userInput, {
+      projectRoot: root,
+      config,
+      registry,
+      completeFn,
+      systemPrompt,
+      writeMode: opts.writeMode,
+      mode: opts.mode,
+      permissionMode: opts.permissionMode,
+      agentId: opts.agentId,
+      maxTokens,
+      maxIterations: opts.maxTurns,
+      maxBudgetUsd: opts.maxBudgetUsd,
+      abortSignal: opts.abortSignal,
+      onIteration: opts.onIteration,
+      onDelta: opts.onDelta,
+      onToolCompleted: opts.onToolCompleted,
+      userMessage,
+      hooks: loadHookConfig(root),
+      skills,
+      toolPermissionSession: opts.toolPermissionSession,
+      confirmTool: opts.confirmTool,
+      askUser: opts.askUser,
+      contextBudget,
+    });
+  } finally {
+    // Disconnect MCP clients after the turn completes
+    if (mcpPool) {
+      await mcpPool.disconnectAll().catch(() => {});
+    }
+  }
 
   return {
     ...result,

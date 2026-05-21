@@ -1,11 +1,13 @@
 /**
- * Messages component - Message list container with virtual scrolling
- * Only renders messages within the visible viewport to avoid performance issues
- * with large message histories.
+ * Messages component - Message list container with virtual scrolling.
  *
- * The parent Box controls the available height via flex layout and
- * overflow="hidden" — this component simply renders as many messages
- * as it can and relies on the parent to clip overflow.
+ * Two modes of operation:
+ * 1. **ScrollBox-controlled**: When `visibleRange` is provided, renders only
+ *    the messages within [start, end) — the parent ScrollBox handles scrolling.
+ * 2. **Self-contained**: When `visibleRange` is absent, uses a simple
+ *    tail-window approach (shows the latest messages that fit in maxHeight).
+ *
+ * After Phase 16-H: supports progress display messages and tool group rendering.
  */
 
 import React, { useMemo } from 'react';
@@ -14,12 +16,48 @@ import { Text } from '../design-system/Text.js';
 import { UserMessage } from './UserMessage.js';
 import { AssistantMessage } from './AssistantMessage.js';
 import { ToolMessage } from './ToolMessage.js';
+import { ProgressMessage } from './ProgressMessage.js';
+import { isProgressMessage, type DisplayMessage } from './DisplayMessage.js';
 import type { ChatMessage } from '../../core/providers/openai-compatible.js';
 
 export interface MessagesProps {
-  messages: ChatMessage[];
+  messages: ChatMessage[] | DisplayMessage[];
   /** Max visible height in terminal rows (used for virtual scroll window) */
   maxHeight?: number;
+  /**
+   * Visible range [start, end) from ScrollBox.
+   * When provided, ScrollBox controls which messages are visible
+   * and this component only renders messages in that range.
+   */
+  visibleRange?: [number, number];
+  /** Partial assistant content being streamed via onDelta */
+  streamingContent?: string;
+  /** Whether the agent is currently streaming a response */
+  isStreaming?: boolean;
+}
+
+/**
+ * Render a single message based on its role.
+ */
+function renderMessage(msg: ChatMessage | DisplayMessage, key: number | string) {
+  // Handle display-only types first
+  if (isProgressMessage(msg)) {
+    return <ProgressMessage key={key} label={msg.label} current={msg.current} total={msg.total} percent={msg.percent} status={msg.status} />;
+  }
+
+  // Standard ChatMessage types
+  switch (msg.role) {
+    case 'user':
+      return <UserMessage key={key} message={msg} />;
+    case 'assistant':
+      return <AssistantMessage key={key} message={msg} />;
+    case 'tool':
+      return <ToolMessage key={key} message={msg} />;
+    case 'system':
+      return null;
+    default:
+      return null;
+  }
 }
 
 /**
@@ -31,9 +69,32 @@ export interface MessagesProps {
 export const Messages: React.FC<MessagesProps> = ({
   messages,
   maxHeight = 30,
+  visibleRange,
+  streamingContent,
+  isStreaming,
 }) => {
-  // Virtual scroll: only render messages that fit in the maxHeight window
-  // Always show the latest messages (scroll to bottom)
+  // ScrollBox-controlled mode: use the range provided by ScrollBox
+  if (visibleRange) {
+    const [start, end] = visibleRange;
+    const slicedMessages = messages.slice(start, end);
+
+    return (
+      <Box flexDirection="column">
+        {slicedMessages.map((msg, idx) => {
+          const globalIdx = start + idx;
+          return renderMessage(msg, globalIdx);
+        })}
+        {isStreaming && streamingContent && (
+          <AssistantMessage
+            key="streaming"
+            message={{ role: 'assistant', content: streamingContent }}
+          />
+        )}
+      </Box>
+    );
+  }
+
+  // Self-contained mode: simple tail-window virtual scroll
   const estimatedRowHeight = 3;
   const visibleCount = Math.ceil(maxHeight / estimatedRowHeight);
 
@@ -52,20 +113,13 @@ export const Messages: React.FC<MessagesProps> = ({
           <Text dimColor>↑ {messages.length - visibleCount} earlier messages</Text>
         </Box>
       )}
-      {visibleMessages.map((msg, idx) => {
-        switch (msg.role) {
-          case 'user':
-            return <UserMessage key={idx} message={msg} />;
-          case 'assistant':
-            return <AssistantMessage key={idx} message={msg} />;
-          case 'tool':
-            return <ToolMessage key={idx} message={msg} />;
-          case 'system':
-            return null;
-          default:
-            return null;
-        }
-      })}
+      {visibleMessages.map((msg, idx) => renderMessage(msg, idx))}
+      {isStreaming && streamingContent && (
+        <AssistantMessage
+          key="streaming"
+          message={{ role: 'assistant', content: streamingContent }}
+        />
+      )}
     </Box>
   );
 };

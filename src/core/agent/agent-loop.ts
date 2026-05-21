@@ -78,6 +78,10 @@ export interface RunAgentTurnOptions {
   maxIterations?: number;
   maxTokens?: number;
   abortSignal?: AbortSignal;
+  /** Maximum estimated USD spend; aborts when reached. */
+  maxBudgetUsd?: number;
+  /** Current permission mode (default/plan/auto/acceptEdits/dontAsk/bypass). */
+  permissionMode?: import('../../state/AppState.js').PermissionMode;
   /** Pre-loaded hook config; threaded through to tool dispatch. */
   hooks?: HookConfig;
   /** Skill registry; the load_skill tool reaches it via ToolContext. */
@@ -114,7 +118,7 @@ export interface RunAgentTurnResult {
   /** Final assistant prose. May be empty if the loop stopped early. */
   finalContent: string;
   /** Reason the loop stopped. */
-  stopReason: 'end_turn' | 'iteration_cap' | 'aborted' | 'no_tools' | 'other';
+  stopReason: 'end_turn' | 'iteration_cap' | 'budget_cap' | 'aborted' | 'no_tools' | 'other';
   iterations: number;
   /** History after the turn, ready to be persisted by the caller. */
   history: ChatMessage[];
@@ -155,11 +159,17 @@ export async function runAgentTurn(
     completion_tokens: 0,
   };
 
+  /** Rough cost estimation constants. */
+  const EST_INPUT_COST = 3e-6;   // $3/M input tokens
+  const EST_OUTPUT_COST = 15e-6; // $15/M output tokens
+  let accumulatedCostUsd = 0;
+
   const ctx: ToolContext = {
     projectRoot: opts.projectRoot,
     config: opts.config,
     writeMode: opts.writeMode,
     mode: opts.mode,
+    permissionMode: opts.permissionMode,
     agentId: opts.agentId,
     parentAgentId: opts.parentAgentId,
     depth: opts.depth ?? 0,
@@ -229,6 +239,17 @@ export async function runAgentTurn(
           { config: opts.hooks },
         );
       }
+
+      // Extract memory facts from compaction summary (background, non-blocking)
+      if (summary) {
+        import('../memory/flush.js')
+          .then(({ flushMemoryFromCompaction }) =>
+            flushMemoryFromCompaction(opts.projectRoot, summary, opts.completeFn),
+          )
+          .catch(() => {
+            // Memory flush failures are non-critical
+          });
+      }
     }
 
     const tools = opts.registry.list({ mode: opts.mode });
@@ -242,6 +263,19 @@ export async function runAgentTurn(
     if (res.usage?.prompt_tokens) usage.prompt_tokens = res.usage.prompt_tokens;
     if (res.usage?.completion_tokens) {
       usage.completion_tokens += res.usage.completion_tokens;
+    }
+
+    // Budget cap check: estimate cost from token usage
+    if (opts.maxBudgetUsd !== undefined) {
+      const inputCost = (res.usage?.prompt_tokens ?? 0) * EST_INPUT_COST;
+      const outputCost = (res.usage?.completion_tokens ?? 0) * EST_OUTPUT_COST;
+      accumulatedCostUsd += inputCost + outputCost;
+      if (accumulatedCostUsd >= opts.maxBudgetUsd) {
+        const lastAssistant = [...messages].reverse().find((m) => m.role === 'assistant');
+        const finalContent =
+          lastAssistant && typeof lastAssistant.content === 'string' ? lastAssistant.content : '';
+        return finalize(messages, allDispatched, usage, finalContent, 'budget_cap', iter);
+      }
     }
 
     const calls = res.tool_calls ?? [];

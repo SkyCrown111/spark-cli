@@ -175,3 +175,17 @@ export function readMemoryIndex(projectRoot: string): string {
   if (!existsSync(path)) return '';
   return readFileSync(path, 'utf8');
 }
+
+/**
+ * Search memories by relevance to a query using TF-IDF-like scoring.
+ * Returns the top-N most relevant memories with full bodies.
+ */
+export async function searchMemoriesByRelevance(
+  projectRoot: string,
+  query: string,
+  limit: number = 5,
+): Promise<MemoryRecord[]> {
+  const { selectRelevantMemories } = await import('./relevance.js');
+  const all = listMemories(projectRoot);
+  return selectRelevantMemories(all, query, limit);
+}

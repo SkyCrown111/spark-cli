@@ -20,6 +20,25 @@ export const FallbackProviderSchema = z.object({
   priority: z.number().int().optional(),
 });
 
+export const McpServerConfigSchema = z.object({
+  /** Unique name for this server (used in CLI and tool prefixing). */
+  name: z.string(),
+  /** Transport type: stdio spawns a process; sse connects via HTTP. */
+  transport: z.enum(['stdio', 'sse']),
+  /** For stdio: executable command. */
+  command: z.string().optional(),
+  /** For stdio: command arguments. */
+  args: z.array(z.string()).optional(),
+  /** For stdio or sse: environment variables to pass. */
+  env: z.record(z.string()).optional(),
+  /** For sse: server URL. */
+  url: z.string().optional(),
+  /** Whether this server is enabled. Default true. */
+  enabled: z.boolean().optional(),
+});
+
+export type McpServerConfig = z.infer<typeof McpServerConfigSchema>;
+
 export const SparkCLIConfigSchema = z.object({
   project: z
     .object({
@@ -110,6 +129,12 @@ export const SparkCLIConfigSchema = z.object({
     .object({
       /** Per-hook timeout in ms. Default 10000. */
       timeoutMs: z.number().int().positive().optional(),
+      /** Allowed handler types. Default: all types enabled. */
+      handlerTypes: z
+        .array(z.enum(['command', 'script', 'http', 'prompt']))
+        .optional(),
+      /** When true, advisory hooks run asynchronously (non-blocking). Default false. */
+      asyncAdvisory: z.boolean().optional(),
     })
     .optional(),
   tools: z
@@ -192,16 +217,40 @@ export const SparkCLIConfigSchema = z.object({
       maxIterations: z.number().int().positive().optional(),
     })
     .optional(),
+  session: z
+    .object({
+      /** Auto-save session after each agent turn. Default true. */
+      autosave: z.boolean().optional(),
+      /** Max age in days before sessions are auto-cleaned. Default 30. */
+      maxAgeDays: z.number().int().positive().optional(),
+    })
+    .optional(),
   security: z
     .object({
       requireConfirm: z.boolean().optional(),
       backupBeforeWrite: z.boolean().optional(),
+      /** Fine-grained permission rules using Tool(specifier) glob syntax.
+       *  Evaluated in order; first match wins. Actions: deny/ask/allow.
+       *  Examples: Tool(bash), Tool(write_file:src/**), Tool(*:.git/*)
+       */
+      toolRules: z.array(z.object({
+        specifier: z.string(),
+        action: z.enum(['deny', 'ask', 'allow']),
+      })).optional(),
+      /** Paths that are never auto-approved (even in acceptEdits/bypass mode).
+       *  Default: ['.git', '.spark-cli', '.vscode', '.claude', '.kiro', '.husky']
+       */
+      protectedPaths: z.array(z.string()).optional(),
+      /** Persist "always allow" choices across sessions. Default true. */
+      persistAlwaysAllow: z.boolean().optional(),
     })
     .optional(),
   mcp: z
     .object({
       allowWrite: z.boolean().optional(),
       port: z.number().int().optional(),
+      /** MCP servers to connect to as a client. */
+      servers: z.array(McpServerConfigSchema).optional(),
     })
     .optional(),
   wechat: z
@@ -246,6 +295,12 @@ export const SparkCLIConfigSchema = z.object({
       syncPaths: z.array(z.string()).optional(),
     })
     .optional(),
+  git: z
+    .object({
+      /** Auto-commit after applying staged changes. Default false. */
+      autoCommit: z.boolean().optional(),
+    })
+    .optional(),
   ignore: z.array(z.string()).optional(),
 });
 
@@ -254,6 +309,7 @@ export type SparkCLIConfig = z.infer<typeof SparkCLIConfigSchema>;
 export const DEFAULT_CONFIG: SparkCLIConfig = {
   project: { engine: 'cocos-creator' },
   model: { provider: 'auto' },
+  session: { autosave: true, maxAgeDays: 30 },
   security: { requireConfirm: true, backupBeforeWrite: true },
   context: { maxTokens: 32000 },
   mcp: { allowWrite: false, port: 17321 },

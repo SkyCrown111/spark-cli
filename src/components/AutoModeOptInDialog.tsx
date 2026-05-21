@@ -32,9 +32,9 @@ export const AutoModeOptInDialog: React.FC<AutoModeOptInDialogProps> = ({
   useKeybinding('confirm:no', onCancel);
 
   return (
-    <Box flexDirection="column" paddingX={2} paddingY={1} borderStyle="single" borderColor="yellow">
+    <Box flexDirection="column" paddingX={1}>
       <Box>
-        <Text bold color="yellow">⚠ Enable Auto Mode?</Text>
+        <Text bold color="yellow">! Enable Auto Mode?</Text>
       </Box>
 
       <Box marginTop={1}>

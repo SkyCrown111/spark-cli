@@ -25,14 +25,14 @@ describe('patch-manager', () => {
     rmSync(root, { recursive: true, force: true });
   });
 
-  it('stages and applies a new file', () => {
+  it('stages and applies a new file', async () => {
     initStaging(root);
     stageWriteFile(root, 'assets/scripts/Test.ts', '// @spark-cli-generated\nexport const x = 1;\n');
     expect(hasStaging(root)).toBe(true);
     const diff = showDiff(root);
     expect(diff).toContain('Test.ts');
 
-    const applied = applyStaging(root, { yes: true });
+    const applied = await applyStaging(root, { yes: true });
     expect(applied).toEqual(['assets/scripts/Test.ts']);
     expect(readFileSync(join(root, 'assets/scripts/Test.ts'), 'utf8')).toContain('x = 1');
     expect(hasStaging(root)).toBe(false);
@@ -45,8 +45,8 @@ describe('patch-manager', () => {
     expect(hasStaging(root)).toBe(false);
   });
 
-  it('apply without staging throws', () => {
-    expect(() => applyStaging(root, { yes: true })).toThrow(SparkCLIError);
+  it('apply without staging throws', async () => {
+    await expect(applyStaging(root, { yes: true })).rejects.toThrow(SparkCLIError);
   });
 
   it('rejects paths that escape the project root', () => {
@@ -54,7 +54,7 @@ describe('patch-manager', () => {
     expect(() => stageWriteFile(root, '../escape.txt', 'nope')).toThrow(SparkCLIError);
   });
 
-  it('applies binary staged files without utf8 corruption', () => {
+  it('applies binary staged files without utf8 corruption', async () => {
     initStaging(root);
     const pngBytes = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x00, 0xff]);
     stageWriteBuffer(root, 'assets/textures/icon.png', pngBytes);
@@ -62,12 +62,12 @@ describe('patch-manager', () => {
     const diff = showDiff(root);
     expect(diff).toContain('Binary file assets/textures/icon.png');
 
-    const applied = applyStaging(root, { yes: true });
+    const applied = await applyStaging(root, { yes: true });
     expect(applied).toEqual(['assets/textures/icon.png']);
     expect(readFileSync(join(root, 'assets/textures/icon.png'))).toEqual(pngBytes);
   });
 
-  it('stages and applies file deletions', () => {
+  it('stages and applies file deletions', async () => {
     mkdirSync(join(root, 'assets/data'), { recursive: true });
     writeFileSync(join(root, 'assets/data/remove-me.txt'), 'gone soon\n', 'utf8');
 
@@ -76,7 +76,7 @@ describe('patch-manager', () => {
     expect(diff).toContain('remove-me.txt');
     expect(diff).toContain('(deleted)');
 
-    const applied = applyStaging(root, { yes: true });
+    const applied = await applyStaging(root, { yes: true });
     expect(applied).toEqual(['assets/data/remove-me.txt']);
     expect(existsSync(join(root, 'assets/data/remove-me.txt'))).toBe(false);
   });

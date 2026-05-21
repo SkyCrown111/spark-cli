@@ -17,14 +17,26 @@ import { join } from 'node:path';
 import type { HookEvent } from './events.js';
 import { SparkCLIError } from '../../utils/errors.js';
 
+export type HookHandlerType = 'command' | 'script' | 'http' | 'prompt';
+
 export interface HookEntry {
   event: HookEvent;
   /** Optional restriction to specific tool names (only meaningful for tool events). */
   tools?: string[];
+  /** Handler type. Inferred from fields if omitted: command/script/http/prompt. */
+  handler?: HookHandlerType;
   /** Convenience form: passes through shell:true on Windows. */
   command?: string;
   /** Cross-platform form: explicit interpreter + path. */
   script?: { interpreter: string; path: string };
+  /** HTTP handler: URL to POST JSON payload to. */
+  url?: string;
+  /** Prompt handler: template string with {{field}} placeholders. */
+  prompt_template?: string;
+  /** Glob/regex pattern to match tool names or file paths against. */
+  matcher?: string;
+  /** Execution priority (lower runs first). Default 0. */
+  priority?: number;
   /** Default 10000 ms. */
   timeoutMs?: number;
   /** Default true for blocking events; false for advisory. */
@@ -50,6 +62,15 @@ const VALID_EVENTS: ReadonlySet<HookEvent> = new Set<HookEvent>([
   'on_subagent_spawn',
   'on_plan_enter',
   'on_plan_exit',
+  'permission_request',
+  'permission_denied',
+  'stop',
+  'stop_failure',
+  'task_created',
+  'task_completed',
+  'pre_compact',
+  'post_compact',
+  'file_changed',
 ]);
 
 function configPath(projectRoot: string): string {
@@ -92,19 +113,36 @@ export function loadHookConfig(projectRoot: string): HookConfig {
   return { hooks };
 }
 
+function inferHandlerType(e: Partial<HookEntry>): HookHandlerType | undefined {
+  if (e.handler) return e.handler;
+  if (e.command) return 'command';
+  if (e.script) return 'script';
+  if (e.url) return 'http';
+  if (e.prompt_template) return 'prompt';
+  return undefined;
+}
+
 function normalizeEntry(entry: unknown): HookEntry | null {
   if (!entry || typeof entry !== 'object') return null;
   const e = entry as Partial<HookEntry>;
   if (!e.event || !VALID_EVENTS.has(e.event)) return null;
-  if (!e.command && !e.script) return null;
-  if (e.script) {
+
+  const handler = inferHandlerType(e);
+  if (!handler) return null;
+
+  // Validate handler-specific fields
+  if (handler === 'script') {
     if (
-      typeof e.script.interpreter !== 'string' ||
-      typeof e.script.path !== 'string'
+      typeof e.script?.interpreter !== 'string' ||
+      typeof e.script?.path !== 'string'
     ) {
       return null;
     }
   }
+  if (handler === 'http' && typeof e.url !== 'string') return null;
+  if (handler === 'prompt' && typeof e.prompt_template !== 'string') return null;
+  if (handler === 'command' && typeof e.command !== 'string') return null;
+
   if (e.tools !== undefined) {
     if (!Array.isArray(e.tools) || !e.tools.every((t) => typeof t === 'string')) {
       return null;
@@ -113,8 +151,13 @@ function normalizeEntry(entry: unknown): HookEntry | null {
   return {
     event: e.event,
     tools: e.tools,
+    handler,
     command: typeof e.command === 'string' ? e.command : undefined,
     script: e.script,
+    url: typeof e.url === 'string' ? e.url : undefined,
+    prompt_template: typeof e.prompt_template === 'string' ? e.prompt_template : undefined,
+    matcher: typeof e.matcher === 'string' ? e.matcher : undefined,
+    priority: typeof e.priority === 'number' ? e.priority : undefined,
     timeoutMs: typeof e.timeoutMs === 'number' ? e.timeoutMs : undefined,
     blocking: typeof e.blocking === 'boolean' ? e.blocking : undefined,
     label: typeof e.label === 'string' ? e.label : undefined,
@@ -127,15 +170,33 @@ export function selectHooks(
   event: HookEvent,
   tool?: string,
 ): HookEntry[] {
-  return cfg.hooks.filter((h) => {
-    if (h.event !== event) return false;
-    if (h.tools && h.tools.length > 0 && tool) {
-      return h.tools.includes(tool);
-    }
-    if (h.tools && h.tools.length > 0 && !tool) {
-      // Tool-restricted hook on non-tool event — skip.
-      return false;
-    }
-    return true;
-  });
+  return cfg.hooks
+    .filter((h) => {
+      if (h.event !== event) return false;
+      if (h.tools && h.tools.length > 0 && tool) {
+        return h.tools.includes(tool);
+      }
+      if (h.tools && h.tools.length > 0 && !tool) {
+        // Tool-restricted hook on non-tool event — skip.
+        return false;
+      }
+      // Matcher filter: match against tool name or file path
+      if (h.matcher && tool) {
+        return matchesGlob(h.matcher, tool);
+      }
+      return true;
+    })
+    .sort((a, b) => (a.priority ?? 0) - (b.priority ?? 0));
+}
+
+/** Simple glob matcher supporting * and ** wildcards. */
+export function matchesGlob(pattern: string, value: string): boolean {
+  // Convert glob to regex: ** → .*, * → [^/]*
+  const escaped = pattern
+    .replace(/[.+^${}()|[\]\\]/g, '\\$&')
+    .replace(/\*\*/g, '{{GLOBSTAR}}')
+    .replace(/\*/g, '[^/]*')
+    .replace(/\{\{GLOBSTAR\}\}/g, '.*');
+  const re = new RegExp(`^${escaped}$`, 'i');
+  return re.test(value);
 }

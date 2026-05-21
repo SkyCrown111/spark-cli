@@ -99,6 +99,8 @@ export async function dispatchToolCalls(
         };
       }
       // pre_tool hook (blocking).
+      let hookDecision: string | undefined;
+      let hookAdditionalContext: string | undefined;
       if (opts.hooks) {
         const pre = runHooks(
           'pre_tool',
@@ -113,8 +115,14 @@ export async function dispatchToolCalls(
           ctx.projectRoot,
           { config: opts.hooks, tool: tc.function.name },
         );
-        if (pre.blocked) {
-          const reason = pre.reason ?? 'Blocked by pre_tool hook.';
+        hookDecision = pre.decision;
+        hookAdditionalContext = pre.additionalContext;
+
+        // Explicit deny decision or legacy blocking
+        if (pre.decision === 'deny' || pre.blocked) {
+          const reason = pre.decision === 'deny'
+            ? (pre.additionalContext ?? 'Denied by pre_tool hook.')
+            : (pre.reason ?? 'Blocked by pre_tool hook.');
           appendReplayEvent(ctx.projectRoot, 'tool_call', {
             tool: tc.function.name,
             args: tc.function.arguments,
@@ -141,7 +149,12 @@ export async function dispatchToolCalls(
       const result = await registry.dispatch(
         tc.function.name,
         tc.function.arguments ?? '{}',
-        { ...ctx, abortSignal: opts.abortSignal },
+        {
+          ...ctx,
+          abortSignal: opts.abortSignal,
+          hookDecision,
+          hookAdditionalContext,
+        },
       );
       const durationMs = Date.now() - start;
       const replayContent = truncateForReplay(result.content);

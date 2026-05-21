@@ -17,6 +17,7 @@
 import type { ToolDefinition } from '../providers/types.js';
 import type { SparkCLIConfig } from '../../config/schema.js';
 import { isToolAllowed } from './permissions.js';
+import type { PermissionMode } from '../../state/AppState.js';
 import {
   isSensitiveTool,
   summarizeToolArgs,
@@ -39,6 +40,8 @@ export interface ToolContext {
   writeMode: ToolWriteMode;
   /** `normal` (full toolset), `plan` (read-only), `auto` (alias of `normal`). */
   mode: ToolRunMode;
+  /** Current permission mode (default/plan/auto/acceptEdits/dontAsk/bypass). */
+  permissionMode?: PermissionMode;
   /** Identifier for the agent that issued the call (root or sub-agent). */
   agentId: string;
   /** Used for sub-agent depth gating. */
@@ -53,6 +56,10 @@ export interface ToolContext {
   skillAllowedTools?: Set<string>;
   /** Session-scoped allow list for sensitive tools (bash, write, …). */
   toolPermissionSession?: ToolPermissionSession;
+  /** Hook decision from pre_tool hook (allow/deny/ask/defer). */
+  hookDecision?: string;
+  /** Additional context from pre_tool hook. */
+  hookAdditionalContext?: string;
   /** When set, sensitive tools prompt before running (REPL). */
   confirmTool?: ToolConfirmFn;
   /** When set, the `ask_user_question` tool can talk to the user (REPL only). */
@@ -87,6 +94,10 @@ export interface RegisteredTool {
   planModeAllowed?: boolean;
   /** Whether this tool mutates the filesystem or external state. */
   mutates?: boolean;
+  /** Where this tool came from: 'builtin' (default) or 'mcp-client'. */
+  source?: 'builtin' | 'mcp-client';
+  /** When source is 'mcp-client', the name of the MCP server providing it. */
+  mcpServerName?: string;
   handler: (
     args: Record<string, unknown>,
     ctx: ToolContext,
@@ -153,19 +164,8 @@ export function createToolRegistry(): ToolRegistry {
           isError: true,
         };
       }
-      // Single-source permission check (absorbs MCP write-guard + plan mode).
-      const perm = isToolAllowed({
-        toolName: tool.name,
-        mutates: tool.mutates ?? false,
-        planModeAllowed: tool.planModeAllowed ?? false,
-        mode: ctx.mode,
-        writeMode: ctx.writeMode,
-        config: ctx.config,
-        skillAllowedTools: ctx.skillAllowedTools,
-      });
-      if (!perm.allowed) {
-        return { content: perm.reason ?? 'Tool not allowed.', isError: true };
-      }
+
+      // Parse args first so we can pass them to permission check
       let args: Record<string, unknown> = {};
       if (rawArgs && rawArgs.trim().length > 0) {
         try {
@@ -185,11 +185,36 @@ export function createToolRegistry(): ToolRegistry {
           };
         }
       }
-      if (
-        ctx.confirmTool &&
-        isSensitiveTool(name) &&
-        !ctx.toolPermissionSession?.isAlwaysAllowed(name)
-      ) {
+
+      // Single-source permission check (absorbs MCP write-guard + plan mode + config rules).
+      const perm = isToolAllowed({
+        toolName: tool.name,
+        mutates: tool.mutates ?? false,
+        planModeAllowed: tool.planModeAllowed ?? false,
+        mode: ctx.mode,
+        writeMode: ctx.writeMode,
+        config: ctx.config,
+        skillAllowedTools: ctx.skillAllowedTools,
+        permissionMode: ctx.permissionMode,
+        toolArgs: args,
+        source: tool.source,
+      });
+      if (!perm.allowed) {
+        return { content: perm.reason ?? 'Tool not allowed.', isError: true };
+      }
+
+      // askOverride: permission is allowed but the user should be prompted
+      // (e.g. protected path in acceptEdits mode, or config rule with action 'ask')
+      // Hook 'allow' decision skips confirmation entirely.
+      const hookAllows = ctx.hookDecision === 'allow';
+      const needsConfirm =
+        !hookAllows &&
+        (perm.askOverride ||
+        (ctx.confirmTool &&
+          isSensitiveTool(name) &&
+          !ctx.toolPermissionSession?.isAlwaysAllowed(name)));
+
+      if (needsConfirm && ctx.confirmTool) {
         const allowed = await ctx.confirmTool({
           tool: name,
           argsSummary: summarizeToolArgs(name, args),

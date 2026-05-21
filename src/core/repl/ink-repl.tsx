@@ -36,12 +36,24 @@ import {
   isPlanMode,
 } from '../slash/plan-mode.js';
 import { ToolPermissionSession } from '../agent/tool-permissions.js';
+import { getAlwaysAllowPath } from '../../config/paths.js';
 import { askToolConfirm } from './tool-confirm.js';
 import { expandAtReferences } from './at-refs.js';
 import {
   KeybindingProviderSetup,
 } from '../../keybindings/KeybindingProviderSetup.js';
 import { appState } from '../../state/AppState.js';
+import {
+  installSynchronizedOutput,
+  uninstallSynchronizedOutput,
+} from '../../ink/patches/synchronizedOutput.js';
+import {
+  createSession,
+  saveSession,
+  loadSession,
+  findMostRecent,
+  type SessionSnapshot,
+} from '../session/manager.js';
 
 export interface InkShellOptions {
   auto?: boolean;
@@ -68,8 +80,45 @@ function InkREPLBridge({
 }) {
   const { exit } = useApp();
   const activeControllerRef = useRef<AbortController | null>(null);
+  const lastActivityRef = useRef<number>(Date.now());
+  const idleTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const projectRoot = resolveProjectRoot(opts);
+
+  // ── Idle detection — show IdleReturnDialog after 5 min inactivity ──
+  useEffect(() => {
+    const IDLE_THRESHOLD_MS = 5 * 60 * 1000; // 5 minutes
+    const CHECK_INTERVAL_MS = 30 * 1000; // Check every 30 seconds
+
+    idleTimerRef.current = setInterval(() => {
+      const elapsed = Date.now() - lastActivityRef.current;
+      if (elapsed >= IDLE_THRESHOLD_MS) {
+        const state = appState.getState();
+        if (!state.loading && !state.showIdleReturnDialog) {
+          appState.setState({ showIdleReturnDialog: true });
+        }
+      }
+    }, CHECK_INTERVAL_MS);
+
+    return () => {
+      if (idleTimerRef.current) clearInterval(idleTimerRef.current);
+    };
+  }, []);
+
+  // ── Cost threshold check after each agent turn ──
+  useEffect(() => {
+    const state = appState.getState();
+    const tokenUsage = state.tokenUsage;
+    if (!tokenUsage) return;
+
+    // Rough cost estimate: $0.01 per 1K tokens (varies by model)
+    const estimatedCost = (tokenUsage.used / 1000) * 0.01;
+    const COST_THRESHOLD = 1.0; // $1.00
+
+    if (estimatedCost >= COST_THRESHOLD && !state.showCostThresholdDialog) {
+      appState.setState({ showCostThresholdDialog: true });
+    }
+  }); // Check on every render (lightweight — just reads state)
 
   // ── Resolve model on mount ──
   useEffect(() => {
@@ -87,21 +136,83 @@ function InkREPLBridge({
     })();
   }, [projectRoot, opts.provider, opts.model]);
 
+  // ── Load PR context when --from-pr is specified ──
+  useEffect(() => {
+    if (!opts.fromPr) return;
+    (async () => {
+      try {
+        const { getPrStatus, loadPrContext } = await import('../git/pr-ops.js');
+        const status = getPrStatus(opts.fromPr!, { cwd: projectRoot });
+        appState.setState({
+          prBadge: { number: opts.fromPr!, status: status.status, url: status.url },
+        });
+        // Load PR context and inject as system context
+        const context = loadPrContext(opts.fromPr!, { cwd: projectRoot });
+        if (context) {
+          appState.setState((prev) => ({
+            messages: [
+              ...prev.messages,
+              { role: 'user', content: `@pr:${opts.fromPr}\n\n${context}` },
+            ],
+          }));
+        }
+      } catch {
+        // PR loading failures are non-critical
+      }
+    })();
+  }, [opts.fromPr, projectRoot]);
+
   // ── Initialize AppState ──
   useEffect(() => {
-    const session = new ToolPermissionSession();
-    appState.setState({
-      writeMode: _shellOpts.auto ? 'direct' : 'staging',
-      plan: createPlanState(),
-      toolPermissionSession: session,
-    });
-  }, [_shellOpts.auto]);
+    const persistPath = getAlwaysAllowPath(projectRoot);
+    const session = new ToolPermissionSession(persistPath);
+
+    // Load or create session based on --continue/--resume flags
+    let snapshot: SessionSnapshot | undefined;
+    if (opts.resumeSession) {
+      snapshot = loadSession(projectRoot, opts.resumeSession);
+      if (!snapshot) {
+        console.error(`Session ${opts.resumeSession} not found.`);
+      }
+    }
+    if (!snapshot && opts.continueSession) {
+      snapshot = findMostRecent(projectRoot);
+    }
+    if (snapshot) {
+      // Resume existing session
+      appState.setState({
+        sessionId: snapshot.id,
+        messages: snapshot.messages,
+        agentHistory: snapshot.history,
+        writeMode: snapshot.writeMode as 'staging' | 'direct',
+        permissionMode: snapshot.permissionMode,
+        effortLevel: snapshot.effortLevel,
+        plan: snapshot.plan,
+        toolPermissionSession: session,
+        sessionTitle: snapshot.title,
+      });
+      console.log(`Resumed session: ${snapshot.title || snapshot.id}`);
+    } else {
+      // Create new session
+      const modelState = appState.getState().model;
+      const newSnapshot = createSession(projectRoot, modelState || 'unknown');
+      appState.setState({
+        sessionId: newSnapshot.id,
+        writeMode: _shellOpts.auto ? 'direct' : 'staging',
+        plan: createPlanState(),
+        toolPermissionSession: session,
+      });
+    }
+  }, [_shellOpts.auto, projectRoot]);
 
   // ── Handle user input ──
   const handleSubmit = useCallback(
     async (text: string, mode: InputMode) => {
       const trimmed = text.trim();
       if (!trimmed) return;
+
+      // Reset idle timer on user activity
+      lastActivityRef.current = Date.now();
 
       const state = appState.getState();
 
@@ -196,6 +307,8 @@ function InkREPLBridge({
           agentId: `ink-repl-${Date.now()}`,
           abortSignal: controller.signal,
           expandAtRefs: false,
+          effortLevel: state.effortLevel,
+          permissionMode: state.permissionMode,
           toolPermissionSession: state.toolPermissionSession,
           confirmTool: async (req: { tool: string; argsSummary: string }) => {
             if (state.toolPermissionSession.isAlwaysAllowed(req.tool)) return true;
@@ -238,6 +351,53 @@ function InkREPLBridge({
           appState.setState({ tokenUsage: { used: snap.used, budget: snap.budget } });
         } catch {
           // Ignore token usage errors
+        }
+
+        // Auto-save session after each turn
+        try {
+          const current = appState.getState();
+          if (current.sessionId) {
+            const snapshot: SessionSnapshot = {
+              id: current.sessionId,
+              projectRoot,
+              history: current.agentHistory,
+              messages: current.messages,
+              writeMode: current.writeMode,
+              permissionMode: current.permissionMode,
+              effortLevel: current.effortLevel,
+              alwaysAllowSet: [...current.toolPermissionSession.getAlwaysAllowSet()],
+              plan: current.plan,
+              model: current.model,
+              title: current.sessionTitle || '',
+              startedAt: '',
+              updatedAt: '',
+            };
+            saveSession(projectRoot, snapshot);
+          }
+        } catch {
+          // Session save failures are non-critical
+        }
+
+        // Auto-extract memory facts in the background (non-blocking)
+        try {
+          const historyForExtraction = appState.getState().agentHistory;
+          if (historyForExtraction.length >= 2) {
+            const { resolveCompletionFn } = await import('../agent/run-turn.js');
+            const { flushMemoryOnSessionEnd } = await import('../memory/flush.js');
+            resolveCompletionFn(opts)
+              .then(({ completeFn }) =>
+                flushMemoryOnSessionEnd({
+                  projectRoot,
+                  history: historyForExtraction,
+                  completeFn,
+                }),
+              )
+              .catch(() => {
+                // Memory flush failures are non-critical
+              });
+          }
+        } catch {
+          // Import failures are non-critical
         }
       } catch (e) {
         const errMsg = e instanceof SparkCLIError
@@ -306,6 +466,10 @@ export async function runInkRepl(
     resolveDone = resolve;
   });
 
+  // Install synchronized output patch before Ink render starts.
+  // This wraps each Ink frame in BSU/ESU (DEC 2026) for flicker-free output.
+  installSynchronizedOutput();
+
   const { unmount } = inkRender(
     <InkREPLBridge
       opts={opts}
@@ -320,4 +484,7 @@ export async function runInkRepl(
 
   await donePromise;
   unmount();
+
+  // Restore original stdout.write on cleanup
+  uninstallSynchronizedOutput();
 }

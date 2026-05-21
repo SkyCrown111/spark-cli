@@ -21,7 +21,16 @@ export type HookEvent =
   | 'on_compaction'
   | 'on_subagent_spawn'
   | 'on_plan_enter'
-  | 'on_plan_exit';
+  | 'on_plan_exit'
+  | 'permission_request'
+  | 'permission_denied'
+  | 'stop'
+  | 'stop_failure'
+  | 'task_created'
+  | 'task_completed'
+  | 'pre_compact'
+  | 'post_compact'
+  | 'file_changed';
 
 export const BLOCKING_EVENTS: ReadonlySet<HookEvent> = new Set<HookEvent>([
   'pre_tool',
@@ -120,6 +129,78 @@ export interface PlanExitPayload {
   approved: boolean;
 }
 
+export interface PermissionRequestPayload {
+  event: 'permission_request';
+  projectRoot: string;
+  tool: string;
+  args: string;
+  agentId: string;
+}
+
+export interface PermissionDeniedPayload {
+  event: 'permission_denied';
+  projectRoot: string;
+  tool: string;
+  args: string;
+  agentId: string;
+  reason: string;
+}
+
+export interface StopPayload {
+  event: 'stop';
+  projectRoot: string;
+  agentId: string;
+  stopReason: string;
+  iterations: number;
+}
+
+export interface StopFailurePayload {
+  event: 'stop_failure';
+  projectRoot: string;
+  agentId: string;
+  error: string;
+  iterations: number;
+}
+
+export interface TaskCreatedPayload {
+  event: 'task_created';
+  projectRoot: string;
+  taskId: string;
+  subject: string;
+}
+
+export interface TaskCompletedPayload {
+  event: 'task_completed';
+  projectRoot: string;
+  taskId: string;
+  subject: string;
+}
+
+export interface PreCompactPayload {
+  event: 'pre_compact';
+  projectRoot: string;
+  agentId: string;
+  messageCount: number;
+  reason: 'threshold' | 'hard_cap' | 'manual';
+}
+
+export interface PostCompactPayload {
+  event: 'post_compact';
+  projectRoot: string;
+  agentId: string;
+  before: number;
+  after: number;
+  compactedCount: number;
+  summary: string;
+}
+
+export interface FileChangedPayload {
+  event: 'file_changed';
+  projectRoot: string;
+  path: string;
+  action: 'create' | 'modify' | 'delete';
+}
+
 export type HookPayload =
   | SessionStartPayload
   | SessionEndPayload
@@ -132,4 +213,13 @@ export type HookPayload =
   | CompactionPayload
   | SubagentSpawnPayload
   | PlanEnterPayload
-  | PlanExitPayload;
+  | PlanExitPayload
+  | PermissionRequestPayload
+  | PermissionDeniedPayload
+  | StopPayload
+  | StopFailurePayload
+  | TaskCreatedPayload
+  | TaskCompletedPayload
+  | PreCompactPayload
+  | PostCompactPayload
+  | FileChangedPayload;

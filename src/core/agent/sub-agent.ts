@@ -12,6 +12,9 @@
  * pool. This keeps capability gating consistent.
  */
 
+import { execSync } from 'node:child_process';
+import { mkdirSync } from 'node:fs';
+import { join } from 'node:path';
 import type { ChatMessage } from '../providers/openai-compatible.js';
 import type { ProviderResponse, ToolDefinition } from '../providers/types.js';
 import type {
@@ -30,6 +33,7 @@ import type { SkillRegistry } from '../skills/registry.js';
 import { appendReplayEvent } from '../replay/log.js';
 import { completeChat, resolveModelForTask } from '../providers/router.js';
 import { resolveOutputMaxTokens } from '../../config/output-tokens.js';
+import { getProjectSparkDir } from '../../config/paths.js';
 
 const DEFAULT_SUBAGENT_TOOLS = ['read_file', 'glob', 'grep', 'list_dir', 'load_skill'];
 const DEFAULT_MAX_DEPTH = 1;
@@ -55,6 +59,12 @@ export interface SpawnSubAgentOptions {
   hooks?: HookConfig;
   /** Skill registry inherited from the parent. */
   skills?: SkillRegistry;
+  /**
+   * Worktree isolation: if true, creates a git worktree under
+   * `.spark-cli/worktrees/sub-<id>` so the sub-agent's file mutations
+   * are isolated from the parent's working tree.
+   */
+  useWorktree?: boolean;
 }
 
 export interface SubAgentResult {
@@ -141,8 +151,38 @@ export async function spawnSubAgent(
     );
   }
 
+  // Worktree isolation: create a git worktree so the sub-agent's mutations
+  // are sandboxed. The worktree is created under .spark-cli/worktrees/sub-<id>.
+  let effectiveProjectRoot = opts.parent.projectRoot;
+  let worktreePath: string | undefined;
+  if (opts.useWorktree) {
+    worktreePath = join(getProjectSparkDir(opts.parent.projectRoot), 'worktrees', childAgentId);
+    mkdirSync(worktreePath, { recursive: true });
+    try {
+      const branchName = `spark-cli/sub-${childAgentId}`;
+      execSync(
+        `git worktree add -b ${branchName} "${worktreePath}" HEAD`,
+        { cwd: opts.parent.projectRoot, stdio: 'ignore' },
+      );
+      effectiveProjectRoot = worktreePath;
+      appendReplayEvent(opts.parent.projectRoot, 'subagent_worktree_created', {
+        agentId: childAgentId,
+        worktreePath,
+        branch: branchName,
+      });
+    } catch (e) {
+      // Worktree creation failed (e.g., not a git repo). Fall back to parent root.
+      const msg = e instanceof Error ? e.message : String(e);
+      appendReplayEvent(opts.parent.projectRoot, 'subagent_worktree_failed', {
+        agentId: childAgentId,
+        error: msg,
+      });
+      worktreePath = undefined;
+    }
+  }
+
   const result = await runAgentTurn([], opts.prompt, {
-    projectRoot: opts.parent.projectRoot,
+    projectRoot: effectiveProjectRoot,
     config: opts.parent.config,
     registry: childRegistry,
     completeFn: childCompleteFn,
@@ -159,6 +199,22 @@ export async function spawnSubAgent(
     skills: opts.skills ?? opts.parent.skills,
     hooks: opts.hooks,
   });
+
+  // Clean up worktree if one was created
+  if (worktreePath) {
+    try {
+      execSync(`git worktree remove --force "${worktreePath}"`, {
+        cwd: opts.parent.projectRoot,
+        stdio: 'ignore',
+      });
+      appendReplayEvent(opts.parent.projectRoot, 'subagent_worktree_removed', {
+        agentId: childAgentId,
+        worktreePath,
+      });
+    } catch {
+      // Best-effort cleanup; worktree may remain on disk
+    }
+  }
 
   return {
     content: result.finalContent,

@@ -89,7 +89,14 @@ export function mergeConfig(
     },
     tasks: { ...global.tasks, ...project.tasks },
     security: { ...global.security, ...project.security },
-    mcp: { ...global.mcp, ...project.mcp },
+    mcp: {
+      ...global.mcp,
+      ...project.mcp,
+      servers: [
+        ...(global.mcp?.servers ?? []),
+        ...(project.mcp?.servers ?? []),
+      ],
+    },
     wechat: { ...global.wechat, ...project.wechat },
     douyin: { ...global.douyin, ...project.douyin },
     alipay: { ...global.alipay, ...project.alipay },

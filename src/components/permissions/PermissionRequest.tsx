@@ -42,22 +42,15 @@ export const PermissionRequest: React.FC<PermissionRequestProps> = ({
 
   // Bind confirmation actions
   useKeybinding('confirm:yes', () => onApprove(false));
+  useKeybinding('confirm:always', () => onApprove(true), showAlwaysAllow);
   useKeybinding('confirm:no', () => onDeny());
 
   return (
-    <Box flexDirection="column" paddingX={2} borderStyle="single" borderColor="yellow" paddingY={1}>
+    <Box flexDirection="column" paddingX={1}>
       <Box>
-        <Text bold color="yellow">⚠ Permission Required</Text>
-      </Box>
-
-      <Box marginTop={1}>
-        <Text bold>Tool: </Text>
-        <Text color="cyan">{tool}</Text>
-      </Box>
-
-      <Box>
-        <Text bold>Action: </Text>
-        <Text>{argsSummary}</Text>
+        <Text color="yellow">{'⏺'} </Text>
+        <Text bold color="cyan">{tool}</Text>
+        <Text dimColor> — {argsSummary}</Text>
       </Box>
 
       <Box marginTop={1}>
@@ -71,13 +64,6 @@ export const PermissionRequest: React.FC<PermissionRequestProps> = ({
       <Box>
         <Text dimColor>n / Esc — Deny</Text>
       </Box>
-
-      {showAlwaysAllow && (
-        <Box marginTop={1}>
-          <Text color="green" bold>a</Text>
-          <Text dimColor> = always allow</Text>
-        </Box>
-      )}
     </Box>
   );
 };

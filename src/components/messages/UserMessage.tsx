@@ -48,12 +48,10 @@ export const UserMessage: React.FC<UserMessageProps> = ({ message }) => {
   const content = formatContent(message.content);
   
   return (
-    <Box flexDirection="column" marginY={1}>
+    <Box flexDirection="column">
       <Box>
-        <Text bold color={colors.user}>You:</Text>
-      </Box>
-      <Box paddingLeft={2}>
-        <Text>{content}</Text>
+        <Text bold color={colors.user}>{'>'}</Text>
+        <Text> {content}</Text>
       </Box>
     </Box>
   );

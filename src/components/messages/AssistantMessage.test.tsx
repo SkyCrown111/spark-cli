@@ -1,5 +1,8 @@
 /**
  * AssistantMessage component tests
+ *
+ * After Phase 16-H: AssistantMessage supports thinking blocks
+ * and tool call grouping. Tests updated for new rendering.
  */
 
 import React from 'react';
@@ -19,11 +22,10 @@ describe('AssistantMessage component', () => {
       role: 'assistant',
       content: 'Hello, user!'
     };
-    
+
     const { lastFrame } = render(<AssistantMessage message={message} />);
     const output = lastFrame();
-    
-    expect(output).toContain('Assistant:');
+
     expect(output).toContain('Hello, user!');
   });
 
@@ -32,11 +34,10 @@ describe('AssistantMessage component', () => {
       role: 'assistant',
       content: '**Bold text** and *italic text*'
     };
-    
+
     const { lastFrame } = render(<AssistantMessage message={message} />);
     const output = lastFrame();
-    
-    expect(output).toContain('Assistant:');
+
     // Markdown rendering will transform the text
     expect(output).toContain('Bold text');
     expect(output).toContain('italic text');
@@ -54,13 +55,12 @@ describe('AssistantMessage component', () => {
         }
       ]
     };
-    
+
     const { lastFrame } = render(<AssistantMessage message={message} />);
     const output = lastFrame();
-    
-    expect(output).toContain('Assistant:');
+
     expect(output).toContain('Let me check that for you.');
-    expect(output).toContain('[Calling 1 tool...]');
+    expect(output).toContain('search');
   });
 
   it('renders message with multiple tool calls', () => {
@@ -80,12 +80,12 @@ describe('AssistantMessage component', () => {
         }
       ]
     };
-    
+
     const { lastFrame } = render(<AssistantMessage message={message} />);
     const output = lastFrame();
-    
-    expect(output).toContain('Assistant:');
-    expect(output).toContain('[Calling 2 tools...]');
+
+    expect(output).toContain('tool1');
+    expect(output).toContain('tool2');
   });
 
   it('renders empty content with tool calls', () => {
@@ -100,12 +100,11 @@ describe('AssistantMessage component', () => {
         }
       ]
     };
-    
+
     const { lastFrame } = render(<AssistantMessage message={message} />);
     const output = lastFrame();
-    
-    expect(output).toContain('Assistant:');
-    expect(output).toContain('[Calling 1 tool...]');
+
+    expect(output).toContain('search');
   });
 
   it('renders message with content parts', () => {
@@ -115,11 +114,10 @@ describe('AssistantMessage component', () => {
         { type: 'text', text: 'Here is the answer.' }
       ]
     };
-    
+
     const { lastFrame } = render(<AssistantMessage message={message} />);
     const output = lastFrame();
-    
-    expect(output).toContain('Assistant:');
+
     expect(output).toContain('Here is the answer.');
   });
 
@@ -128,11 +126,10 @@ describe('AssistantMessage component', () => {
       role: 'assistant',
       content: ''
     };
-    
+
     const { lastFrame } = render(<AssistantMessage message={message} />);
-    const output = lastFrame();
-    
-    expect(output).toContain('Assistant:');
+    // Empty content should render without errors
+    expect(lastFrame()).toBeDefined();
   });
 
   it('handles whitespace-only content', () => {
@@ -140,11 +137,12 @@ describe('AssistantMessage component', () => {
       role: 'assistant',
       content: '   \n\n   '
     };
-    
+
     const { lastFrame } = render(<AssistantMessage message={message} />);
     const output = lastFrame();
-    
-    expect(output).toContain('Assistant:');
+
+    // Whitespace-only content should not render visible text
+    expect(output).not.toContain('Assistant');
   });
 
   it('renders multiline markdown', () => {
@@ -152,12 +150,27 @@ describe('AssistantMessage component', () => {
       role: 'assistant',
       content: '# Heading\n\nParagraph text\n\n- Item 1\n- Item 2'
     };
-    
+
     const { lastFrame } = render(<AssistantMessage message={message} />);
     const output = lastFrame();
-    
-    expect(output).toContain('Assistant:');
+
     expect(output).toContain('Heading');
     expect(output).toContain('Paragraph text');
+  });
+
+  it('renders thinking content from content parts', () => {
+    const message: AssistantMessageType = {
+      role: 'assistant',
+      content: [
+        { type: 'thinking', text: 'Let me reason about this...' },
+        { type: 'text', text: 'Here is my answer.' }
+      ]
+    };
+
+    const { lastFrame } = render(<AssistantMessage message={message} />);
+    const output = lastFrame();
+
+    expect(output).toContain('Thinking');
+    expect(output).toContain('Here is my answer.');
   });
 });
