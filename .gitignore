@@ -22,6 +22,11 @@ Thumbs.db
 # Local / user config with possible API keys
 config.local.yaml
 *.local.yaml
+/spark-cli.config.yaml
+.mcp.json
+
+# IDE (may contain local paths or tokens)
+.vscode/
 
 # SparkCLI runtime data (per-project or global)
 .spark-cli/

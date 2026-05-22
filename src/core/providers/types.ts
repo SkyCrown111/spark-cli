@@ -45,6 +45,8 @@ export type ProviderStopReason =
  */
 export interface ProviderResponse {
   content: string;
+  /** Chain-of-thought / reasoning content (o1-style, DeepSeek, etc.) */
+  thinking?: string;
   tool_calls?: ToolCall[];
   stop_reason?: ProviderStopReason;
   usage?: {

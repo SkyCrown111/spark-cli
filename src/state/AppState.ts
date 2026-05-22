@@ -20,7 +20,7 @@ import { ToolPermissionSession } from '../core/agent/tool-permissions.js';
 // ── Types ──────────────────────────────────────────────────────
 
 export type PermissionMode = 'default' | 'plan' | 'auto' | 'acceptEdits' | 'dontAsk' | 'bypass';
-export type VimMode = 'INSERT' | 'NORMAL';
+export type VimMode = 'INSERT' | 'NORMAL' | 'VISUAL' | 'VISUAL LINE';
 export type EffortLevel = 'low' | 'medium' | 'high' | 'xhigh' | 'max';
 
 export interface TokenUsage {
@@ -32,6 +32,10 @@ export interface AppState {
   // ── Session ──
   /** Current session ID for resume/continue. */
   sessionId: string;
+
+  // ── Project ──
+  /** Project root directory (for file suggestions, git context, etc.) */
+  projectRoot: string;
 
   // ── Conversation ──
   messages: ChatMessage[];
@@ -75,9 +79,13 @@ export interface AppState {
   showBypassPermissions: boolean;
   showGlobalSearch: boolean;
   showTranscript: boolean;
+  showSessionPicker: boolean;
 
   // ── Global search ──
   searchQuery: string;
+
+  // ── Command suggestions (from slash registry) ──
+  commandSuggestions: Array<{ value: string; label: string; description?: string; category?: string }>;
 
   // ── Transcript ──
   transcriptSearchQuery: string;
@@ -123,6 +131,14 @@ export interface AppState {
   backgroundAgents: Array<{ id: string; name: string; status: string }>;
   /** Currently attached background agent ID (for log streaming). */
   attachedAgentId?: string;
+
+  // ── Todo list ──
+  /** Current session's todo items (synced from TodoStore). */
+  todos: Array<{ id: string; subject: string; status: string; activeForm?: string }>;
+
+  // ── Session picker ──
+  /** Sessions available for resume (populated when picker opens). */
+  sessionList: Array<{ id: string; name?: string; title: string; updatedAt: string; messageCount: number }>;
 }
 
 export interface FooterItem {
@@ -156,6 +172,8 @@ function createDefaultPermissionSession(): ToolPermissionSession {
 export const appState = create<AppState>(() => ({
   // Session
   sessionId: '',
+  // Project
+  projectRoot: process.cwd(),
   // Conversation
   messages: [],
   agentHistory: [],
@@ -190,8 +208,11 @@ export const appState = create<AppState>(() => ({
   showBypassPermissions: false,
   showGlobalSearch: false,
   showTranscript: false,
+  showSessionPicker: false,
   // Global search
   searchQuery: '',
+  // Command suggestions
+  commandSuggestions: [],
   // Transcript
   transcriptSearchQuery: '',
   // Thinking
@@ -215,6 +236,10 @@ export const appState = create<AppState>(() => ({
   // Background agents
   backgroundAgents: [],
   attachedAgentId: undefined,
+  // Todo list
+  todos: [],
+  // Session picker
+  sessionList: [],
 }));
 
 // ── Hooks ──────────────────────────────────────────────────────

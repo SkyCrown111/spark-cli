@@ -27,6 +27,18 @@ export interface GlobalOptions {
   fromPr?: number;
   /** Run as a background agent (detached process). */
   bg?: boolean;
+  /** Session name (--name / -n). */
+  name?: string;
+  /** Permission mode: default|plan|auto|acceptEdits|dontAsk|bypass. */
+  permissionMode?: string;
+  /** Comma-separated list of always-allowed tools. */
+  allowedTools?: string;
+  /** Comma-separated list of always-denied tools. */
+  disallowedTools?: string;
+  /** Skip all permission checks (bypass mode). */
+  dangerouslySkipPermissions?: boolean;
+  /** Custom agent name (--agent). */
+  agent?: string;
 }
 
 export function resolveProjectRoot(opts: GlobalOptions): string {

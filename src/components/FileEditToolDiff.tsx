@@ -11,7 +11,7 @@
 
 import React, { useMemo } from 'react';
 import { Box, Text } from 'ink';
-import { DiffLine, StructuredDiff } from './StructuredDiff/StructuredDiff.js';
+import { StructuredDiff, createSimpleDiff } from './StructuredDiff/StructuredDiff.js';
 
 // ── Props ──────────────────────────────────────────────
 
@@ -28,116 +28,28 @@ export interface FileEditToolDiffProps {
   maxLines?: number;
 }
 
-// ── Diff computation ───────────────────────────────────
-
-/**
- * Compute a simple line-based diff between old and new text.
- * Uses a longest-common-subsequence approach for line-level diff.
- */
-function computeLineDiff(
-  oldLines: string[],
-  newLines: string[],
-  startLine: number,
-): DiffLine[] {
-  const result: DiffLine[] = [];
-  let oldLineNo = startLine;
-  let newLineNo = startLine;
-
-  // Simple diff: mark all old lines as deleted, all new lines as added
-  // A proper implementation would use Myers' diff algorithm, but for
-  // a CLI tool display, this provides a clear before/after view.
-
-  // Find common prefix
-  let prefixLen = 0;
-  while (
-    prefixLen < oldLines.length &&
-    prefixLen < newLines.length &&
-    oldLines[prefixLen] === newLines[prefixLen]
-  ) {
-    prefixLen++;
-  }
-
-  // Find common suffix
-  let suffixLen = 0;
-  while (
-    suffixLen < oldLines.length - prefixLen &&
-    suffixLen < newLines.length - prefixLen &&
-    oldLines[oldLines.length - 1 - suffixLen] === newLines[newLines.length - 1 - suffixLen]
-  ) {
-    suffixLen++;
-  }
-
-  // Render prefix (common)
-  for (let i = 0; i < prefixLen; i++) {
-    oldLineNo++;
-    newLineNo++;
-    result.push({
-      type: 'context',
-      content: oldLines[i],
-      oldLineNo,
-      newLineNo,
-    });
-  }
-
-  // Render deleted lines
-  for (let i = prefixLen; i < oldLines.length - suffixLen; i++) {
-    oldLineNo++;
-    result.push({
-      type: 'delete',
-      content: oldLines[i],
-      oldLineNo,
-    });
-  }
-
-  // Render added lines
-  for (let i = prefixLen; i < newLines.length - suffixLen; i++) {
-    newLineNo++;
-    result.push({
-      type: 'add',
-      content: newLines[i],
-      newLineNo,
-    });
-  }
-
-  // Render suffix (common)
-  for (let i = oldLines.length - suffixLen; i < oldLines.length; i++) {
-    oldLineNo++;
-    newLineNo++;
-    result.push({
-      type: 'context',
-      content: oldLines[i],
-      oldLineNo,
-      newLineNo,
-    });
-  }
-
-  return result;
-}
-
 // ── Component ──────────────────────────────────────────
 
 /**
  * FileEditToolDiff — renders a precise file edit diff.
  *
- * Displays:
- * - File path header
- * - StructuredDiff of the changes
+ * Uses createSimpleDiff which includes word-level highlighting
+ * for changed line pairs. Displays:
+ * - File path header with +/- summary
+ * - StructuredDiff with word-level highlights
  * - Line numbers for context
  */
 export const FileEditToolDiff: React.FC<FileEditToolDiffProps> = ({
   filePath,
   oldText,
   newText,
-  startLine = 1,
+  startLine: _startLine = 1,
   maxLines = 30,
 }) => {
   const diffLines = useMemo(() => {
-    const oldLines = oldText.split('\n');
-    const newLines = newText.split('\n');
-    return computeLineDiff(oldLines, newLines, startLine);
-  }, [oldText, newText, startLine]);
+    return createSimpleDiff(filePath, oldText, newText);
+  }, [filePath, oldText, newText]);
 
-  // Count additions and deletions for summary
   const additions = diffLines.filter((l) => l.type === 'add').length;
   const deletions = diffLines.filter((l) => l.type === 'delete').length;
 
@@ -152,7 +64,7 @@ export const FileEditToolDiff: React.FC<FileEditToolDiffProps> = ({
         </Text>
       </Box>
 
-      {/* Diff content */}
+      {/* Diff content with word-level highlighting */}
       <Box paddingLeft={2}>
         <StructuredDiff lines={diffLines} maxLines={maxLines} />
       </Box>

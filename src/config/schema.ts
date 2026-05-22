@@ -23,16 +23,18 @@ export const FallbackProviderSchema = z.object({
 export const McpServerConfigSchema = z.object({
   /** Unique name for this server (used in CLI and tool prefixing). */
   name: z.string(),
-  /** Transport type: stdio spawns a process; sse connects via HTTP. */
-  transport: z.enum(['stdio', 'sse']),
-  /** For stdio: executable command. */
+  /** Transport type: stdio spawns a process; sse/http connect via HTTP. */
+  transport: z.enum(['stdio', 'sse', 'http']),
+  /** For stdio: executable command. Supports ${VAR} expansion. */
   command: z.string().optional(),
   /** For stdio: command arguments. */
   args: z.array(z.string()).optional(),
-  /** For stdio or sse: environment variables to pass. */
+  /** For stdio or sse/http: environment variables to pass. Supports ${VAR} expansion. */
   env: z.record(z.string()).optional(),
-  /** For sse: server URL. */
+  /** For sse/http: server URL. Supports ${VAR} expansion. */
   url: z.string().optional(),
+  /** For sse/http: additional HTTP headers. Supports ${VAR} expansion. */
+  headers: z.record(z.string()).optional(),
   /** Whether this server is enabled. Default true. */
   enabled: z.boolean().optional(),
 });

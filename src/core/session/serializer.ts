@@ -26,6 +26,8 @@ export interface SessionSnapshot {
   id: string;
   /** Project root this session belongs to. */
   projectRoot: string;
+  /** User-defined session name (optional, set via --name or /rename). */
+  name?: string;
   /** Conversation history (without system messages). */
   history: ChatMessage[];
   /** Display messages (user + assistant prose). */

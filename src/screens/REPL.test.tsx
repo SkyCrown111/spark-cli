@@ -48,6 +48,7 @@ describe('REPL screen', () => {
       statusText: undefined,
       showTranscript: false,
       transcriptSearchQuery: '',
+      projectRoot: '/tmp/non-git-dir', // Avoid git suggestions in tests
     });
   });
 

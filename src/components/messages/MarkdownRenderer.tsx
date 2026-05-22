@@ -1,66 +1,97 @@
 /**
- * MarkdownRenderer component - Async wrapper for ink-markdown
- * Handles the top-level await issue in ink-markdown
+ * MarkdownRenderer — terminal markdown rendering with syntax
+ * highlighting, table support, and styled headings.
+ *
+ * Uses `marked` + `marked-terminal` (already in deps) to produce
+ * ANSI-colored output that Ink's <Text> can render.
+ *
+ * Falls back to plain text if the libraries fail to load.
  */
 
-import React, { useState, useEffect } from 'react';
-import { Text } from '../design-system/Text.js';
+import React, { useState, useEffect, useMemo } from 'react';
+import { Text } from 'ink';
+
+// ── Types ──────────────────────────────────────────────
 
 interface MarkdownRendererProps {
   children: string;
 }
 
-// Cache for the loaded Markdown component
-let MarkdownComponent: React.ComponentType<{ children: string }> | null = null;
-let loadingPromise: Promise<void> | null = null;
+// ── Lazy-loaded marked + marked-terminal ──
 
-/**
- * Load the ink-markdown component asynchronously
- */
-function loadMarkdown(): Promise<void> {
-  if (loadingPromise) {
-    return loadingPromise;
-  }
-  
-  loadingPromise = import('ink-markdown')
-    .then((module) => {
-      MarkdownComponent = module.default;
-    })
-    .catch((error) => {
-      console.error('Failed to load ink-markdown:', error);
-      // Fallback to plain text
-      MarkdownComponent = ({ children }: { children: string }) => <Text>{children}</Text>;
-    });
-  
-  return loadingPromise;
+type MarkedParseFn = (src: string, opts: { async: false }) => string | Promise<string>;
+
+let markedParse: MarkedParseFn | null = null;
+let loadPromise: Promise<boolean> | null = null;
+let configured = false;
+
+async function ensureConfigured(): Promise<boolean> {
+  if (configured) return true;
+  if (loadPromise) return loadPromise;
+
+  loadPromise = (async () => {
+    try {
+      const [{ marked }, { markedTerminal }] = await Promise.all([
+        import('marked'),
+        import('marked-terminal'),
+      ]);
+
+      // Register marked-terminal as a marked extension
+      marked.use(markedTerminal({
+        showSectionPrefix: false,
+        tab: 2,
+      }));
+
+      markedParse = marked.parse as MarkedParseFn;
+      configured = true;
+      return true;
+    } catch {
+      return false;
+    }
+  })();
+
+  return loadPromise;
 }
 
+// ── Component ──
+
 /**
- * MarkdownRenderer component
- * Renders markdown content with fallback to plain text
- * 
- * @example
- * ```tsx
- * <MarkdownRenderer>**Bold** and *italic* text</MarkdownRenderer>
- * ```
+ * MarkdownRenderer — renders markdown with terminal styling.
+ *
+ * Supports:
+ * - **Bold**, *italic*, `inline code`
+ * - Code blocks with syntax highlighting (via cli-highlight)
+ * - Tables (GFM)
+ * - Headings (colored)
+ * - Lists (bulleted/numbered)
+ * - Blockquotes
+ * - Links (showing text with URL in parentheses)
  */
 export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ children }) => {
-  const [isLoaded, setIsLoaded] = useState(MarkdownComponent !== null);
-  
+  const [ready, setReady] = useState(configured);
+
   useEffect(() => {
-    if (!MarkdownComponent) {
-      loadMarkdown().then(() => {
-        setIsLoaded(true);
+    if (!ready) {
+      ensureConfigured().then((ok) => {
+        if (ok) setReady(true);
       });
     }
-  }, []);
-  
-  // While loading or if markdown failed to load, show plain text
-  if (!isLoaded || !MarkdownComponent) {
-    return <Text>{children}</Text>;
+  }, [ready]);
+
+  const rendered = useMemo(() => {
+    if (!ready || !markedParse) return null;
+
+    try {
+      const result = markedParse(children, { async: false });
+      return typeof result === 'string' ? result : null;
+    } catch {
+      return null;
+    }
+  }, [ready, children]);
+
+  if (rendered !== null) {
+    return <Text>{rendered}</Text>;
   }
-  
-  // Render with markdown
-  const Markdown = MarkdownComponent;
-  return <Markdown>{children}</Markdown>;
+
+  return <Text>{children}</Text>;
 };

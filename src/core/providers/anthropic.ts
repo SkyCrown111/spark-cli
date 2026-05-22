@@ -30,7 +30,8 @@ type AnthropicToolResultBlock = {
 type AnthropicContentBlock =
   | AnthropicTextBlock
   | AnthropicToolUseBlock
-  | AnthropicToolResultBlock;
+  | AnthropicToolResultBlock
+  | { type: 'thinking'; thinking: string };
 
 interface AnthropicMessage {
   role: 'user' | 'assistant';
@@ -146,6 +147,7 @@ function translateIncoming(json: {
   usage?: { input_tokens?: number; output_tokens?: number };
 }): ProviderResponse {
   const textParts: string[] = [];
+  const thinkingParts: string[] = [];
   const toolCalls: ToolCall[] = [];
   for (const c of json.content ?? []) {
     if (c.type === 'text') {
@@ -159,14 +161,18 @@ function translateIncoming(json: {
           arguments: JSON.stringify(c.input ?? {}),
         },
       });
+    } else if ((c as { type: string }).type === 'thinking') {
+      thinkingParts.push((c as { type: 'thinking'; thinking: string }).thinking ?? '');
     }
   }
   const content = textParts.join('').trim();
-  if (!content && toolCalls.length === 0) {
+  const thinking = thinkingParts.join('').trim() || undefined;
+  if (!content && !thinking && toolCalls.length === 0) {
     throw new SparkCLIError('Anthropic returned empty response', 4);
   }
   return {
-    content,
+    content: content || thinking || '',
+    thinking,
     tool_calls: toolCalls.length > 0 ? toolCalls : undefined,
     stop_reason: mapStopReason(json.stop_reason),
     usage: {

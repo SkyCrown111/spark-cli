@@ -22,6 +22,10 @@ export interface Skill {
   triggerPattern?: RegExp;
   /** Tools this skill widens the registry with when loaded. */
   allowedTools?: string[];
+  /** If true, the model cannot invoke this skill via load_skill; only the user can via /skill. */
+  disableModelInvocation?: boolean;
+  /** If false, the user cannot invoke this skill via /skill (model-only). Default true. */
+  userInvocable?: boolean;
 }
 
 export interface SkillRegistry {

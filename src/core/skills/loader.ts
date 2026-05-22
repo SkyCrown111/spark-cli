@@ -15,6 +15,8 @@
  *   triggers: [tilemap, tile map, TiledMap]
  *   triggerPattern: /tile.*map/i
  *   allowedTools: [read_file, write_file]
+ *   disableModelInvocation: true  (model cannot load this skill)
+ *   userInvocable: false  (only model can load, not /skill command)
  */
 
 import { readFileSync, readdirSync, existsSync, statSync } from 'node:fs';
@@ -29,6 +31,8 @@ interface SkillFrontmatter {
   triggers?: string[];
   triggerPattern?: string;
   allowedTools?: string[];
+  disableModelInvocation?: boolean;
+  userInvocable?: boolean;
 }
 
 interface ParsedSkill {
@@ -65,6 +69,8 @@ export function parseSkillFile(raw: string): ParsedSkill {
     else if (key === 'triggers') fm.triggers = parseList(value);
     else if (key === 'triggerpattern') fm.triggerPattern = value;
     else if (key === 'allowedtools') fm.allowedTools = parseList(value);
+    else if (key === 'disablemodelinvocation') fm.disableModelInvocation = parseBool(value);
+    else if (key === 'userinvocable') fm.userInvocable = parseBool(value);
   }
   const body = lines.slice(fmEnd + 1).join('\n').trim();
   return { frontmatter: fm, body };
@@ -77,6 +83,11 @@ function parseList(value: string): string[] {
     .split(',')
     .map((s) => s.trim().replace(/^["']|["']$/g, ''))
     .filter(Boolean);
+}
+
+function parseBool(value: string): boolean {
+  const lower = value.toLowerCase();
+  return lower === 'true' || lower === '1' || lower === 'yes';
 }
 
 /** Try to compile `triggerPattern` from frontmatter; returns undefined on failure. */
@@ -160,6 +171,12 @@ export function loadSkillsFromParentDir(registry: SkillRegistry, parentDir: stri
       ...(triggerPattern ? { triggerPattern } : {}),
       ...(parsed.frontmatter.allowedTools
         ? { allowedTools: parsed.frontmatter.allowedTools }
+        : {}),
+      ...(parsed.frontmatter.disableModelInvocation !== undefined
+        ? { disableModelInvocation: parsed.frontmatter.disableModelInvocation }
+        : {}),
+      ...(parsed.frontmatter.userInvocable !== undefined
+        ? { userInvocable: parsed.frontmatter.userInvocable }
         : {}),
     };
     registry.register(skill);

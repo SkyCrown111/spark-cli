@@ -33,6 +33,19 @@ export interface TodoSummary {
 
 export class TodoStore {
   private items = new Map<string, Todo>();
+  private listeners: Array<() => void> = [];
+
+  /** Subscribe to store changes. Returns unsubscribe function. */
+  subscribe(listener: () => void): () => void {
+    this.listeners.push(listener);
+    return () => {
+      this.listeners = this.listeners.filter((l) => l !== listener);
+    };
+  }
+
+  private notify(): void {
+    for (const l of this.listeners) l();
+  }
 
   create(input: {
     subject: string;
@@ -55,6 +68,7 @@ export class TodoStore {
       metadata: input.metadata ? { ...input.metadata } : {},
     };
     this.items.set(id, todo);
+    this.notify();
     return todo;
   }
 
@@ -109,6 +123,7 @@ export class TodoStore {
       }
     }
     t.updatedAt = Date.now();
+    this.notify();
     return { ...t, blocks: [...t.blocks], blockedBy: [...t.blockedBy], metadata: { ...t.metadata } };
   }
 
@@ -124,11 +139,14 @@ export class TodoStore {
       const o = this.items.get(otherId);
       if (o) o.blocks = o.blocks.filter((x) => x !== id);
     }
-    return this.items.delete(id);
+    const result = this.items.delete(id);
+    this.notify();
+    return result;
   }
 
   clear(): void {
     this.items.clear();
+    this.notify();
   }
 }
 

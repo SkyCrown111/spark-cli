@@ -77,9 +77,42 @@ export function getFileSuggestions(
 }
 
 /**
+ * Fuzzy match: checks if all characters of `pattern` appear
+ * in `text` in order. Returns a score or -1 for no match.
+ */
+function fuzzyScore(pattern: string, text: string): number {
+  if (!pattern) return 1;
+
+  const pLower = pattern.toLowerCase();
+  const tLower = text.toLowerCase();
+
+  let pi = 0;
+  let score = 0;
+  let lastMatchIndex = -1;
+
+  for (let ti = 0; ti < tLower.length && pi < pLower.length; ti++) {
+    if (tLower[ti] === pLower[pi]) {
+      score += 1;
+      if (lastMatchIndex === ti - 1) score += 2;
+      if (ti === 0 || tLower[ti - 1] === '/' || tLower[ti - 1] === '-' || tLower[ti - 1] === '_') {
+        score += 3;
+      }
+      lastMatchIndex = ti;
+      pi++;
+    }
+  }
+
+  if (pi < pLower.length) return -1;
+  score += Math.max(0, 20 - tLower.length);
+  return score;
+}
+
+/**
  * Filter file suggestions based on user input after @.
  *
- * Input is the partial filename after the @ symbol.
+ * Uses fuzzy matching: characters must appear in order but
+ * don't need to be contiguous. Path separator and word boundary
+ * matches score higher.
  */
 export function filterFileSuggestions(
   suggestions: FileSuggestion[],
@@ -87,16 +120,13 @@ export function filterFileSuggestions(
 ): FileSuggestion[] {
   if (!input) return suggestions.slice(0, 10);
 
-  const lower = input.toLowerCase();
-
   return suggestions
-    .filter((s) => s.label.toLowerCase().includes(lower))
-    .sort((a, b) => {
-      // Prioritize prefix matches and shorter paths
-      const aPrefix = a.label.toLowerCase().startsWith(lower) ? 0 : 1;
-      const bPrefix = b.label.toLowerCase().startsWith(lower) ? 0 : 1;
-      if (aPrefix !== bPrefix) return aPrefix - bPrefix;
-      return a.label.length - b.label.length;
-    })
-    .slice(0, 10);
+    .map((s) => ({
+      suggestion: s,
+      score: fuzzyScore(input, s.label),
+    }))
+    .filter((s) => s.score > 0)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 10)
+    .map((s) => s.suggestion);
 }

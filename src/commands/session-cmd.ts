@@ -21,8 +21,8 @@ export async function runSessionsList(opts: GlobalOptions): Promise<void> {
   }
   for (const s of sessions) {
     const updated = s.updatedAt.slice(0, 19).replace('T', ' ');
-    const title = s.title || 'Untitled';
-    console.log(`  ${chalk.cyan(s.id)}  ${chalk.dim(updated)}  ${title}  ${chalk.dim(s.model)}`);
+    const label = s.name || s.title || 'Untitled';
+    console.log(`  ${chalk.cyan(s.id)}  ${chalk.dim(updated)}  ${label}  ${chalk.dim(s.model)}`);
   }
 }
 
@@ -34,6 +34,7 @@ export async function runSessionsShow(opts: GlobalOptions, id: string): Promise<
     return;
   }
   console.log(chalk.bold('Session:'), snapshot.id);
+  if (snapshot.name) console.log(chalk.bold('Name:'), snapshot.name);
   console.log(chalk.bold('Title:'), snapshot.title || 'Untitled');
   console.log(chalk.bold('Model:'), snapshot.model);
   console.log(chalk.bold('Started:'), snapshot.startedAt);

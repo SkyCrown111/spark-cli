@@ -82,6 +82,12 @@ export interface RunAgentTurnOptions {
   maxBudgetUsd?: number;
   /** Current permission mode (default/plan/auto/acceptEdits/dontAsk/bypass). */
   permissionMode?: import('../../state/AppState.js').PermissionMode;
+  /** Tools explicitly denied by CLI --disallowedTools flag. */
+  disallowedTools?: Set<string>;
+  /** Tools allowed by the active agent definition (restricts to this set). */
+  agentAllowedTools?: Set<string>;
+  /** Optional memory namespace prefix for sub-agent isolation. */
+  memoryNamespace?: string;
   /** Pre-loaded hook config; threaded through to tool dispatch. */
   hooks?: HookConfig;
   /** Skill registry; the load_skill tool reaches it via ToolContext. */
@@ -170,6 +176,9 @@ export async function runAgentTurn(
     writeMode: opts.writeMode,
     mode: opts.mode,
     permissionMode: opts.permissionMode,
+    disallowedTools: opts.disallowedTools,
+    agentAllowedTools: opts.agentAllowedTools,
+    memoryNamespace: opts.memoryNamespace,
     agentId: opts.agentId,
     parentAgentId: opts.parentAgentId,
     depth: opts.depth ?? 0,
@@ -282,9 +291,16 @@ export async function runAgentTurn(
 
     // Append the assistant turn before dispatching, so the next provider call
     // sees the tool_calls referenced by the upcoming tool messages.
+    // If thinking is present, store as content parts so the UI can render it.
+    const assistantContent = res.thinking
+      ? [
+          { type: 'thinking' as const, text: res.thinking },
+          { type: 'text' as const, text: res.content },
+        ]
+      : res.content;
     messages.push({
       role: 'assistant',
-      content: res.content,
+      content: assistantContent,
       ...(calls.length > 0 ? { tool_calls: calls } : {}),
     });
 

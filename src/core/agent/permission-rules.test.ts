@@ -10,32 +10,57 @@ import {
 describe('parseSpecifier', () => {
   it('parses Tool(bash) — no path pattern', () => {
     const result = parseSpecifier('Tool(bash)');
-    expect(result).toEqual({ toolPattern: 'bash' });
+    expect(result).toEqual({ kind: 'tool', toolPattern: 'bash' });
   });
 
   it('parses Tool(bash:*) — wildcard path = no path pattern', () => {
     const result = parseSpecifier('Tool(bash:*)');
-    expect(result).toEqual({ toolPattern: 'bash' });
+    expect(result).toEqual({ kind: 'tool', toolPattern: 'bash' });
   });
 
   it('parses Tool(write_file:src/**) — tool + path glob', () => {
     const result = parseSpecifier('Tool(write_file:src/**)');
-    expect(result).toEqual({ toolPattern: 'write_file', pathPattern: 'src/**' });
+    expect(result).toEqual({ kind: 'tool', toolPattern: 'write_file', pathPattern: 'src/**' });
   });
 
   it('parses Tool(*:.git/*) — wildcard tool + path glob', () => {
     const result = parseSpecifier('Tool(*:.git/*)');
-    expect(result).toEqual({ toolPattern: '*', pathPattern: '.git/*' });
+    expect(result).toEqual({ kind: 'tool', toolPattern: '*', pathPattern: '.git/*' });
   });
 
   it('parses Tool(*) — wildcard tool, no path', () => {
     const result = parseSpecifier('Tool(*)');
-    expect(result).toEqual({ toolPattern: '*' });
+    expect(result).toEqual({ kind: 'tool', toolPattern: '*' });
   });
 
   it('parses Tool(edit_file:*.env) — glob tool name', () => {
     const result = parseSpecifier('Tool(edit_file:*.env)');
-    expect(result).toEqual({ toolPattern: 'edit_file', pathPattern: '*.env' });
+    expect(result).toEqual({ kind: 'tool', toolPattern: 'edit_file', pathPattern: '*.env' });
+  });
+
+  it('parses Bash(npm run *) — command pattern', () => {
+    const result = parseSpecifier('Bash(npm run *)');
+    expect(result).toEqual({ kind: 'bash', toolPattern: 'bash', commandPattern: 'npm run *' });
+  });
+
+  it('parses Read(~/secrets/**) — read path pattern', () => {
+    const result = parseSpecifier('Read(~/secrets/**)');
+    expect(result).toEqual({ kind: 'read', toolPattern: 'read_file', pathPattern: '~/secrets/**' });
+  });
+
+  it('parses WebFetch(domain:example.com) — domain pattern', () => {
+    const result = parseSpecifier('WebFetch(domain:example.com)');
+    expect(result).toEqual({ kind: 'webfetch', toolPattern: 'web_fetch', domainPattern: 'example.com' });
+  });
+
+  it('parses Agent(Explore) — agent name pattern', () => {
+    const result = parseSpecifier('Agent(Explore)');
+    expect(result).toEqual({ kind: 'agent', toolPattern: 'agent', commandPattern: 'Explore' });
+  });
+
+  it('parses mcp__server__tool — MCP tool', () => {
+    const result = parseSpecifier('mcp__server__tool');
+    expect(result).toEqual({ kind: 'mcp', toolPattern: 'mcp__server__tool' });
   });
 });
 

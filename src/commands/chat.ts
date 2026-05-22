@@ -12,8 +12,11 @@
 import ora from 'ora';
 import chalk from 'chalk';
 import type { GlobalOptions } from '../utils/output.js';
+import { resolveProjectRoot } from '../utils/output.js';
 import { runAgentTurnForCli } from '../core/agent/run-turn.js';
 import type { ToolWriteMode } from '../core/agent/tool-registry.js';
+import { createAgentRegistry } from '../core/agents/registry.js';
+import { loadAgentsFromDisk } from '../core/agents/loader.js';
 
 export interface ChatOptions {
   /** Direct-write to project tree instead of staging. */
@@ -31,6 +34,24 @@ export async function runChat(
     isEnabled: !opts.json,
   }).start();
 
+  // Resolve active agent
+  let agentSystemAppend: string | undefined;
+  let agentAllowedTools: Set<string> | undefined;
+  if (opts.agent) {
+    const root = resolveProjectRoot(opts);
+    const agentReg = createAgentRegistry();
+    loadAgentsFromDisk(agentReg, root);
+    const agentDef = agentReg.get(opts.agent);
+    if (agentDef) {
+      agentSystemAppend = agentDef.systemPrompt;
+      if (agentDef.allowedTools) {
+        agentAllowedTools = new Set(agentDef.allowedTools);
+      }
+    } else {
+      console.warn(chalk.yellow(`Agent "${opts.agent}" not found, using default.`));
+    }
+  }
+
   let dotCount = 0;
   const result = await runAgentTurnForCli({
     globalOpts: opts,
@@ -39,6 +60,8 @@ export async function runChat(
     writeMode,
     mode: 'normal',
     agentId: `chat-${Date.now()}`,
+    appendSystemPrompt: agentSystemAppend,
+    agentAllowedTools,
     onIteration: (info) => {
       if (info.dispatched && info.dispatched.length > 0) {
         const names = info.dispatched.map((d) => d.tool).join(', ');

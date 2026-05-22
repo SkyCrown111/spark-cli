@@ -28,11 +28,15 @@ export function isFullscreenEnvEnabled(): boolean {
 
 /**
  * Whether fullscreen mode should enable SGR mouse tracking.
- * Set SPARK_CLI_DISABLE_MOUSE=1 to keep alt-screen but skip mouse capture.
+ * Set SPARK_CLI_ENABLE_MOUSE=1 to opt in to mouse tracking.
+ *
+ * Mouse tracking is disabled by default because SGR mouse escape
+ * sequences leak into Ink's useInput as phantom characters on
+ * many terminals (especially Windows).
  */
 export function isMouseTrackingEnabled(): boolean {
-  const val = process.env.SPARK_CLI_DISABLE_MOUSE;
-  return val !== '1' && val !== 'true';
+  const val = process.env.SPARK_CLI_ENABLE_MOUSE;
+  return val === '1' || val === 'true';
 }
 
 /**

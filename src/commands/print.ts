@@ -8,9 +8,12 @@
 
 import chalk from 'chalk';
 import type { GlobalOptions } from '../utils/output.js';
+import { resolveProjectRoot } from '../utils/output.js';
 import { readStdinPipe } from '../utils/stdin.js';
 import { runAgentTurnForCli } from '../core/agent/run-turn.js';
 import type { ToolWriteMode } from '../core/agent/tool-registry.js';
+import { createAgentRegistry } from '../core/agents/registry.js';
+import { loadAgentsFromDisk } from '../core/agents/loader.js';
 
 export interface PrintOptions {
   /** Direct-write to project tree instead of staging. */
@@ -38,6 +41,29 @@ export async function runPrint(
     ? `${piped}\n\n---\nUser prompt: ${prompt}`
     : prompt;
 
+  // Resolve active agent
+  let agentSystemAppend: string | undefined;
+  let agentAllowedTools: Set<string> | undefined;
+  if (opts.agent) {
+    const root = resolveProjectRoot(opts);
+    const agentReg = createAgentRegistry();
+    loadAgentsFromDisk(agentReg, root);
+    const agentDef = agentReg.get(opts.agent);
+    if (agentDef) {
+      agentSystemAppend = agentDef.systemPrompt;
+      if (agentDef.allowedTools) {
+        agentAllowedTools = new Set(agentDef.allowedTools);
+      }
+    } else {
+      console.warn(chalk.yellow(`Agent "${opts.agent}" not found, using default.`));
+    }
+  }
+
+  // Merge agent system prompt with any user-provided append
+  const mergedAppend = [printOpts.appendSystemPrompt, agentSystemAppend]
+    .filter(Boolean)
+    .join('\n\n') || undefined;
+
   const result = await runAgentTurnForCli({
     globalOpts: opts,
     history: [],
@@ -48,7 +74,8 @@ export async function runPrint(
     maxTurns: printOpts.maxTurns,
     maxBudgetUsd: printOpts.maxBudgetUsd,
     systemPromptOverride: printOpts.systemPrompt,
-    appendSystemPrompt: printOpts.appendSystemPrompt,
+    appendSystemPrompt: mergedAppend,
+    agentAllowedTools,
     onIteration: () => {
       // Silent in print mode — no spinner
     },

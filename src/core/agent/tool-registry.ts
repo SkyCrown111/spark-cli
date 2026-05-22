@@ -42,6 +42,12 @@ export interface ToolContext {
   mode: ToolRunMode;
   /** Current permission mode (default/plan/auto/acceptEdits/dontAsk/bypass). */
   permissionMode?: PermissionMode;
+  /** Tools explicitly denied by CLI --disallowedTools flag. */
+  disallowedTools?: Set<string>;
+  /** Tools allowed by the active agent definition (restricts to this set). */
+  agentAllowedTools?: Set<string>;
+  /** Optional memory namespace prefix for sub-agent isolation. */
+  memoryNamespace?: string;
   /** Identifier for the agent that issued the call (root or sub-agent). */
   agentId: string;
   /** Used for sub-agent depth gating. */
@@ -198,6 +204,8 @@ export function createToolRegistry(): ToolRegistry {
         permissionMode: ctx.permissionMode,
         toolArgs: args,
         source: tool.source,
+        disallowedTools: ctx.disallowedTools,
+        agentAllowedTools: ctx.agentAllowedTools,
       });
       if (!perm.allowed) {
         return { content: perm.reason ?? 'Tool not allowed.', isError: true };

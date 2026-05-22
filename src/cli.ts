@@ -146,6 +146,12 @@ function collectGlobals(cmd: Command): GlobalOptions {
     resumeSession: o.resumeSession,
     fromPr: o.fromPr,
     bg: o.bg,
+    name: o.name,
+    permissionMode: o.permissionMode,
+    allowedTools: o.allowedTools,
+    disallowedTools: o.disallowedTools,
+    dangerouslySkipPermissions: o.dangerouslySkipPermissions,
+    agent: o.agent,
   };
 }
 
@@ -173,7 +179,13 @@ program
   .option('--continue', 'resume the most recent session')
   .option('--resume <id>', 'resume a specific session by ID')
   .option('--from-pr <number>', 'load PR context (diff + comments) by number', (v) => parseInt(v, 10))
-  .option('--bg', 'run as a background agent (detached process)');
+  .option('-n, --name <name>', 'set a name for this session')
+  .option('--bg', 'run as a background agent (detached process)')
+  .option('--permission-mode <mode>', 'permission mode: default|plan|auto|acceptEdits|dontAsk|bypass')
+  .option('--allowedTools <tools>', 'comma-separated list of always-allowed tools')
+  .option('--disallowedTools <tools>', 'comma-separated list of always-denied tools')
+  .option('--dangerously-skip-permissions', 'skip all permission checks (bypass mode)')
+  .option('--agent <name>', 'use a custom agent definition');
 
 const configCmd = program.command('config').description('manage SparkCLI configuration');
 
@@ -298,16 +310,16 @@ program
   .description('chat with AI (no prompt = interactive session)')
   .option('--auto', 'tools write directly to project tree (default: staging)')
   .option('--no-mascot', 'hide Spark welcome mascot')
-  .option('--ink', 'use Ink-based React UI (experimental)')
+  .option('--no-ink', 'use legacy readline UI instead of Ink')
   .action(async function (
     this: Command,
     parts: string[],
-    opts: { auto?: boolean; noMascot?: boolean; ink?: boolean },
+    opts: { auto?: boolean; noMascot?: boolean; noInk?: boolean },
   ) {
     const prompt = parts.join(' ');
     const globals = collectGlobals(this);
     if (!prompt) {
-      await runShell(globals, { auto: opts.auto, noMascot: opts.noMascot, ink: opts.ink });
+      await runShell(globals, { auto: opts.auto, noMascot: opts.noMascot, noInk: opts.noInk });
       return;
     }
     await runChat(globals, prompt, { auto: opts.auto });
@@ -318,14 +330,14 @@ program
   .description('interactive session (default when you run spark-cli with no subcommand)')
   .option('--auto', 'tools write directly to project tree (default: staging)')
   .option('--no-mascot', 'hide Spark welcome mascot')
-  .option('--ink', 'use Ink-based React UI (experimental)')
-  .action(async function (this: Command, opts: { auto?: boolean; noMascot?: boolean; ink?: boolean }) {
+  .option('--no-ink', 'use legacy readline UI instead of Ink')
+  .action(async function (this: Command, opts: { auto?: boolean; noMascot?: boolean; noInk?: boolean }) {
     const globals = collectGlobals(this);
-    const parent = this.parent?.opts() as { auto?: boolean; noMascot?: boolean; ink?: boolean } | undefined;
+    const parent = this.parent?.opts() as { auto?: boolean; noMascot?: boolean; noInk?: boolean } | undefined;
     const auto = opts.auto ?? parent?.auto;
     const noMascot = opts.noMascot ?? parent?.noMascot;
-    const ink = opts.ink ?? parent?.ink;
-    await runShell(globals, { auto, noMascot, ink });
+    const noInk = opts.noInk ?? parent?.noInk;
+    await runShell(globals, { auto, noMascot, noInk });
   });
 
 program

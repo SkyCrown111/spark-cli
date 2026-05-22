@@ -69,6 +69,12 @@ export interface PromptInputProps {
 
   /** Callback when an image is pasted (file path detected in pasted text) */
   onImagePaste?: (image: { id: string; filename: string; filePath: string; extension: string; size: number }) => void;
+
+  /** Dynamic command suggestions from the slash registry */
+  commandSuggestions?: Array<{ value: string; label: string; description?: string; category?: string }>;
+
+  /** Git-based prompt suggestions (shown as gray hints) */
+  gitSuggestions?: Array<{ value: string; label: string; source: string }>;
 }
 
 // ── Mode color helper ──────────────────────────────────────
@@ -112,6 +118,8 @@ export const PromptInput: React.FC<PromptInputProps> = ({
   vimMode = 'INSERT',
   onVimModeChange,
   onImagePaste,
+  commandSuggestions,
+  gitSuggestions = [],
 }) => {
   // ── Core input state ──
   const [input, setInput] = useState('');
@@ -122,6 +130,18 @@ export const PromptInput: React.FC<PromptInputProps> = ({
 
   // ── Vim pending key tracker (for dd command) ──
   const vimPendingRef = useRef({});
+
+  // ── Yank ring (Ctrl+Y / Alt+Y) ──
+  const yankRingRef = useRef<string[]>([]);
+  const yankIndexRef = useRef(-1);
+
+  // ── Double-Esc tracker ──
+  const lastEscTimeRef = useRef(0);
+  const escCountRef = useRef(0);
+
+  // ── Paste detection ──
+  const lastInputTimeRef = useRef(0);
+  const PASTE_THRESHOLD_MS = 50; // If characters arrive faster than this, it's likely a paste
 
   // ── Typeahead integration ──
   const typeahead = useTypeahead();
@@ -164,12 +184,12 @@ export const PromptInput: React.FC<PromptInputProps> = ({
     if (historySearch.active) return; // Don't update typeahead during history search
 
     if (input.startsWith('/')) {
-      typeahead.updateSuggestions(input);
+      typeahead.updateCommandSuggestions(input, commandSuggestions);
     } else if (input.includes('@')) {
       // Find the @-reference portion after the last space
       const lastAtIndex = input.lastIndexOf('@');
       const beforeAt = input.slice(0, lastAtIndex);
-      // Only trigger if @ is at start or preceded by a space
+      // Only trigger if @ is at start or preceded by a space/newline
       if (lastAtIndex === 0 || beforeAt.endsWith(' ') || beforeAt.endsWith('\n')) {
         const query = input.slice(lastAtIndex + 1);
         const files = getFileSuggestionsCached();
@@ -181,17 +201,15 @@ export const PromptInput: React.FC<PromptInputProps> = ({
           description: f.extension,
           category: 'file',
         }));
-        // Directly set typeahead state (bypass updateSuggestions which is for /commands)
-        // Instead, we'll use a simplified approach: show file suggestions inline
-        if (items.length > 0) {
-          typeahead.updateSuggestions(''); // Reset command suggestions
-        }
+        typeahead.updateFileSuggestions(query, items);
+      } else {
+        typeahead.dismiss();
       }
     } else {
-      typeahead.updateSuggestions(input);
+      typeahead.dismiss();
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [input, historySearch.active]);
+  }, [input, historySearch.active, commandSuggestions]);
 
   // ── Detect bash mode ──
   const effectiveMode: InputMode = input.startsWith('!') && !disabled ? 'bash' : mode;
@@ -287,6 +305,33 @@ export const PromptInput: React.FC<PromptInputProps> = ({
       return;
     }
 
+    // ── Double-Esc: first clears input, second (within 300ms) signals backtrack ──
+    if (key.escape && !vimEnabled && !typeahead.visible && !historySearch.active) {
+      const now = Date.now();
+      const timeSinceLastEsc = now - lastEscTimeRef.current;
+      lastEscTimeRef.current = now;
+
+      if (input.length > 0) {
+        // First Esc with content: clear input
+        setInput('');
+        setLines(['']);
+        setCurrentLine(0);
+        setCursorPosition(0);
+        escCountRef.current = 1;
+        return;
+      }
+
+      if (timeSinceLastEsc < 300 && escCountRef.current >= 1) {
+        // Double-Esc on empty input: signal backtrack (handled by parent via callback)
+        escCountRef.current = 0;
+        // For now, just clear — the REPL can listen for this event
+        return;
+      }
+
+      escCountRef.current = 1;
+      return;
+    }
+
     // ── History search mode ──
     if (historySearch.active) {
       if (key.return) {
@@ -365,8 +410,23 @@ export const PromptInput: React.FC<PromptInputProps> = ({
 
     // ── Submit: Enter (or Ctrl+Enter for multiline) ──
     if (key.return) {
-      if (multiline && key.shift) {
-        // Shift+Enter: new line
+      // Backslash at end of line + Enter = newline shortcut
+      if (multiline && input.endsWith('\\')) {
+        const newLines = [...lines];
+        const currentLineText = newLines[currentLine];
+        // Remove the trailing backslash
+        newLines[currentLine] = currentLineText.slice(0, -1);
+        newLines.splice(currentLine + 1, 0, '');
+        if (newLines.length <= maxLines) {
+          setLines(newLines);
+          setCurrentLine(currentLine + 1);
+          setCursorPosition(0);
+          setInput(newLines.join('\n'));
+        }
+        return;
+      }
+      // Option+Enter (Alt+Enter) or Shift+Enter: new line
+      if (multiline && (key.shift || key.meta)) {
         const newLines = [...lines];
         const currentLineText = newLines[currentLine];
         const beforeCursor = currentLineText.slice(0, cursorPosition);
@@ -417,11 +477,197 @@ export const PromptInput: React.FC<PromptInputProps> = ({
       return;
     }
 
+    // ── Home/End or Ctrl+A: jump to start of line ──
+    if (key.home || (inputChar === 'a' && key.ctrl)) {
+      setCursorPosition(0);
+      return;
+    }
+    // ── End or Ctrl+E: jump to end of line ──
+    if (key.end || (inputChar === 'e' && key.ctrl)) {
+      setCursorPosition(lines[currentLine].length);
+      return;
+    }
+
+    // ── Ctrl+W: delete word before cursor ──
+    if (inputChar === 'w' && key.ctrl) {
+      const currentLineText = lines[currentLine];
+      const before = currentLineText.slice(0, cursorPosition);
+      const after = currentLineText.slice(cursorPosition);
+      // Find last word boundary
+      const trimmed = before.trimEnd();
+      const lastSpace = trimmed.lastIndexOf(' ');
+      const newBefore = lastSpace === -1 ? '' : before.slice(0, lastSpace + 1);
+      // Save deleted text to yank ring
+      const deleted = before.slice(lastSpace + 1);
+      if (deleted) {
+        yankRingRef.current.push(deleted);
+        if (yankRingRef.current.length > 20) yankRingRef.current.shift();
+      }
+      const newLines = [...lines];
+      newLines[currentLine] = newBefore + after;
+      setLines(newLines);
+      setCursorPosition(newBefore.length);
+      setInput(newLines.join('\n'));
+      return;
+    }
+
+    // ── Ctrl+U: delete from cursor to start of line (also save to yank) ──
+    // (modify existing Ctrl+U to save deleted text)
+    if (inputChar === 'u' && key.ctrl) {
+      const currentLineText = lines[currentLine];
+      const deleted = currentLineText.slice(0, cursorPosition);
+      if (deleted) {
+        yankRingRef.current.push(deleted);
+        if (yankRingRef.current.length > 20) yankRingRef.current.shift();
+      }
+      const newLines = [...lines];
+      newLines[currentLine] = newLines[currentLine].slice(cursorPosition);
+      setLines(newLines);
+      setCursorPosition(0);
+      setInput(newLines.join('\n'));
+      return;
+    }
+
+    // ── Ctrl+K: delete from cursor to end of line (also save to yank) ──
+    if (inputChar === 'k' && key.ctrl) {
+      const currentLineText = lines[currentLine];
+      const deleted = currentLineText.slice(cursorPosition);
+      if (deleted) {
+        yankRingRef.current.push(deleted);
+        if (yankRingRef.current.length > 20) yankRingRef.current.shift();
+      }
+      const newLines = [...lines];
+      newLines[currentLine] = newLines[currentLine].slice(0, cursorPosition);
+      setLines(newLines);
+      setInput(newLines.join('\n'));
+      return;
+    }
+
+    // ── Ctrl+Y: yank (paste from yank ring) ──
+    if (inputChar === 'y' && key.ctrl) {
+      if (yankRingRef.current.length === 0) return;
+      yankIndexRef.current = yankRingRef.current.length - 1;
+      const text = yankRingRef.current[yankIndexRef.current];
+      const newLines = [...lines];
+      const currentLineText = newLines[currentLine];
+      const beforeCursor = currentLineText.slice(0, cursorPosition);
+      const afterCursor = currentLineText.slice(cursorPosition);
+      // Handle multi-line yank
+      const yankLines = text.split('\n');
+      if (yankLines.length === 1) {
+        newLines[currentLine] = beforeCursor + text + afterCursor;
+        setLines(newLines);
+        setCursorPosition(cursorPosition + text.length);
+      } else {
+        newLines[currentLine] = beforeCursor + yankLines[0];
+        for (let i = 1; i < yankLines.length; i++) {
+          newLines.splice(currentLine + i, 0, yankLines[i]);
+        }
+        const lastYankLine = yankLines[yankLines.length - 1];
+        const mergeIndex = currentLine + yankLines.length - 1;
+        newLines[mergeIndex] = lastYankLine + (mergeIndex === currentLine ? afterCursor : '');
+        setLines(newLines);
+        setCursorPosition(lastYankLine.length);
+      }
+      setInput(newLines.join('\n'));
+      return;
+    }
+
+    // ── Alt+Y: cycle yank ring (after Ctrl+Y) ──
+    if (inputChar === 'y' && key.meta) {
+      if (yankRingRef.current.length === 0) return;
+      // Cycle backwards through the ring
+      yankIndexRef.current = (yankIndexRef.current - 1 + yankRingRef.current.length) % yankRingRef.current.length;
+      const text = yankRingRef.current[yankIndexRef.current];
+      // Replace current line content with yank text
+      const newLines = [...lines];
+      newLines[currentLine] = text;
+      setLines(newLines);
+      setCursorPosition(text.length);
+      setInput(newLines.join('\n'));
+      return;
+    }
+
+    // ── Alt+B: move cursor back one word ──
+    if (inputChar === 'b' && key.meta) {
+      const currentLineText = lines[currentLine];
+      const before = currentLineText.slice(0, cursorPosition);
+      // Find previous word boundary
+      const trimmed = before.trimEnd();
+      if (trimmed.length === 0) {
+        setCursorPosition(0);
+      } else {
+        // Find the last space before the trailing word
+        let lastSpace = -1;
+        for (let i = trimmed.length - 1; i >= 0; i--) {
+          if (trimmed[i] === ' ' || trimmed[i] === '\t') {
+            lastSpace = i;
+            break;
+          }
+        }
+        setCursorPosition(lastSpace + 1);
+      }
+      return;
+    }
+
+    // ── Alt+F: move cursor forward one word ──
+    if (inputChar === 'f' && key.meta) {
+      const currentLineText = lines[currentLine];
+      const after = currentLineText.slice(cursorPosition);
+      // Find next word boundary
+      let firstNonSpace = -1;
+      for (let i = 0; i < after.length; i++) {
+        if (after[i] !== ' ' && after[i] !== '\t') {
+          firstNonSpace = i;
+          break;
+        }
+      }
+      if (firstNonSpace === -1) {
+        setCursorPosition(currentLineText.length);
+      } else {
+        // Find end of the word
+        let wordEnd = after.length;
+        for (let i = firstNonSpace + 1; i < after.length; i++) {
+          if (after[i] === ' ' || after[i] === '\t') {
+            wordEnd = i;
+            break;
+          }
+        }
+        setCursorPosition(cursorPosition + wordEnd);
+      }
+      return;
+    }
+
+    // ── Ctrl+J: alternative newline ──
+    if (inputChar === 'j' && key.ctrl && multiline) {
+      const newLines = [...lines];
+      const currentLineText = newLines[currentLine];
+      const beforeCursor = currentLineText.slice(0, cursorPosition);
+      const afterCursor = currentLineText.slice(cursorPosition);
+      newLines[currentLine] = beforeCursor;
+      newLines.splice(currentLine + 1, 0, afterCursor);
+      if (newLines.length <= maxLines) {
+        setLines(newLines);
+        setCurrentLine(currentLine + 1);
+        setCursorPosition(0);
+        setInput(newLines.join('\n'));
+      }
+      return;
+    }
+
+    // ── Backslash + newline hint: when user types \ before Enter ──
+    // (handled in the Enter block below — \ at end of line is treated as newline trigger)
+
     // ── Backspace/Delete ──
     if (key.backspace || key.delete) {
       if (cursorPosition > 0) {
         const newLines = [...lines];
         const currentLineText = newLines[currentLine];
+        const deletedChar = currentLineText[cursorPosition - 1];
+        // Save to yank ring on word-boundary delete (after accumulating)
+        if (deletedChar === ' ' || deletedChar === '\t') {
+          // Space deleted — don't add to ring, just continue
+        }
         const beforeCursor = currentLineText.slice(0, cursorPosition - 1);
         const afterCursor = currentLineText.slice(cursorPosition);
         newLines[currentLine] = beforeCursor + afterCursor;
@@ -461,6 +707,46 @@ export const PromptInput: React.FC<PromptInputProps> = ({
 
         setLines(newLines);
         setCursorPosition(cursorPosition + imageTag.length);
+        setInput(newLines.join('\n'));
+        return;
+      }
+
+      // Paste detection: check if this is a multi-character paste
+      const now = Date.now();
+      const timeSinceLastInput = now - lastInputTimeRef.current;
+      lastInputTimeRef.current = now;
+
+      // If inputChar contains newlines or arrives very rapidly, it's likely a paste
+      const isPaste = inputChar.length > 1 || timeSinceLastInput < PASTE_THRESHOLD_MS;
+
+      if (isPaste && inputChar.includes('\n') && multiline) {
+        // Multi-line paste: split into lines and insert
+        const pasteLines = inputChar.split('\n');
+        const newLines = [...lines];
+        const currentLineText = newLines[currentLine];
+        const beforeCursor = currentLineText.slice(0, cursorPosition);
+        const afterCursor = currentLineText.slice(cursorPosition);
+
+        // Insert first paste line at cursor
+        newLines[currentLine] = beforeCursor + pasteLines[0];
+
+        // Insert remaining paste lines
+        for (let i = 1; i < pasteLines.length; i++) {
+          newLines.splice(currentLine + i, 0, pasteLines[i]);
+        }
+
+        // Append remaining original line to last paste line
+        const lastPasteLineIdx = currentLine + pasteLines.length - 1;
+        newLines[lastPasteLineIdx] += afterCursor;
+
+        // Limit to maxLines
+        if (newLines.length > maxLines) {
+          newLines.length = maxLines;
+        }
+
+        setLines(newLines);
+        setCurrentLine(Math.min(lastPasteLineIdx, maxLines - 1));
+        setCursorPosition(newLines[Math.min(lastPasteLineIdx, maxLines - 1)].length - afterCursor.length);
         setInput(newLines.join('\n'));
         return;
       }
@@ -507,25 +793,44 @@ export const PromptInput: React.FC<PromptInputProps> = ({
   const renderTypeahead = () => {
     if (!typeahead.visible || typeahead.suggestions.length === 0) return null;
 
+    const maxLabelLen = Math.min(
+      24,
+      Math.max(...typeahead.suggestions.map((s) => s.label.length)),
+    );
+
+    const borderColor = typeahead.kind === 'file' ? 'yellow' : 'cyan';
+    const header = typeahead.kind === 'file' ? 'Files' : 'Commands';
+
     return (
-      <Box flexDirection="column" paddingLeft={2}>
-        {typeahead.suggestions.map((suggestion, idx) => {
+      <Box flexDirection="column" borderStyle="round" borderColor={borderColor} paddingLeft={0} paddingRight={1}>
+        {/* Header row */}
+        <Box paddingLeft={1}>
+          <Text dimColor>{header} ({typeahead.suggestions.length})</Text>
+        </Box>
+        {typeahead.suggestions.slice(0, 8).map((suggestion, idx) => {
           const isFocused = idx === typeahead.focusIndex;
           return (
-            <Box key={suggestion.value}>
-              <Text color={isFocused ? 'cyan' : undefined} bold={isFocused}>
-                {isFocused ? '› ' : '  '}
+            <Box key={suggestion.value} paddingLeft={1}>
+              <Text color={isFocused ? borderColor : undefined} bold={isFocused}>
+                {isFocused ? '❯ ' : '  '}
               </Text>
               <Text color={isFocused ? 'white' : 'gray'} bold={isFocused}>
-                {suggestion.label}
+                {suggestion.label.padEnd(maxLabelLen)}
               </Text>
               {suggestion.description && (
-                <Text dimColor> — {suggestion.description}</Text>
+                <Text dimColor>  {suggestion.description}</Text>
               )}
             </Box>
           );
         })}
-        <Text dimColor>  Tab to accept · Esc to dismiss</Text>
+        {typeahead.suggestions.length > 8 && (
+          <Box paddingLeft={1}>
+            <Text dimColor>  +{typeahead.suggestions.length - 8} more</Text>
+          </Box>
+        )}
+        <Box paddingLeft={1}>
+          <Text dimColor>Tab accept · Esc dismiss · ↑↓ navigate</Text>
+        </Box>
       </Box>
     );
   };
@@ -551,6 +856,24 @@ export const PromptInput: React.FC<PromptInputProps> = ({
     );
   };
 
+  // ── Render git suggestions (gray hints when input is empty) ──
+  const renderGitSuggestions = () => {
+    if (input.length > 0 || gitSuggestions.length === 0 || disabled) return null;
+
+    return (
+      <Box flexDirection="column" paddingLeft={2} paddingTop={1}>
+        <Text dimColor>Suggestions:</Text>
+        {gitSuggestions.slice(0, 3).map((suggestion) => (
+          <Box key={suggestion.source} paddingLeft={1}>
+            <Text dimColor>{'  '}</Text>
+            <Text color="gray" dimColor>{suggestion.label}</Text>
+          </Box>
+        ))}
+        <Text dimColor>{'  Tab to accept'}</Text>
+      </Box>
+    );
+  };
+
   return (
     <Box flexDirection="column">
       {/* Main input box */}
@@ -570,6 +893,9 @@ export const PromptInput: React.FC<PromptInputProps> = ({
           )}
         </Box>
       </Box>
+
+      {/* Git suggestions (below input when empty) */}
+      {renderGitSuggestions()}
 
       {/* Typeahead suggestions (below the input box) */}
       {typeahead.visible && renderTypeahead()}

@@ -23,9 +23,15 @@ Running **`spark-cli`** with no subcommand starts an **agent REPL** (same as `sp
 | `/skills`, `/hooks`, `/memory`, `/replay` | Session utilities |
 | `/help`, `/exit` | Help or quit |
 
-Flags: `spark-cli --auto` starts in direct-write mode. `spark-cli chat --legacy` uses the old fenced-block codegen pipeline.
+Flags: `spark-cli --auto` starts in direct-write mode. `spark-cli --no-ink` falls back to the legacy readline UI.
 
-**REPL UX**: Claude Code–style panel — two-column welcome (`│` divider), gray user bars (`> message`), `└` assistant replies, `· Sparking…` status, `esc to interrupt` footer, Shift+Tab mode line. `spark-cli --no-mascot` hides the mascot.
+**REPL UX**: Ink (React)–based UI — scrollable messages, inline permission dialogs, streaming responses, Shift+Tab mode cycling, status line with model/tokens/hints. `spark-cli --no-mascot` hides the mascot. `spark-cli --no-ink` uses the legacy readline UI.
+
+**Input features**:
+- **Multi-line**: `Shift+Enter` or `Option+Enter` (macOS) for newline, `\` + `Enter` quick newline, `Ctrl+J` alternative newline
+- **Paste mode**: Auto-detects multi-line pastes and inserts them correctly
+- **Git suggestions**: Shows gray hint suggestions based on recent git commits when input is empty
+- **Vim mode**: `--vim` flag enables NORMAL/INSERT/VISUAL/VISUAL LINE modes with registers (`"a`-`"z`), macros (`q`/`@`), text objects (`iw`, `aw`, `i"`, `a(`), and `.` repeat
 
 **Vision in agent mode**: `spark-cli ui --agent --image design.png "build this HUD"` uses the vision model when configured.
 
@@ -51,10 +57,30 @@ Skills are markdown playbooks with YAML-ish frontmatter, loaded from (lowest →
 | `spark-cli skills list` | List all loaded skills (`--json` supported) |
 | `spark-cli skills validate` | Check `triggerPattern`, `allowedTools`, shadowing; exit `2` on errors |
 | `spark-cli skills init <name>` | Create `.spark-cli/skills/<name>/SKILL.md` from a template (`--force` overwrite) |
+| `/skills` | List installed skills in REPL |
+| `/skill <name> [args]` | Load and execute a skill as a prompt |
 
-Frontmatter: **`name`**, **`description`**, **`triggers`** (substring list), **`triggerPattern`** (regex, e.g. `/foo/i`), **`allowedTools`** (widens plan/MCP gates after **`load_skill`**). The system prompt includes **Skills (index)** when skills exist; matching triggers may auto-inline the body (byte cap). REPL: **`/skills`**.
+Frontmatter: **`name`**, **`description`**, **`triggers`** (substring list), **`triggerPattern`** (regex, e.g. `/foo/i`), **`allowedTools`** (widens plan/MCP gates after **`load_skill`**), **`disableModelInvocation`** (model cannot load this skill), **`userInvocable`** (set false to make model-only). The system prompt includes **Skills (index)** when skills exist; matching triggers may auto-inline the body (byte cap).
+
+**Skill body features**: `` !`command` `` inline command execution, `$ARGUMENTS` / `$0` / `$1` positional args, `${SPARK_SESSION_ID}`, `${SPARK_SKILL_DIR}`, `${SPARK_PROJECT_ROOT}` variable substitution.
 
 Custom provider keys: use `api_key` in YAML **or** `key_env: MIMO_API_KEY` plus `$env:MIMO_API_KEY` (not the token in `key_env`).
+
+## Custom Agents
+
+Agents are markdown definitions with YAML-ish frontmatter, loaded from (lowest → highest precedence; later wins on duplicate **`name`**):
+
+1. `~/.spark-cli/agents/<name>/AGENT.md`
+2. `<project>/.spark-cli/agents/<name>/AGENT.md`
+
+| Command | Description |
+|---------|-------------|
+| `/agents` | List all available custom agents |
+| `/agents use <name>` | Activate a custom agent for this session |
+| `/agents off` | Deactivate custom agent (use default) |
+| `spark-cli --agent <name>` | Start with a specific agent active |
+
+Frontmatter: **`name`**, **`description`**, **`allowedTools`** (restricts agent to these tools only), **`contextMode`** (`inherit` / `fresh` / `fork`). The markdown body becomes the system prompt extension for that agent.
 
 ## Agent tools (REPL / `chat`)
 
@@ -139,6 +165,17 @@ Engine / editor (when applicable):
 | Command | Description |
 |---------|-------------|
 | `spark-cli mcp serve` | stdio MCP server — [mcp.md](./mcp.md) |
+| `spark-cli mcp add <name>` | Add an MCP server to config (`--transport stdio|sse|http`, `--command`, `--url`, `--env`, `--global`) |
+| `spark-cli mcp list` | List configured MCP servers |
+| `spark-cli mcp remove <name>` | Remove an MCP server from config |
+| `spark-cli mcp test <name>` | Test connectivity to an MCP server |
+| `/mcp` | Show MCP server status in REPL |
+| `/mcp tools` | List all discovered MCP tools |
+| `/mcp add <name> <cmd> [args]` | Quick-add a stdio MCP server |
+| `/mcp remove <name>` | Remove an MCP server |
+| `/mcp test <name>` | Test MCP server connectivity |
+
+MCP config supports: `stdio`/`sse`/`http` transports, `${VAR}` and `${VAR:-default}` env var expansion in `command`/`url`/`env`/`headers`, and `headers` field for custom HTTP headers. Auto-reconnect with exponential backoff for HTTP/SSE servers.
 
 ## Quality (Phase 8)
 
@@ -146,6 +183,8 @@ Engine / editor (when applicable):
 |---------|-------------|
 | `spark-cli replay export [file]` | Export `replay.json` |
 | `spark-cli plugin list\|install\|uninstall` | Local plugins in `.spark-cli/plugins/` |
+
+Plugins support: **hook integration** (define `hooks` in manifest to handle events), **MCP server binding** (define `mcpServers` in manifest to provide MCP tools), **hot-reload** (file watcher detects changes), **marketplace discovery** (local index at `~/.spark-cli/plugin-index.json`).
 
 ## Unreal & Godot (Phase 10)
 

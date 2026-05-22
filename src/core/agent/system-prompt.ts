@@ -25,6 +25,10 @@ import { readMemoryIndex, listMemories } from '../memory/cross-session-store.js'
 import { selectRelevantMemories, formatRelevantMemoriesForPrompt } from '../memory/relevance.js';
 import { loadIndex } from '../knowledge/indexer.js';
 import { searchKnowledge } from '../knowledge/retriever.js';
+import {
+  getCachedProjectInstructions,
+  formatInstructionsForPrompt,
+} from '../instructions/loader.js';
 import type { ToolWriteMode, ToolRunMode } from './tool-registry.js';
 import type { SkillRegistry } from '../skills/registry.js';
 
@@ -114,6 +118,11 @@ export function buildAgentSystemPrompt(opts: SystemPromptOpts): string {
   );
 
   sections.push(formatContextForPrompt(ctx));
+
+  // Auto-loaded project instructions (SPARKCLI.md)
+  const instructions = getCachedProjectInstructions(opts.projectRoot);
+  const instructionsBlock = formatInstructionsForPrompt(instructions);
+  if (instructionsBlock) sections.push(instructionsBlock);
 
   const memoryBlock = formatMemoryForPrompt(opts.projectRoot);
   if (memoryBlock) sections.push(memoryBlock);

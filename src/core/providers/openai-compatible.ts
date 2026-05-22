@@ -174,16 +174,17 @@ export async function chatCompletion(
   const message = choice?.message;
   const toolCalls = message?.tool_calls;
   const rawContent =
-    (typeof message?.content === 'string' ? message.content : '').trim() ||
-    (message?.reasoning_content ?? '').trim();
+    (typeof message?.content === 'string' ? message.content : '').trim();
+  const thinking = (message?.reasoning_content ?? '').trim() || undefined;
 
   // Empty content is valid when the model only emits tool_calls.
-  if (!rawContent && (!toolCalls || toolCalls.length === 0)) {
+  if (!rawContent && !thinking && (!toolCalls || toolCalls.length === 0)) {
     throw new SparkCLIError('LLM returned empty response', 4);
   }
 
   return {
-    content: rawContent,
+    content: rawContent || thinking || '',
+    thinking,
     tool_calls: toolCalls && toolCalls.length > 0 ? toolCalls : undefined,
     stop_reason: mapFinishReason(choice?.finish_reason),
     usage: json.usage,
@@ -269,6 +270,7 @@ async function chatCompletionStream(
   }
 
   let assembledContent = '';
+  let assembledThinking: string | undefined;
   const toolCalls: ToolCall[] = [];
   let finishReason: string | undefined;
   let usage: { prompt_tokens?: number; completion_tokens?: number } | undefined;
@@ -304,7 +306,8 @@ async function chatCompletionStream(
         continue;
       }
       const choice = evt.choices?.[0];
-      const delta = choice?.delta;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const delta = choice?.delta as any;
       if (delta?.content) {
         assembledContent += delta.content;
         try {
@@ -312,6 +315,9 @@ async function chatCompletionStream(
         } catch {
           /* don't let renderer errors abort the stream */
         }
+      }
+      if (delta?.reasoning_content) {
+        assembledThinking = (assembledThinking ?? '') + delta.reasoning_content;
       }
       if (delta?.tool_calls) {
         for (const tcDelta of delta.tool_calls) {
@@ -341,13 +347,15 @@ async function chatCompletionStream(
   }
 
   const trimmedContent = assembledContent.trim();
+  const trimmedThinking = assembledThinking?.trim() || undefined;
   const cleanedToolCalls = toolCalls.filter(Boolean);
-  if (!trimmedContent && cleanedToolCalls.length === 0) {
+  if (!trimmedContent && !trimmedThinking && cleanedToolCalls.length === 0) {
     throw new SparkCLIError('LLM returned empty response', 4);
   }
 
   return {
-    content: trimmedContent || assembledContent,
+    content: trimmedContent || trimmedThinking || '',
+    thinking: trimmedThinking,
     tool_calls: cleanedToolCalls.length > 0 ? cleanedToolCalls : undefined,
     stop_reason: mapFinishReason(finishReason),
     usage,

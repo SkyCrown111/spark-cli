@@ -6,11 +6,17 @@
  * "tilemap patterns") will help mid-turn. The body is appended as the tool
  * result; subsequent tool calls in the same turn benefit from the widened
  * permissions via `ctx.skillAllowedTools`.
+ *
+ * Supports:
+ * - Variable substitution ($ARGUMENTS, $0, $1, ${SPARK_SESSION_ID}, etc.)
+ * - Dynamic context injection (`` !`command` `` syntax in skill body)
+ * - Invocation control (disableModelInvocation, userInvocable)
  */
 
 import type { RegisteredTool, ToolContext, ToolResult } from '../tool-registry.js';
 import { appendReplayEvent } from '../../replay/log.js';
 import { runHooks } from '../../hooks/runner.js';
+import { processSkillBody, canModelInvoke } from '../../skills/processor.js';
 
 async function handler(
   args: Record<string, unknown>,
@@ -28,6 +34,14 @@ async function handler(
     const available = ctx.skills.list().map((s) => s.name).join(', ') || '(none)';
     return {
       content: `load_skill: skill "${name}" not found. Available: ${available}`,
+      isError: true,
+    };
+  }
+
+  // Check invocation control
+  if (!canModelInvoke(skill)) {
+    return {
+      content: `load_skill: skill "${name}" has model invocation disabled. It can only be invoked by the user via /skill.`,
       isError: true,
     };
   }
@@ -58,9 +72,17 @@ async function handler(
     );
   }
 
+  // Process skill body: expand variables and execute inline commands
+  const skillArgs = typeof args.arguments === 'string' ? args.arguments : undefined;
+  const processedBody = processSkillBody(skill.body, {
+    arguments: skillArgs,
+    sessionId: ctx.agentId,
+    projectRoot: ctx.projectRoot,
+  });
+
   const header = `Loaded skill: ${skill.name}${skill.description ? ` — ${skill.description}` : ''}`;
   return {
-    content: `${header}\n\n${skill.body}`.trim(),
+    content: `${header}\n\n${processedBody}`.trim(),
     structured: {
       name: skill.name,
       allowedTools: skill.allowedTools ?? [],
@@ -80,6 +102,10 @@ export const loadSkillTool: RegisteredTool = {
       name: {
         type: 'string',
         description: 'The skill name (folder name under .spark-cli/skills/).',
+      },
+      arguments: {
+        type: 'string',
+        description: 'Optional arguments passed to the skill for variable substitution ($ARGUMENTS, $0, $1, ...).',
       },
     },
     required: ['name'],

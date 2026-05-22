@@ -56,6 +56,8 @@ export const TranscriptOverlay: React.FC<TranscriptOverlayProps> = ({
 }) => {
   const { width, height } = useTerminalSize();
   const scrollBoxRef = useRef<ScrollBoxHandle | null>(null);
+  const [showHelp, setShowHelp] = React.useState(false);
+  const [expandAll, setExpandAll] = React.useState(true);
 
   // Build structured transcript data
   const allEntries = useMemo(
@@ -81,16 +83,18 @@ export const TranscriptOverlay: React.FC<TranscriptOverlayProps> = ({
     });
   }, [allEntries, searchQuery]);
 
-  // All tool calls are expanded by default in transcript view
+  // Tool call expansion controlled by expandAll toggle
   const expandedTools = useMemo(() => {
     const keys = new Set<string>();
-    for (const entry of allEntries) {
-      for (const tc of entry.toolCalls) {
-        keys.add(`${entry.key}-${tc.id}`);
+    if (expandAll) {
+      for (const entry of allEntries) {
+        for (const tc of entry.toolCalls) {
+          keys.add(`${entry.key}-${tc.id}`);
+        }
       }
     }
     return keys;
-  }, [allEntries]);
+  }, [allEntries, expandAll]);
 
   // Estimate total row count for ScrollBox
   const estimatedRowCount = useMemo(() => {
@@ -114,10 +118,24 @@ export const TranscriptOverlay: React.FC<TranscriptOverlayProps> = ({
     return Math.max(1, rows);
   }, [filteredEntries, expandedTools]);
 
+  // Build list of user prompt indices for {/} navigation
+  const userPromptIndices = useMemo(() => {
+    return allEntries
+      .map((entry, idx) => (entry.role === 'user' ? idx : -1))
+      .filter((idx) => idx >= 0);
+  }, [allEntries]);
+
+  // Track current position for {/} navigation
+  const navIndexRef = useRef(0);
+
   // Keyboard handling
   useInput((input, key) => {
-    // Escape: close
+    // Escape: close (or dismiss help first)
     if (key.escape) {
+      if (showHelp) {
+        setShowHelp(false);
+        return;
+      }
       if (searchActive) {
         onToggleSearch();
         onSearchQueryChange('');
@@ -127,11 +145,23 @@ export const TranscriptOverlay: React.FC<TranscriptOverlayProps> = ({
       return;
     }
 
+    // ?: toggle help panel
+    if (input === '?' && !searchActive) {
+      setShowHelp((prev) => !prev);
+      return;
+    }
+
     // Ctrl+F or /: toggle search
     if ((key.ctrl && input === 'f') || input === '/') {
       if (!searchActive) {
         onToggleSearch();
       }
+      return;
+    }
+
+    // Ctrl+E: toggle expand/collapse all tool calls
+    if (key.ctrl && input === 'e') {
+      setExpandAll((prev) => !prev);
       return;
     }
 
@@ -151,25 +181,59 @@ export const TranscriptOverlay: React.FC<TranscriptOverlayProps> = ({
       }
     }
 
-    // Paragraph jump with { and }
-    if (input === '{') {
-      scrollBoxRef.current?.scrollBy(-10);
-      return;
-    }
-    if (input === '}') {
-      scrollBoxRef.current?.scrollBy(10);
-      return;
-    }
-
-    // [ to write current view to scrollback (no-op for now, reserved)
-    if (input === '[') {
-      // Reserved: write transcript to scrollback
+    // { — jump to previous user prompt
+    if (input === '{' && !searchActive) {
+      if (userPromptIndices.length === 0) return;
+      // Find the current position
+      const current = navIndexRef.current;
+      const prevIdx = Math.max(0, current - 1);
+      navIndexRef.current = prevIdx;
+      const entryIdx = userPromptIndices[prevIdx];
+      scrollBoxRef.current?.scrollTo(entryIdx * 3); // rough estimate: ~3 rows per entry
       return;
     }
 
-    // v to open in editor (no-op for now, reserved)
+    // } — jump to next user prompt
+    if (input === '}' && !searchActive) {
+      if (userPromptIndices.length === 0) return;
+      const current = navIndexRef.current;
+      const nextIdx = Math.min(userPromptIndices.length - 1, current + 1);
+      navIndexRef.current = nextIdx;
+      const entryIdx = userPromptIndices[nextIdx];
+      scrollBoxRef.current?.scrollTo(entryIdx * 3);
+      return;
+    }
+
+    // [ — write transcript to clipboard (scrollback substitute)
+    if (input === '[' && !searchActive) {
+      const lines: string[] = [];
+      for (const entry of filteredEntries) {
+        const role = entry.role.toUpperCase();
+        lines.push(`[${role}]`);
+        if (entry.content) lines.push(entry.content);
+        for (const tc of entry.toolCalls) {
+          lines.push(`  [TOOL] ${tc.name}`);
+          if (tc.result) lines.push(`  ${tc.result.slice(0, 200)}`);
+        }
+        lines.push('');
+      }
+      const text = lines.join('\n');
+      import('node:child_process').then(({ execSync }) => {
+        if (process.platform === 'win32') {
+          execSync('clip', { input: text, encoding: 'utf8' });
+        } else if (process.platform === 'darwin') {
+          execSync('pbcopy', { input: text, encoding: 'utf8' });
+        } else {
+          execSync('xclip -selection clipboard', { input: text, encoding: 'utf8' });
+        }
+      }).catch(() => {
+        // Clipboard not available
+      });
+      return;
+    }
+
+    // v to open in editor (reserved)
     if (input === 'v' && !searchActive) {
-      // Reserved: open transcript in external editor
       return;
     }
   });
@@ -198,8 +262,28 @@ export const TranscriptOverlay: React.FC<TranscriptOverlayProps> = ({
         <Text dimColor>
           {filteredEntries.length}/{allEntries.length} entries
         </Text>
-        <Text dimColor> | Esc close | / search</Text>
+        <Text dimColor> | ? help</Text>
       </Box>
+
+      {/* Help panel */}
+      {showHelp && (
+        <Box
+          flexDirection="column"
+          paddingX={1}
+          borderStyle="single"
+          borderBottom={false}
+          borderColor="yellow"
+        >
+          <Text bold color="yellow">Keyboard Shortcuts</Text>
+          <Text>  <Text bold>?</Text>        Toggle this help</Text>
+          <Text>  <Text bold>{'{'}{'}'}</Text>        Jump to prev/next user prompt</Text>
+          <Text>  <Text bold>Ctrl+E</Text>   Expand/collapse all tool calls</Text>
+          <Text>  <Text bold>/</Text>        Search transcript</Text>
+          <Text>  <Text bold>[</Text>        Copy transcript to clipboard</Text>
+          <Text>  <Text bold>PgUp/PgDn</Text> Scroll</Text>
+          <Text>  <Text bold>Esc</Text>      Close</Text>
+        </Box>
+      )}
 
       {/* Search bar (when active) */}
       {searchActive && (
@@ -258,7 +342,7 @@ export const TranscriptOverlay: React.FC<TranscriptOverlayProps> = ({
       {/* Footer hints */}
       <Box paddingX={1}>
         <Text dimColor>
-          / search | {'{'} {'}'} paragraph | PgUp/PgDn scroll | Esc close
+          / search | {'{'} {'}'} user prompts | Ctrl+E expand | [ copy | ? help | Esc close
         </Text>
       </Box>
     </Box>

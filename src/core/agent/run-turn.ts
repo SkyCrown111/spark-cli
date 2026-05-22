@@ -90,6 +90,10 @@ export interface RunTurnOptions {
   effortLevel?: 'low' | 'medium' | 'high' | 'xhigh' | 'max';
   /** Current permission mode. */
   permissionMode?: import('../../state/AppState.js').PermissionMode;
+  /** Tools explicitly denied by CLI --disallowedTools flag. */
+  disallowedTools?: Set<string>;
+  /** Tools allowed by the active agent definition (restricts to this set). */
+  agentAllowedTools?: Set<string>;
 }
 
 export interface RunTurnResult extends RunAgentTurnResult {
@@ -126,18 +130,16 @@ export async function runAgentTurnForCli(
   const registry = buildDefaultRegistry({ projectRoot: root, config });
 
   // Connect to MCP client servers and register their tools
-  const mcpServers = config.mcp?.servers?.filter((s) => s.enabled !== false) ?? [];
+  // Also loads servers from .mcp.json in project root
   let mcpPool: import('../../mcp/client-pool.js').McpClientPool | undefined;
-  if (mcpServers.length > 0) {
-    try {
-      const mcpResult = await connectMcpClients(config);
-      mcpPool = mcpResult.pool;
-      for (const tool of mcpResult.tools) {
-        registry.register(tool);
-      }
-    } catch (e) {
-      console.error(`[spark-cli] MCP client connection error: ${(e as Error).message}`);
+  try {
+    const mcpResult = await connectMcpClients(config, root);
+    mcpPool = mcpResult.pool;
+    for (const tool of mcpResult.tools) {
+      registry.register(tool);
     }
+  } catch (e) {
+    console.error(`[spark-cli] MCP client connection error: ${(e as Error).message}`);
   }
 
   const skills = createSkillRegistry();
@@ -196,6 +198,8 @@ export async function runAgentTurnForCli(
       writeMode: opts.writeMode,
       mode: opts.mode,
       permissionMode: opts.permissionMode,
+      disallowedTools: opts.disallowedTools,
+      agentAllowedTools: opts.agentAllowedTools,
       agentId: opts.agentId,
       maxTokens,
       maxIterations: opts.maxTurns,

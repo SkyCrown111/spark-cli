@@ -26,12 +26,13 @@ export function generateSessionId(): string {
 }
 
 /** Create a new session with an ID and initial metadata. */
-export function createSession(projectRoot: string, model: string): SessionSnapshot {
+export function createSession(projectRoot: string, model: string, name?: string): SessionSnapshot {
   const id = generateSessionId();
   const now = new Date().toISOString();
   const snapshot: SessionSnapshot = {
     id,
     projectRoot,
+    name,
     history: [],
     messages: [],
     writeMode: 'staging',
@@ -40,7 +41,7 @@ export function createSession(projectRoot: string, model: string): SessionSnapsh
     alwaysAllowSet: [],
     plan: { phase: 'normal' },
     model,
-    title: '',
+    title: name || '',
     startedAt: now,
     updatedAt: now,
   };
@@ -94,10 +95,12 @@ export function findMostRecent(projectRoot: string): SessionSnapshot | undefined
 /** List all sessions for this project, sorted by recency. */
 export interface SessionMeta {
   id: string;
+  name: string;
   title: string;
   model: string;
   startedAt: string;
   updatedAt: string;
+  messageCount: number;
 }
 
 export function listSessions(projectRoot: string): SessionMeta[] {
@@ -111,10 +114,12 @@ export function listSessions(projectRoot: string): SessionMeta[] {
         const s = deserializeSession(readFileSync(join(dir, f), 'utf8'));
         return {
           id: s.id,
+          name: s.name ?? '',
           title: s.title,
           model: s.model,
           startedAt: s.startedAt,
           updatedAt: s.updatedAt,
+          messageCount: s.messages.length,
         };
       } catch {
         return undefined;

@@ -10,7 +10,14 @@ import type { SparkCLIConfig } from '../../config/schema.js';
 import type { PermissionMode } from '../../state/AppState.js';
 import type { ToolRunMode, ToolWriteMode } from './tool-registry.js';
 import { MCP_WRITE_TOOL_NAMES } from '../../mcp/tools.js';
-import { evaluateRules, extractPathArgs, type ToolRule } from './permission-rules.js';
+import {
+  evaluateRules,
+  extractPathArgs,
+  extractCommandArg,
+  extractUrlArg,
+  extractAgentName,
+  type ToolRule,
+} from './permission-rules.js';
 
 export interface PermissionInput {
   toolName: string;
@@ -33,6 +40,10 @@ export interface PermissionInput {
   toolArgs?: Record<string, unknown>;
   /** Where this tool came from: 'builtin' or 'mcp-client'. */
   source?: 'builtin' | 'mcp-client';
+  /** Tools explicitly denied by CLI --disallowedTools flag. */
+  disallowedTools?: ReadonlySet<string>;
+  /** Tools allowed by the active agent definition (restricts to this set). */
+  agentAllowedTools?: ReadonlySet<string>;
 }
 
 export interface PermissionResult {
@@ -94,7 +105,10 @@ function evaluateConfigRules(
   if (!rules || rules.length === 0) return undefined;
 
   const pathArgs = toolArgs ? extractPathArgs(toolArgs) : [];
-  return evaluateRules(rules as ToolRule[], toolName, pathArgs);
+  const commandArg = toolArgs ? extractCommandArg(toolArgs) : undefined;
+  const urlArg = toolArgs ? extractUrlArg(toolArgs) : undefined;
+  const agentName = toolArgs ? extractAgentName(toolArgs) : undefined;
+  return evaluateRules(rules as ToolRule[], toolName, pathArgs, commandArg, urlArg, agentName);
 }
 
 export function isToolAllowed(input: PermissionInput): PermissionResult {
@@ -104,6 +118,24 @@ export function isToolAllowed(input: PermissionInput): PermissionResult {
   // ── Bypass mode: everything allowed ──
   if (permMode === 'bypass') {
     return { allowed: true };
+  }
+
+  // ── CLI --disallowedTools: always deny ──
+  if (input.disallowedTools?.has(input.toolName)) {
+    return {
+      allowed: false,
+      reason: `Tool "${input.toolName}" is explicitly denied by --disallowedTools.`,
+    };
+  }
+
+  // ── Agent allowedTools: restrict to agent's tool set ──
+  if (input.agentAllowedTools && input.agentAllowedTools.size > 0) {
+    if (!input.agentAllowedTools.has(input.toolName)) {
+      return {
+        allowed: false,
+        reason: `Tool "${input.toolName}" is not in the active agent's allowed tools.`,
+      };
+    }
   }
 
   // ── Config-driven rules (highest precedence after bypass) ──

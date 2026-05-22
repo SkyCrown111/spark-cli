@@ -35,7 +35,7 @@ import { completeChat, resolveModelForTask } from '../providers/router.js';
 import { resolveOutputMaxTokens } from '../../config/output-tokens.js';
 import { getProjectSparkDir } from '../../config/paths.js';
 
-const DEFAULT_SUBAGENT_TOOLS = ['read_file', 'glob', 'grep', 'list_dir', 'load_skill'];
+const DEFAULT_SUBAGENT_TOOLS = ['read_file', 'glob', 'grep', 'list_dir', 'load_skill', 'remember', 'recall'];
 const DEFAULT_MAX_DEPTH = 1;
 
 export interface SpawnSubAgentOptions {
@@ -60,11 +60,25 @@ export interface SpawnSubAgentOptions {
   /** Skill registry inherited from the parent. */
   skills?: SkillRegistry;
   /**
+   * Context mode for the sub-agent:
+   * - `fresh` (default): starts with empty history (only system prompt + user)
+   * - `fork`: inherits a copy of the parent's conversation history
+   */
+  contextMode?: 'fresh' | 'fork';
+  /** Parent's conversation history (required for fork mode). */
+  parentHistory?: ChatMessage[];
+  /**
    * Worktree isolation: if true, creates a git worktree under
    * `.spark-cli/worktrees/sub-<id>` so the sub-agent's file mutations
    * are isolated from the parent's working tree.
    */
   useWorktree?: boolean;
+  /**
+   * Optional memory namespace for the sub-agent. When set, `remember` keys
+   * are prefixed with `<namespace>/` so sub-agent memories don't collide
+   * with the parent agent's memories.
+   */
+  memoryNamespace?: string;
 }
 
 export interface SubAgentResult {
@@ -181,7 +195,13 @@ export async function spawnSubAgent(
     }
   }
 
-  const result = await runAgentTurn([], opts.prompt, {
+  // Build initial history based on context mode
+  const initialHistory: ChatMessage[] =
+    opts.contextMode === 'fork' && opts.parentHistory
+      ? [...opts.parentHistory] // shallow copy to avoid mutating parent
+      : [];
+
+  const result = await runAgentTurn(initialHistory, opts.prompt, {
     projectRoot: effectiveProjectRoot,
     config: opts.parent.config,
     registry: childRegistry,
@@ -198,6 +218,7 @@ export async function spawnSubAgent(
     // skill widening as the parent.
     skills: opts.skills ?? opts.parent.skills,
     hooks: opts.hooks,
+    memoryNamespace: opts.memoryNamespace ?? (childAgentId),
   });
 
   // Clean up worktree if one was created

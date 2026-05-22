@@ -32,10 +32,14 @@ import { BypassPermissionsDialog } from '../components/BypassPermissionsDialog.j
 import { GlobalSearchDialog } from '../components/GlobalSearchDialog.js';
 import { TranscriptOverlay } from '../components/TranscriptOverlay.js';
 import { TokenWarning } from '../components/TokenWarning.js';
+import { BackgroundTaskStatus } from '../components/BackgroundTaskStatus.js';
+import { TaskList } from '../components/TaskList.js';
+import { SessionPicker } from '../components/SessionPicker.js';
 import { AlternateScreen } from '../ink/components/AlternateScreen.js';
 import { useTerminalSize } from '../hooks/useTerminalSize.js';
 import { useInputHistory } from '../hooks/useInputHistory.js';
 import { useKeybindings, commonKeybindings } from '../hooks/useKeybindings.js';
+import { generateGitSuggestions } from '../utils/suggestions/gitSuggestions.js';
 import {
   useRegisterKeybindingContext,
   useKeybinding,
@@ -100,6 +104,8 @@ export const REPL: React.FC<REPLProps> = ({
   const showBypassPermissions = useAppState((s) => s.showBypassPermissions);
   const showGlobalSearch = useAppState((s) => s.showGlobalSearch);
   const showTranscript = useAppState((s) => s.showTranscript);
+  const showSessionPicker = useAppState((s) => s.showSessionPicker);
+  const sessionList = useAppState((s) => s.sessionList);
   const searchQuery = useAppState((s) => s.searchQuery);
   const transcriptSearchQuery = useAppState((s) => s.transcriptSearchQuery);
   const agentHistory = useAppState((s) => s.agentHistory);
@@ -107,15 +113,71 @@ export const REPL: React.FC<REPLProps> = ({
   const permissionMode = useAppState((s) => s.permissionMode);
   const vimEnabled = useAppState((s) => s.vimEnabled);
   const vimMode = useAppState((s) => s.vimMode);
+  const commandSuggestions = useAppState((s) => s.commandSuggestions);
   const companionEnabled = useAppState((s) => s.companionEnabled);
   const activeToolId = useAppState((s) => s.activeToolId);
   const activeToolDetail = useAppState((s) => s.activeToolDetail);
   const permissionRequest = useAppState((s) => s.permissionRequest);
+  const backgroundAgents = useAppState((s) => s.backgroundAgents);
+  const todos = useAppState((s) => s.todos);
+  const checkpoint = useAppState((s) => s.checkpoint);
+  const projectRoot = useAppState((s) => s.projectRoot);
+
+  // ── Git suggestions (cached) ──
+  const gitSuggestionsRef = useRef<Array<{ value: string; label: string; source: string }>>([]);
+  const getGitSuggestions = useCallback(() => {
+    if (gitSuggestionsRef.current.length === 0) {
+      try {
+        gitSuggestionsRef.current = generateGitSuggestions(projectRoot, '');
+      } catch {
+        gitSuggestionsRef.current = [];
+      }
+    }
+    return gitSuggestionsRef.current;
+  }, [projectRoot]);
 
   // ── Local state ──
   const historyHook = useInputHistory({ maxHistory: 100 });
   const pendingExit = useRef(false);
   const [transcriptSearchActive, setTranscriptSearchActive] = useState(false);
+  const [searchMatches, setSearchMatches] = useState<Array<{ msgIdx: number; charIdx: number }>>([]);
+  const [searchFocusIdx, setSearchFocusIdx] = useState(0);
+
+  // ── Global search logic ──
+  const updateSearchMatches = useCallback((query: string) => {
+    if (!query) {
+      setSearchMatches([]);
+      setSearchFocusIdx(0);
+      return;
+    }
+    const lower = query.toLowerCase();
+    const matches: Array<{ msgIdx: number; charIdx: number }> = [];
+    for (let i = 0; i < messages.length; i++) {
+      const rawContent = messages[i].content;
+      const content: string = typeof rawContent === 'string'
+        ? rawContent
+        : JSON.stringify(rawContent);
+      let idx = 0;
+      while (idx < content.length) {
+        const found = content.toLowerCase().indexOf(lower, idx);
+        if (found === -1) break;
+        matches.push({ msgIdx: i, charIdx: found });
+        idx = found + 1;
+      }
+    }
+    setSearchMatches(matches);
+    setSearchFocusIdx(matches.length > 0 ? 0 : -1);
+  }, [messages]);
+
+  const handleSearchNext = useCallback(() => {
+    if (searchMatches.length === 0) return;
+    setSearchFocusIdx((prev) => (prev + 1) % searchMatches.length);
+  }, [searchMatches]);
+
+  const handleSearchPrev = useCallback(() => {
+    if (searchMatches.length === 0) return;
+    setSearchFocusIdx((prev) => (prev - 1 + searchMatches.length) % searchMatches.length);
+  }, [searchMatches]);
 
   // ── Mode cycling ──
   const handleModeChange = useCallback((nextMode: InputMode) => {
@@ -295,6 +357,27 @@ export const REPL: React.FC<REPLProps> = ({
         )}
       </Box>
 
+      {/* ── Background tasks indicator ── */}
+      {backgroundAgents.length > 0 && (
+        <Box flexShrink={0}>
+          <BackgroundTaskStatus tasks={backgroundAgents} />
+        </Box>
+      )}
+
+      {/* ── Todo list (agent task tracking) ── */}
+      {todos.length > 0 && (
+        <Box flexShrink={0} paddingX={1}>
+          <TaskList
+            tasks={todos.map((t) => ({
+              id: t.id,
+              label: t.subject,
+              status: t.status === 'completed' ? 'completed' :
+                      t.status === 'in_progress' ? 'running' : 'pending',
+            }))}
+          />
+        </Box>
+      )}
+
       {/* ── Bottom section: pinned footer, fixed height, NEVER shrinks ── */}
       <Box flexDirection="column" flexShrink={0} width="100%" height={FOOTER_RESERVE} overflow="hidden">
         <Box flexDirection="column" width="100%">
@@ -328,6 +411,8 @@ export const REPL: React.FC<REPLProps> = ({
               vimEnabled={vimEnabled}
               vimMode={vimMode}
               onVimModeChange={(m) => setAppState({ vimMode: m })}
+              commandSuggestions={commandSuggestions}
+              gitSuggestions={getGitSuggestions()}
             />
           </Box>
 
@@ -339,6 +424,9 @@ export const REPL: React.FC<REPLProps> = ({
               tokensBudget={tokenUsage?.budget ?? 0}
               hints={shortcutHints}
               status={statusText}
+              writeMode={writeMode}
+              planMode={mode === 'plan'}
+              checkpointId={checkpoint?.id}
             />
           </Box>
         </Box>
@@ -403,15 +491,51 @@ export const REPL: React.FC<REPLProps> = ({
           onCancel={() => setAppState({ showBypassPermissions: false })}
         />
       )}
+      {showSessionPicker && (
+        <SessionPicker
+          sessions={sessionList}
+          onSelect={(sessionId) => {
+            setAppState({ showSessionPicker: false, loading: true, statusText: `Resuming session ${sessionId}...` });
+            // Trigger resume via the same path as /resume <id>
+            import('../core/session/manager.js').then(({ loadSession }) => {
+              const snapshot = loadSession('.', sessionId);
+              if (snapshot) {
+                setAppState({
+                  sessionId: snapshot.id,
+                  messages: snapshot.messages,
+                  agentHistory: snapshot.history,
+                  writeMode: snapshot.writeMode as 'staging' | 'direct',
+                  permissionMode: snapshot.permissionMode,
+                  effortLevel: snapshot.effortLevel,
+                  plan: snapshot.plan,
+                  sessionTitle: snapshot.title,
+                  loading: false,
+                  statusText: undefined,
+                });
+              } else {
+                setAppState({ loading: false, statusText: 'Session not found' });
+              }
+            });
+          }}
+          onCancel={() => setAppState({ showSessionPicker: false })}
+        />
+      )}
       {showGlobalSearch && (
         <GlobalSearchDialog
           query={searchQuery}
-          onQueryChange={(q) => setAppState({ searchQuery: q })}
-          matchCount={0}
-          focusIndex={0}
-          onNextMatch={() => {}}
-          onPrevMatch={() => {}}
-          onClose={() => setAppState({ showGlobalSearch: false, searchQuery: '' })}
+          onQueryChange={(q) => {
+            setAppState({ searchQuery: q });
+            updateSearchMatches(q);
+          }}
+          matchCount={searchMatches.length}
+          focusIndex={searchFocusIdx}
+          onNextMatch={handleSearchNext}
+          onPrevMatch={handleSearchPrev}
+          onClose={() => {
+            setAppState({ showGlobalSearch: false, searchQuery: '' });
+            setSearchMatches([]);
+            setSearchFocusIdx(0);
+          }}
         />
       )}
       {showTranscript && (

@@ -45,7 +45,10 @@ async function rememberHandler(
     };
   }
   try {
-    addProjectMemory(ctx.projectRoot, key.trim(), value);
+    const namespacedKey = ctx.memoryNamespace
+      ? `${ctx.memoryNamespace}/${key.trim()}`
+      : key.trim();
+    addProjectMemory(ctx.projectRoot, namespacedKey, value);
   } catch (e) {
     return {
       content: `remember: failed to write memory: ${(e as Error).message}`,
@@ -72,8 +75,15 @@ async function recallHandler(
   const session = getSessionMemory(ctx.projectRoot);
   const all = [...project.entries, ...session.entries];
 
+  // Filter by namespace if set
+  const namespacePrefix = ctx.memoryNamespace ? `${ctx.memoryNamespace}/` : undefined;
+  const scoped = namespacePrefix
+    ? all.filter((e) => e.key.startsWith(namespacePrefix) || !e.key.includes('/'))
+    : all;
+
   if (key) {
-    const hit = all.find((e) => e.key === key);
+    const namespacedKey = namespacePrefix ? `${namespacePrefix}${key}` : key;
+    const hit = all.find((e) => e.key === namespacedKey || e.key === key);
     if (!hit) {
       return { content: `recall: no memory for "${key}"` };
     }
@@ -82,10 +92,10 @@ async function recallHandler(
       structured: { key: hit.key, value: hit.value },
     };
   }
-  if (all.length === 0) {
+  if (scoped.length === 0) {
     return { content: 'recall: no memory entries.' };
   }
-  const lines = all.map((e) => `- ${e.key}: ${e.value}`);
+  const lines = scoped.map((e) => `- ${e.key}: ${e.value}`);
   return {
     content: lines.join('\n'),
     structured: { count: all.length },

@@ -41,7 +41,7 @@ type Props = PropsWithChildren<{
   mouseTracking?: boolean;
   /** Enable bracketed paste mode. Default true. */
   bracketedPaste?: boolean;
-  /** Enable focus event reporting. Default true. */
+  /** Enable focus event reporting. Default false (causes stdin conflicts on Windows). */
   focusEvents?: boolean;
 }>;
 
@@ -63,9 +63,9 @@ function writeRaw(sequence: string): void {
  */
 export const AlternateScreen: React.FC<Props> = ({
   children,
-  mouseTracking = true,
+  mouseTracking = false,
   bracketedPaste = true,
-  focusEvents = true,
+  focusEvents = false,
 }) => {
   const { height } = useTerminalSize();
   const shouldEnableMouse = mouseTracking && isMouseTrackingEnabled();
