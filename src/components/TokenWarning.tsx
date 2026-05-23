@@ -24,11 +24,7 @@ export interface TokenWarningProps {
 
 // ── Component ──────────────────────────────────────────
 
-export const TokenWarning: React.FC<TokenWarningProps> = ({
-  used,
-  budget,
-  threshold = 0.8,
-}) => {
+export const TokenWarning: React.FC<TokenWarningProps> = ({ used, budget, threshold = 0.8 }) => {
   const ratio = budget > 0 ? used / budget : 0;
   const percentage = Math.round(ratio * 100);
 
@@ -43,14 +39,14 @@ export const TokenWarning: React.FC<TokenWarningProps> = ({
     : `Token usage at ${percentage}%. Consider compacting history.`;
 
   return (
-    <Box
-      flexDirection="row"
-      gap={1}
-      paddingX={1}
-    >
+    <Box flexDirection="row" gap={1} paddingX={1}>
       <Text color={color}>{icon}</Text>
-      <Text color={color} bold>{message}</Text>
-      <Text dimColor>{(used / 1000).toFixed(1)}K / {(budget / 1000).toFixed(0)}K</Text>
+      <Text color={color} bold>
+        {message}
+      </Text>
+      <Text dimColor>
+        {(used / 1000).toFixed(1)}K / {(budget / 1000).toFixed(0)}K
+      </Text>
     </Box>
   );
 };

@@ -1,24 +1,21 @@
 /**
  * Memory tools: `remember` (write) and `recall` (read).
  *
- * Memory is stored under `<projectRoot>/.spark-cli/memory/project.json` and
+ * Memory is stored under `<projectRoot>/.spark/memory/project.json` and
  * surfaced into every system prompt via `formatMemoryForPrompt`. The agent
  * can persist load-bearing facts ("user prefers Cocos Creator 3.8", "scene
  * file lives at assets/scenes/Main.scene") so future sessions don't have to
  * rediscover them.
  *
  * `remember` mutates project memory but is not a destructive write (no fs
- * change outside `.spark-cli`); we still mark `mutates: true` so plan mode
+ * change outside `.spark`); we still mark `mutates: true` so plan mode
  * blocks it without an explicit skill grant.
  */
 
 import type { RegisteredTool, ToolContext, ToolResult } from '../tool-registry.js';
-import {
-  addProjectMemory,
-  getProjectMemory,
-  getSessionMemory,
-} from '../../memory/store.js';
+import { addProjectMemory, getProjectMemory, getSessionMemory } from '../../memory/store.js';
 import { appendReplayEvent } from '../../replay/log.js';
+import { getErrorMessage } from '../../../utils/errors.js';
 
 const MAX_KEY_LEN = 128;
 const MAX_VALUE_LEN = 4096;
@@ -45,13 +42,11 @@ async function rememberHandler(
     };
   }
   try {
-    const namespacedKey = ctx.memoryNamespace
-      ? `${ctx.memoryNamespace}/${key.trim()}`
-      : key.trim();
+    const namespacedKey = ctx.memoryNamespace ? `${ctx.memoryNamespace}/${key.trim()}` : key.trim();
     addProjectMemory(ctx.projectRoot, namespacedKey, value);
   } catch (e) {
     return {
-      content: `remember: failed to write memory: ${(e as Error).message}`,
+      content: `remember: failed to write memory: ${getErrorMessage(e)}`,
       isError: true,
     };
   }
@@ -66,10 +61,7 @@ async function rememberHandler(
   };
 }
 
-async function recallHandler(
-  args: Record<string, unknown>,
-  ctx: ToolContext,
-): Promise<ToolResult> {
+async function recallHandler(args: Record<string, unknown>, ctx: ToolContext): Promise<ToolResult> {
   const key = typeof args.key === 'string' ? args.key.trim() : '';
   const project = getProjectMemory(ctx.projectRoot);
   const session = getSessionMemory(ctx.projectRoot);

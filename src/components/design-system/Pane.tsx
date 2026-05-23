@@ -32,9 +32,7 @@ export const Pane: React.FC<PaneProps> = ({
   width,
   children,
 }) => {
-  const borderProps = borderStyle !== 'none'
-    ? { borderStyle, borderColor }
-    : {};
+  const borderProps = borderStyle !== 'none' ? { borderStyle, borderColor } : {};
 
   return (
     <Box
@@ -46,7 +44,9 @@ export const Pane: React.FC<PaneProps> = ({
     >
       {title && (
         <Box paddingBottom={1}>
-          <Text bold color={borderColor}>{title}</Text>
+          <Text bold color={borderColor}>
+            {title}
+          </Text>
         </Box>
       )}
       {children}

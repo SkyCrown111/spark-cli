@@ -41,20 +41,20 @@ function normalizeKey(raw: string): string {
 
   // Common aliases
   const aliases: Record<string, string> = {
-    'return': 'enter',
-    'esc': 'escape',
-    'del': 'delete',
-    'backspace': 'back',
-    'space': ' ',
-    'pageup': 'pageup',
-    'pagedown': 'pagedown',
-    'home': 'home',
-    'end': 'end',
-    'insert': 'insert',
-    'uparrow': 'up',
-    'downarrow': 'down',
-    'leftarrow': 'left',
-    'rightarrow': 'right',
+    return: 'enter',
+    esc: 'escape',
+    del: 'delete',
+    backspace: 'back',
+    space: ' ',
+    pageup: 'pageup',
+    pagedown: 'pagedown',
+    home: 'home',
+    end: 'end',
+    insert: 'insert',
+    uparrow: 'up',
+    downarrow: 'down',
+    leftarrow: 'left',
+    rightarrow: 'right',
   };
 
   return aliases[key] ?? key;

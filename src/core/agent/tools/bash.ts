@@ -86,10 +86,7 @@ export async function runShell(
     let timedOut = false;
     let aborted = false;
 
-    const append = (
-      chunk: Buffer,
-      target: 'stdout' | 'stderr',
-    ): void => {
+    const append = (chunk: Buffer, target: 'stdout' | 'stderr'): void => {
       const text = chunk.toString('utf8');
       const cur = target === 'stdout' ? stdout.length : stderr.length;
       const remaining = maxOutputBytes - cur;
@@ -155,10 +152,7 @@ export async function runShell(
   });
 }
 
-async function handler(
-  args: Record<string, unknown>,
-  ctx: ToolContext,
-): Promise<ToolResult> {
+async function handler(args: Record<string, unknown>, ctx: ToolContext): Promise<ToolResult> {
   const command = args.command;
   const defaultTimeout = getTimeoutDefault(ctx);
   const timeoutArg = typeof args.timeout_ms === 'number' ? args.timeout_ms : defaultTimeout;
@@ -170,11 +164,7 @@ async function handler(
 
   let env: Record<string, string> | undefined;
   if (args.env !== undefined) {
-    if (
-      typeof args.env !== 'object' ||
-      args.env === null ||
-      Array.isArray(args.env)
-    ) {
+    if (typeof args.env !== 'object' || args.env === null || Array.isArray(args.env)) {
       return { content: 'bash: `env` must be an object of string→string', isError: true };
     }
     env = {};

@@ -7,6 +7,7 @@
  */
 
 import chalk from 'chalk';
+import { logger } from '../utils/logger.js';
 import type { GlobalOptions } from '../utils/output.js';
 import { resolveProjectRoot } from '../utils/output.js';
 import { readStdinPipe } from '../utils/stdin.js';
@@ -37,9 +38,7 @@ export async function runPrint(
 
   // Merge pipe input with prompt if stdin is piped
   const piped = await readStdinPipe();
-  const fullPrompt = piped
-    ? `${piped}\n\n---\nUser prompt: ${prompt}`
-    : prompt;
+  const fullPrompt = piped ? `${piped}\n\n---\nUser prompt: ${prompt}` : prompt;
 
   // Resolve active agent
   let agentSystemAppend: string | undefined;
@@ -55,14 +54,13 @@ export async function runPrint(
         agentAllowedTools = new Set(agentDef.allowedTools);
       }
     } else {
-      console.warn(chalk.yellow(`Agent "${opts.agent}" not found, using default.`));
+      logger.warn(chalk.yellow(`Agent "${opts.agent}" not found, using default.`));
     }
   }
 
   // Merge agent system prompt with any user-provided append
-  const mergedAppend = [printOpts.appendSystemPrompt, agentSystemAppend]
-    .filter(Boolean)
-    .join('\n\n') || undefined;
+  const mergedAppend =
+    [printOpts.appendSystemPrompt, agentSystemAppend].filter(Boolean).join('\n\n') || undefined;
 
   const result = await runAgentTurnForCli({
     globalOpts: opts,
@@ -82,50 +80,43 @@ export async function runPrint(
   });
 
   if (opts.json) {
-    console.log(
-      JSON.stringify({
-        model: result.model,
-        stopReason: result.stopReason,
-        iterations: result.iterations,
-        content: result.finalContent,
-        toolCalls: result.toolCalls.map((c) => ({
-          tool: c.tool,
-          isError: c.result.isError ?? false,
-          durationMs: c.durationMs,
-        })),
-        usage: result.usage,
-      }),
-    );
+    logger.json({
+      model: result.model,
+      stopReason: result.stopReason,
+      iterations: result.iterations,
+      content: result.finalContent,
+      toolCalls: result.toolCalls.map((c) => ({
+        tool: c.tool,
+        isError: c.result.isError ?? false,
+        durationMs: c.durationMs,
+      })),
+      usage: result.usage,
+    });
     return;
   }
 
   // Plain text output
   if (result.finalContent) {
-    console.log(result.finalContent);
+    logger.info(result.finalContent);
   }
   if (result.toolCalls.length > 0) {
     const ok = result.toolCalls.filter((c) => !c.result.isError).length;
     const err = result.toolCalls.length - ok;
-    const summary =
-      err > 0 ? `${ok} ok, ${err} error${err > 1 ? 's' : ''}` : `${ok} ok`;
-    console.log(
+    const summary = err > 0 ? `${ok} ok, ${err} error${err > 1 ? 's' : ''}` : `${ok} ok`;
+    logger.info(
       chalk.dim(
         `  ${result.toolCalls.length} tool call(s) (${summary}) · ${result.iterations} iteration(s) · model ${result.model}`,
       ),
     );
   }
   if (result.stopReason === 'iteration_cap') {
-    console.log(
+    logger.info(
       chalk.yellow(
         `⚠ Reached iteration cap (${result.iterations}). Re-run with --max-turns to increase.`,
       ),
     );
   }
   if (result.stopReason === 'budget_cap') {
-    console.log(
-      chalk.yellow(
-        `⚠ Budget cap reached. Re-run with --max-budget-usd to increase.`,
-      ),
-    );
+    logger.info(chalk.yellow(`⚠ Budget cap reached. Re-run with --max-budget-usd to increase.`));
   }
 }

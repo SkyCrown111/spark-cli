@@ -3,9 +3,7 @@ import { parseFigmaUrl } from './figma-import.js';
 
 describe('figma-import', () => {
   it('parses design URL with node-id', () => {
-    const parts = parseFigmaUrl(
-      'https://www.figma.com/design/AbCdEf12/My-File?node-id=1-234',
-    );
+    const parts = parseFigmaUrl('https://www.figma.com/design/AbCdEf12/My-File?node-id=1-234');
     expect(parts.fileKey).toBe('AbCdEf12');
     expect(parts.nodeId).toBe('1:234');
   });

@@ -53,72 +53,83 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
   // Register Settings context
   useRegisterKeybindingContext('Settings');
 
-  const options = useMemo<SelectOption[]>(() => [
-    {
-      value: 'writeMode',
-      label: `Write Mode: ${writeMode === 'direct' ? 'Direct (auto-apply)' : 'Staging (review first)'}`,
-      description: writeMode === 'direct'
-        ? 'Files are written directly to your project'
-        : 'Files go to staging area, review before applying',
-    },
-    {
-      value: 'permissionMode',
-      label: `Permission Mode: ${permissionMode}`,
-      description: PERMISSION_MODE_DESCRIPTIONS[permissionMode],
-    },
-    {
-      value: 'vimEnabled',
-      label: `Vim Mode: ${vimEnabled ? 'On' : 'Off'}`,
-      description: vimEnabled
-        ? 'Use vim-style navigation in input (h/j/k/l)'
-        : 'Standard input mode',
-    },
-    {
-      value: 'companionEnabled',
-      label: `Companion Sprite: ${companionEnabled ? 'On' : 'Off'}`,
-      description: companionEnabled
-        ? 'Show companion mascot animations'
-        : 'Hide companion mascot',
-    },
-    {
-      value: 'close',
-      label: 'Close Settings',
-      description: 'Return to chat',
-    },
-  ], [writeMode, permissionMode, vimEnabled, companionEnabled]);
+  const options = useMemo<SelectOption[]>(
+    () => [
+      {
+        value: 'writeMode',
+        label: `Write Mode: ${writeMode === 'direct' ? 'Direct (auto-apply)' : 'Staging (review first)'}`,
+        description:
+          writeMode === 'direct'
+            ? 'Files are written directly to your project'
+            : 'Files go to staging area, review before applying',
+      },
+      {
+        value: 'permissionMode',
+        label: `Permission Mode: ${permissionMode}`,
+        description: PERMISSION_MODE_DESCRIPTIONS[permissionMode],
+      },
+      {
+        value: 'vimEnabled',
+        label: `Vim Mode: ${vimEnabled ? 'On' : 'Off'}`,
+        description: vimEnabled
+          ? 'Use vim-style navigation in input (h/j/k/l)'
+          : 'Standard input mode',
+      },
+      {
+        value: 'companionEnabled',
+        label: `Companion Sprite: ${companionEnabled ? 'On' : 'Off'}`,
+        description: companionEnabled
+          ? 'Show companion mascot animations'
+          : 'Hide companion mascot',
+      },
+      {
+        value: 'close',
+        label: 'Close Settings',
+        description: 'Return to chat',
+      },
+    ],
+    [writeMode, permissionMode, vimEnabled, companionEnabled],
+  );
 
-  const handleSelect = useCallback((value: string) => {
-    if (value === 'close') {
-      onClose();
-      return;
-    }
+  const handleSelect = useCallback(
+    (value: string) => {
+      if (value === 'close') {
+        onClose();
+        return;
+      }
 
-    // Toggle settings
-    if (value === 'writeMode') {
-      onSettingChange('writeMode', writeMode === 'staging' ? 'direct' : 'staging');
-    } else if (value === 'permissionMode') {
-      const modes: PermissionMode[] = ['default', 'acceptEdits', 'plan', 'auto', 'dontAsk', 'bypass'];
-      const nextIdx = modes.indexOf(permissionMode) + 1;
-      onSettingChange('permissionMode', modes[nextIdx % modes.length]);
-    } else if (value === 'vimEnabled') {
-      onSettingChange('vimEnabled', !vimEnabled);
-    } else if (value === 'companionEnabled') {
-      onSettingChange('companionEnabled', !companionEnabled);
-    }
-  }, [writeMode, permissionMode, vimEnabled, companionEnabled, onSettingChange, onClose]);
+      // Toggle settings
+      if (value === 'writeMode') {
+        onSettingChange('writeMode', writeMode === 'staging' ? 'direct' : 'staging');
+      } else if (value === 'permissionMode') {
+        const modes: PermissionMode[] = [
+          'default',
+          'acceptEdits',
+          'plan',
+          'auto',
+          'dontAsk',
+          'bypass',
+        ];
+        const nextIdx = modes.indexOf(permissionMode) + 1;
+        onSettingChange('permissionMode', modes[nextIdx % modes.length]);
+      } else if (value === 'vimEnabled') {
+        onSettingChange('vimEnabled', !vimEnabled);
+      } else if (value === 'companionEnabled') {
+        onSettingChange('companionEnabled', !companionEnabled);
+      }
+    },
+    [writeMode, permissionMode, vimEnabled, companionEnabled, onSettingChange, onClose],
+  );
 
   return (
     <Box flexDirection="column" paddingX={2}>
       <Box paddingBottom={1}>
-        <Text bold color="cyan">Settings</Text>
+        <Text bold color="cyan">
+          Settings
+        </Text>
       </Box>
 
-      <CustomSelect
-        options={options}
-        onSelect={handleSelect}
-        onCancel={onClose}
-        maxVisible={8}
-      />
+      <CustomSelect options={options} onSelect={handleSelect} onCancel={onClose} maxVisible={8} />
     </Box>
   );
 };

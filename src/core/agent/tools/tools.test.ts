@@ -43,10 +43,10 @@ describe('read_file', () => {
     expect(r.content).toMatch(/escapes/i);
   });
 
-  it('refuses paths inside .spark-cli/', async () => {
-    const r = await readFileTool.handler({ path: '.spark-cli/staging/manifest.json' }, ctx());
+  it('refuses paths inside .spark/', async () => {
+    const r = await readFileTool.handler({ path: '.spark/staging/manifest.json' }, ctx());
     expect(r.isError).toBe(true);
-    expect(r.content).toMatch(/\.spark-cli/);
+    expect(r.content).toMatch(/\.spark\//);
   });
 
   it('accepts Unix-style /assets/ paths on Windows', async () => {
@@ -83,13 +83,10 @@ describe('resolveProjectPath', () => {
 
 describe('write_file', () => {
   it('stages by default and does not touch the project tree', async () => {
-    const r = await writeFileTool.handler(
-      { path: 'src/Hello.ts', content: '// hi\n' },
-      ctx(),
-    );
+    const r = await writeFileTool.handler({ path: 'src/Hello.ts', content: '// hi\n' }, ctx());
     expect(r.isError).toBeFalsy();
     expect(existsSync(join(projectRoot, 'src/Hello.ts'))).toBe(false);
-    const staged = join(projectRoot, '.spark-cli/staging/files/src/Hello.ts');
+    const staged = join(projectRoot, '.spark/staging/files/src/Hello.ts');
     expect(existsSync(staged)).toBe(true);
     expect(readFileSync(staged, 'utf8')).toBe('// hi\n');
   });
@@ -112,10 +109,7 @@ describe('edit_file', () => {
       ctx(),
     );
     expect(r.isError).toBeFalsy();
-    const staged = readFileSync(
-      join(projectRoot, '.spark-cli/staging/files/src/x.ts'),
-      'utf8',
-    );
+    const staged = readFileSync(join(projectRoot, '.spark/staging/files/src/x.ts'), 'utf8');
     expect(staged).toContain('"new"');
   });
 
@@ -161,11 +155,13 @@ describe('list_dir', () => {
     writeFileSync(join(projectRoot, 'a.txt'), 'hello', 'utf8');
     mkdirSync(join(projectRoot, 'sub'));
     mkdirSync(join(projectRoot, '.git'));
+    mkdirSync(join(projectRoot, '.spark'));
     const r = await listDirTool.handler({ path: '.' }, ctx());
     expect(r.isError).toBeFalsy();
     expect(r.content).toMatch(/a\.txt\s+\(5 bytes\)/);
     expect(r.content).toMatch(/sub\/\s+\(dir\)/);
     expect(r.content).not.toMatch(/\.git/);
+    expect(r.content).not.toMatch(/\.spark/);
   });
 });
 
@@ -181,16 +177,21 @@ describe('glob', () => {
     expect(r.content).toContain('src/nested/c.ts');
     expect(r.content).not.toContain('b.js');
   });
+
+  it('skips files under .spark', async () => {
+    mkdirSync(join(projectRoot, '.spark'), { recursive: true });
+    writeFileSync(join(projectRoot, '.spark', 'hidden.ts'), '', 'utf8');
+    const r = await globTool.handler({ pattern: '**/*.ts' }, ctx());
+    expect(r.isError).toBeFalsy();
+    expect(r.content).not.toContain('.spark/hidden.ts');
+  });
 });
 
 describe('grep', () => {
   it('finds lines matching the regex', async () => {
     writeFileSync(join(projectRoot, 'src/a.ts'), 'function foo() {}\nconst bar = 1;\n', 'utf8');
     writeFileSync(join(projectRoot, 'src/b.ts'), 'function baz() {}\n', 'utf8');
-    const r = await grepTool.handler(
-      { pattern: 'function\\s+\\w+', glob: 'src/**/*.ts' },
-      ctx(),
-    );
+    const r = await grepTool.handler({ pattern: 'function\\s+\\w+', glob: 'src/**/*.ts' }, ctx());
     expect(r.isError).toBeFalsy();
     expect(r.content).toMatch(/src\/a\.ts:1:.*foo/);
     expect(r.content).toMatch(/src\/b\.ts:1:.*baz/);
@@ -198,10 +199,7 @@ describe('grep', () => {
 
   it('returns no matches gracefully', async () => {
     writeFileSync(join(projectRoot, 'src/a.ts'), 'nothing here\n', 'utf8');
-    const r = await grepTool.handler(
-      { pattern: 'XYZNOMATCH', glob: 'src/**/*.ts' },
-      ctx(),
-    );
+    const r = await grepTool.handler({ pattern: 'XYZNOMATCH', glob: 'src/**/*.ts' }, ctx());
     expect(r.isError).toBeFalsy();
     expect(r.content).toMatch(/no matches/);
   });

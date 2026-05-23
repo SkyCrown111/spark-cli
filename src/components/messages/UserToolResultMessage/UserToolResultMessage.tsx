@@ -58,23 +58,37 @@ export const UserToolResultMessage: React.FC<UserToolResultMessageProps> = ({
       return <UserToolCanceledMessage toolLabel={toolLabel} content={route.cleanContent} />;
 
     case 'rejected-plan':
-      return <UserToolRejectMessage toolLabel={`${toolLabel} (plan)`} content={route.cleanContent} />;
+      return (
+        <UserToolRejectMessage toolLabel={`${toolLabel} (plan)`} content={route.cleanContent} />
+      );
 
     case 'rejected-tool-use':
-      return <UserToolRejectMessage toolLabel={`${toolLabel} (tool)`} content={route.cleanContent} />;
+      return (
+        <UserToolRejectMessage toolLabel={`${toolLabel} (tool)`} content={route.cleanContent} />
+      );
 
     case 'success':
-      return <UserToolSuccessMessage toolLabel={toolLabel} content={route.cleanContent} expanded={expanded} />;
+      return (
+        <UserToolSuccessMessage
+          toolLabel={toolLabel}
+          content={route.cleanContent}
+          expanded={expanded}
+        />
+      );
 
     case 'fallback':
     default:
       return (
         <Box flexDirection="column" marginY={1}>
           <Box>
-            <Text bold color="gray">? {toolLabel}</Text>
+            <Text bold color="gray">
+              ? {toolLabel}
+            </Text>
           </Box>
           <Box paddingLeft={2}>
-            <Text dimColor wrap="wrap">{content}</Text>
+            <Text dimColor wrap="wrap">
+              {content}
+            </Text>
           </Box>
         </Box>
       );

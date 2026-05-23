@@ -46,11 +46,32 @@ function stagedFilePath(projectRoot: string, relativePath: string): string {
 function inferFileKindFromPath(relativePath: string): 'text' | 'binary' {
   const ext = extname(relativePath).toLowerCase();
   return new Set([
-    '.png', '.jpg', '.jpeg', '.gif', '.webp', '.bmp', '.ico',
-    '.wav', '.mp3', '.ogg', '.m4a', '.aac', '.flac',
-    '.ttf', '.otf', '.woff', '.woff2',
-    '.zip', '.gz', '.7z', '.rar', '.pdf',
-    '.mp4', '.mov', '.avi', '.webm',
+    '.png',
+    '.jpg',
+    '.jpeg',
+    '.gif',
+    '.webp',
+    '.bmp',
+    '.ico',
+    '.wav',
+    '.mp3',
+    '.ogg',
+    '.m4a',
+    '.aac',
+    '.flac',
+    '.ttf',
+    '.otf',
+    '.woff',
+    '.woff2',
+    '.zip',
+    '.gz',
+    '.7z',
+    '.rar',
+    '.pdf',
+    '.mp4',
+    '.mov',
+    '.avi',
+    '.webm',
   ]).has(ext)
     ? 'binary'
     : 'text';
@@ -71,8 +92,13 @@ function validateStagedRelativePath(projectRoot: string, relativePath: string): 
   ) {
     throw new SparkCLIError(`Staged path escapes the project root: ${relativePath}`, 1);
   }
-  if (normalized === '.spark-cli' || normalized.startsWith('.spark-cli/')) {
-    throw new SparkCLIError(`Refusing to stage internal SparkCLI path: ${relativePath}`, 1);
+  if (
+    normalized === '.spark' ||
+    normalized.startsWith('.spark/') ||
+    normalized === '.spark-cli' ||
+    normalized.startsWith('.spark-cli/')
+  ) {
+    throw new SparkCLIError(`Refusing to stage internal Spark path: ${relativePath}`, 1);
   }
 
   const projectAbs = resolve(projectRoot);
@@ -134,11 +160,7 @@ function upsertManifestFile(projectRoot: string, entry: StagedFile): void {
   saveManifest(projectRoot, manifest);
 }
 
-export function stageWriteFile(
-  projectRoot: string,
-  relativePath: string,
-  content: string,
-): void {
+export function stageWriteFile(projectRoot: string, relativePath: string, content: string): void {
   const safePath = validateStagedRelativePath(projectRoot, relativePath);
   ensureManifest(projectRoot);
   const target = join(projectRoot, safePath);
@@ -156,11 +178,7 @@ export function stageWriteFile(
 }
 
 /** Stage binary content (audio, images) without UTF-8 coercion. */
-export function stageWriteBuffer(
-  projectRoot: string,
-  relativePath: string,
-  content: Buffer,
-): void {
+export function stageWriteBuffer(projectRoot: string, relativePath: string, content: Buffer): void {
   const safePath = validateStagedRelativePath(projectRoot, relativePath);
   ensureManifest(projectRoot);
   const target = join(projectRoot, safePath);
@@ -228,12 +246,7 @@ export function showDiff(projectRoot: string): string {
     }
     const oldContent = existsSync(target) ? readFileSync(target, 'utf8') : '';
     const newContent = existsSync(staged) ? readFileSync(staged, 'utf8') : '';
-    const patch = createTwoFilesPatch(
-      file.path,
-      file.path + ' (staged)',
-      oldContent,
-      newContent,
-    );
+    const patch = createTwoFilesPatch(file.path, file.path + ' (staged)', oldContent, newContent);
     parts.push(patch);
   }
   return parts.join('\n');
@@ -269,7 +282,7 @@ export async function applyStaging(
     throw new SparkCLIError(
       `Apply blocked by before_apply hook: ${hookResult.reason ?? 'no reason given'}`,
       1,
-      ['Inspect .spark-cli/hooks/config.json or run with hooks disabled.'],
+      ['Inspect .spark/hooks/config.json or run with hooks disabled.'],
     );
   }
 
@@ -280,10 +293,7 @@ export async function applyStaging(
       const backupDir = join(getProjectSparkDir(projectRoot), 'backups');
       mkdirSync(backupDir, { recursive: true });
       const stamp = Date.now();
-      copyFileSync(
-        target,
-        join(backupDir, `${stamp}-${file.path.replace(/[/\\]/g, '_')}`),
-      );
+      copyFileSync(target, join(backupDir, `${stamp}-${file.path.replace(/[/\\]/g, '_')}`));
     }
     if (file.action === 'delete') {
       if (existsSync(target)) {

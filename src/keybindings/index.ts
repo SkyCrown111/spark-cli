@@ -19,11 +19,7 @@ export type {
 } from './types.js';
 
 // ── Default bindings ───────────────────────────────────
-export {
-  getDefaultKeybindings,
-  getBindingsForContext,
-  getAllActions,
-} from './defaultBindings.js';
+export { getDefaultKeybindings, getBindingsForContext, getAllActions } from './defaultBindings.js';
 
 // ── Parser ─────────────────────────────────────────────
 export type { KeyCombo, KeySequence } from './parser.js';
@@ -37,11 +33,7 @@ export {
 
 // ── Match ──────────────────────────────────────────────
 export type { InkKeyEvent } from './match.js';
-export {
-  inkEventToKeyCombo,
-  matchesKeyCombo,
-  findMatchingAction,
-} from './match.js';
+export { inkEventToKeyCombo, matchesKeyCombo, findMatchingAction } from './match.js';
 
 // ── Resolver ───────────────────────────────────────────
 export { KeybindingResolver } from './resolver.js';
@@ -67,11 +59,7 @@ export type { ValidationIssue, ValidationResult } from './validate.js';
 export { validateUserBindings } from './validate.js';
 
 // ── Schema ─────────────────────────────────────────────
-export {
-  keybindingsSchema,
-  exampleKeybindingsConfig,
-  generateTemplate,
-} from './schema.js';
+export { keybindingsSchema, exampleKeybindingsConfig, generateTemplate } from './schema.js';
 
 // ── Loading ────────────────────────────────────────────
 export {
@@ -83,10 +71,7 @@ export {
 
 // ── React Context ──────────────────────────────────────
 export type { KeybindingContextValue } from './KeybindingContext.js';
-export {
-  KeybindingProvider,
-  useKeybindingContext,
-} from './KeybindingContext.js';
+export { KeybindingProvider, useKeybindingContext } from './KeybindingContext.js';
 
 // ── Provider setup ─────────────────────────────────────
 export type { KeybindingProviderSetupProps } from './KeybindingProviderSetup.js';
@@ -94,19 +79,11 @@ export { KeybindingProviderSetup } from './KeybindingProviderSetup.js';
 
 // ── Hooks ──────────────────────────────────────────────
 export type { ActionBinding } from './useKeybinding.js';
-export {
-  useKeybinding,
-  useKeybindings,
-  useRegisterKeybindingContext,
-} from './useKeybinding.js';
+export { useKeybinding, useKeybindings, useRegisterKeybindingContext } from './useKeybinding.js';
 
 // ── Display hook ───────────────────────────────────────
 export type { ShortcutHint } from './useShortcutDisplay.js';
 export { useShortcutDisplay } from './useShortcutDisplay.js';
 
 // ── Template utilities ─────────────────────────────────
-export {
-  generateKeybindingTable,
-  generateActionList,
-  generateContextList,
-} from './template.js';
+export { generateKeybindingTable, generateActionList, generateContextList } from './template.js';

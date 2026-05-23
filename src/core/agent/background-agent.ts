@@ -2,8 +2,8 @@
  * Background agent management.
  *
  * Background agents run as separate OS processes (detached `spark-cli -p "prompt" --json`),
- * with their state persisted in `.spark-cli/agents/<id>.json` and logs as JSONL in
- * `.spark-cli/agents/<id>.log`.
+ * with their state persisted in `.spark/agents/<id>.json` and logs as JSONL in
+ * `.spark/agents/<id>.log`.
  *
  * Unlike `sub-agent.ts` (in-process child agents), background agents survive the
  * parent session and can be inspected / attached to later.
@@ -169,9 +169,7 @@ export async function startBackgroundAgent(
 /**
  * List all background agents for a project.
  */
-export function listBackgroundAgents(
-  projectRoot: string,
-): BackgroundAgentListItem[] {
+export function listBackgroundAgents(projectRoot: string): BackgroundAgentListItem[] {
   const dir = agentsDir(projectRoot);
   if (!existsSync(dir)) return [];
 
@@ -197,10 +195,7 @@ export function listBackgroundAgents(
 /**
  * Attach to a background agent: returns the full log output so far.
  */
-export function attachToAgent(
-  projectRoot: string,
-  id: string,
-): string {
+export function attachToAgent(projectRoot: string, id: string): string {
   const meta = readMeta(projectRoot, id);
   if (!meta) {
     throw new Error(`Agent ${id} not found`);
@@ -215,11 +210,7 @@ export function attachToAgent(
 /**
  * Get agent logs, optionally tailed to the last N lines.
  */
-export function getAgentLogs(
-  projectRoot: string,
-  id: string,
-  tail?: number,
-): string {
+export function getAgentLogs(projectRoot: string, id: string, tail?: number): string {
   const lp = logPath(projectRoot, id);
   if (!existsSync(lp)) {
     throw new Error(`No log file for agent ${id}`);
@@ -235,10 +226,7 @@ export function getAgentLogs(
 /**
  * Kill a running background agent by sending SIGTERM.
  */
-export function killBackgroundAgent(
-  projectRoot: string,
-  id: string,
-): boolean {
+export function killBackgroundAgent(projectRoot: string, id: string): boolean {
   const meta = readMeta(projectRoot, id);
   if (!meta || meta.status !== 'running') return false;
   try {

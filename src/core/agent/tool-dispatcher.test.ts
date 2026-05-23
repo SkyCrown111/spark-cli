@@ -3,11 +3,7 @@ import { mkdtempSync, existsSync, readFileSync, mkdirSync, writeFileSync } from 
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { dispatchToolCalls } from './tool-dispatcher.js';
-import {
-  createToolRegistry,
-  type ToolContext,
-  type ToolRegistry,
-} from './tool-registry.js';
+import { createToolRegistry, type ToolContext, type ToolRegistry } from './tool-registry.js';
 import type { ToolCall } from '../providers/types.js';
 import type { SparkCLIConfig } from '../../config/schema.js';
 import type { HookConfig } from '../hooks/config.js';
@@ -53,11 +49,7 @@ describe('dispatchToolCalls', () => {
       planModeAllowed: true,
       handler: async (args) => ({ content: `got:${JSON.stringify(args)}` }),
     });
-    const out = await dispatchToolCalls(
-      [makeCall('echo', { x: 1 })],
-      registry,
-      ctx(),
-    );
+    const out = await dispatchToolCalls([makeCall('echo', { x: 1 })], registry, ctx());
     expect(out).toHaveLength(1);
     expect(out[0]?.tool).toBe('echo');
     expect(out[0]?.result.content).toBe('got:{"x":1}');
@@ -98,11 +90,7 @@ describe('dispatchToolCalls', () => {
       },
     });
 
-    const dispatched = dispatchToolCalls(
-      [makeCall('a'), makeCall('b')],
-      registry,
-      ctx(),
-    );
+    const dispatched = dispatchToolCalls([makeCall('a'), makeCall('b')], registry, ctx());
 
     // Both handlers should be in-flight before either resolves.
     // Tick the microtask queue until both blockers register.
@@ -165,12 +153,9 @@ describe('dispatchToolCalls', () => {
     });
     const ac = new AbortController();
     ac.abort();
-    const out = await dispatchToolCalls(
-      [makeCall('echo')],
-      registry,
-      ctx(),
-      { abortSignal: ac.signal },
-    );
+    const out = await dispatchToolCalls([makeCall('echo')], registry, ctx(), {
+      abortSignal: ac.signal,
+    });
     expect(out[0]?.result.isError).toBe(true);
     expect(out[0]?.result.content).toMatch(/cancel/i);
   });
@@ -185,11 +170,7 @@ describe('dispatchToolCalls', () => {
         throw new Error('kaboom');
       },
     });
-    const out = await dispatchToolCalls(
-      [makeCall('boom')],
-      registry,
-      ctx(),
-    );
+    const out = await dispatchToolCalls([makeCall('boom')], registry, ctx());
     expect(out[0]?.result.isError).toBe(true);
     expect(out[0]?.result.content).toMatch(/kaboom/);
   });
@@ -207,7 +188,7 @@ describe('dispatchToolCalls', () => {
       registry,
       ctx({ agentId: 'agent-X' }),
     );
-    const logPath = join(projectRoot, '.spark-cli/replay-log.jsonl');
+    const logPath = join(projectRoot, '.spark/replay-log.jsonl');
     expect(existsSync(logPath)).toBe(true);
     const lines = readFileSync(logPath, 'utf8').trim().split('\n');
     expect(lines).toHaveLength(2);
@@ -230,18 +211,11 @@ describe('dispatchToolCalls', () => {
       planModeAllowed: true,
       handler: async () => ({ content: huge }),
     });
-    const out = await dispatchToolCalls(
-      [makeCall('big')],
-      registry,
-      ctx(),
-    );
+    const out = await dispatchToolCalls([makeCall('big')], registry, ctx());
     // Live history keeps the full content.
     expect(out[0]?.result.content).toBe(huge);
 
-    const log = readFileSync(
-      join(projectRoot, '.spark-cli/replay-log.jsonl'),
-      'utf8',
-    ).trim();
+    const log = readFileSync(join(projectRoot, '.spark/replay-log.jsonl'), 'utf8').trim();
     const ev = JSON.parse(log);
     expect(ev.data.result.truncated).toBe(true);
     expect(ev.data.result.content.length).toBeLessThan(huge.length);
@@ -259,11 +233,7 @@ describe('dispatchToolCalls', () => {
     // Inline node script as a hook that exits non-zero.
     const hookPath = join(projectRoot, 'block.js');
     mkdirSync(projectRoot, { recursive: true });
-    writeFileSync(
-      hookPath,
-      `process.stderr.write('forbidden'); process.exit(1);`,
-      'utf8',
-    );
+    writeFileSync(hookPath, `process.stderr.write('forbidden'); process.exit(1);`, 'utf8');
     const hooks: HookConfig = {
       hooks: [
         {
@@ -272,12 +242,7 @@ describe('dispatchToolCalls', () => {
         },
       ],
     };
-    const out = await dispatchToolCalls(
-      [makeCall('echo')],
-      registry,
-      ctx(),
-      { hooks },
-    );
+    const out = await dispatchToolCalls([makeCall('echo')], registry, ctx(), { hooks });
     expect(out[0]?.result.isError).toBe(true);
     expect(out[0]?.result.content).toMatch(/Blocked by pre_tool/);
   });

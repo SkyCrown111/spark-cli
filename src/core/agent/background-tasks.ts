@@ -143,10 +143,7 @@ export class BackgroundTaskManager {
     return Array.from(this.tasks.values()).map((t) => ({ ...t.info }));
   }
 
-  read(
-    id: string,
-    opts: { since?: 'start' | 'last' } = {},
-  ): BackgroundReadResult | null {
+  read(id: string, opts: { since?: 'start' | 'last' } = {}): BackgroundReadResult | null {
     const task = this.tasks.get(id);
     if (!task) return null;
     const since = opts.since ?? 'last';

@@ -3,13 +3,12 @@ import { join } from 'node:path';
 import chalk from 'chalk';
 import { detectEngine } from '../engines/registry.js';
 import { loadMergedConfig } from '../config/load.js';
-import {
-  createPlaytestSession,
-  serializePlaytestSession,
-} from '../core/playtest/protocol.js';
+import { createPlaytestSession, serializePlaytestSession } from '../core/playtest/protocol.js';
 import { replayPlaytestFile, comparePlaytestHashes } from '../core/playtest/runner.js';
+import { logger } from '../utils/logger.js';
 import type { GlobalOptions } from '../utils/output.js';
 import { printJson, resolveProjectRoot } from '../utils/output.js';
+import { getProjectSparkDir } from '../config/paths.js';
 
 export async function runPlaytestRecord(opts: GlobalOptions, scene?: string): Promise<number> {
   const root = resolveProjectRoot(opts);
@@ -19,8 +18,8 @@ export async function runPlaytestRecord(opts: GlobalOptions, scene?: string): Pr
     engine,
     scene: scene ?? 'assets/scenes/main.scene',
   });
-  const rel = `.spark-cli/playtests/record-${Date.now()}.json`;
-  const abs = join(root, rel);
+  const abs = join(getProjectSparkDir(root), 'playtests', `record-${Date.now()}.json`);
+  const rel = abs.replace(`${root}\\`, '').replace(`${root}/`, '');
   mkdirSync(join(abs, '..'), { recursive: true });
   writeFileSync(abs, serializePlaytestSession(session), 'utf8');
 
@@ -28,7 +27,7 @@ export async function runPlaytestRecord(opts: GlobalOptions, scene?: string): Pr
     printJson({ path: rel, session });
     return 0;
   }
-  console.log(chalk.green(`✓ Recorded ${rel}`));
+  logger.info(chalk.green(`✓ Recorded ${rel}`));
   return 0;
 }
 
@@ -45,7 +44,7 @@ export async function runPlaytestReplay(
     printJson(result);
     return result.ok ? 0 : 1;
   }
-  console.log(result.ok ? chalk.green('✓') : chalk.red('✗'), result.message);
+  logger.info(result.ok ? chalk.green('✓') : chalk.red('✗'), result.message);
   return result.ok ? 0 : 1;
 }
 
@@ -59,6 +58,6 @@ export async function runPlaytestCompare(
     printJson(result);
     return result.match ? 0 : 1;
   }
-  console.log(result.match ? chalk.green('✓') : chalk.red('✗'), result.message);
+  logger.info(result.match ? chalk.green('✓') : chalk.red('✗'), result.message);
   return result.match ? 0 : 1;
 }

@@ -17,7 +17,12 @@ vi.mock('node:fs', async () => {
 
 import { execSync } from 'node:child_process';
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs';
-import { createCheckpoint, rewindToCheckpoint, listCheckpoints, discardCheckpoint } from './checkpoint.js';
+import {
+  createCheckpoint,
+  rewindToCheckpoint,
+  listCheckpoints,
+  discardCheckpoint,
+} from './checkpoint.js';
 
 const mockExecSync = vi.mocked(execSync);
 const mockExistsSync = vi.mocked(existsSync);
@@ -53,7 +58,9 @@ describe('checkpoint', () => {
     });
 
     it('handles empty git working tree gracefully', async () => {
-      mockExecSync.mockImplementation(() => { throw new Error('nothing to stash'); });
+      mockExecSync.mockImplementation(() => {
+        throw new Error('nothing to stash');
+      });
 
       const result = await createCheckpoint(projectRoot);
 
@@ -74,9 +81,9 @@ describe('checkpoint', () => {
 
     it('returns true for checkpoint without stash ref', async () => {
       mockExistsSync.mockReturnValue(true);
-      mockReadFileSync.mockReturnValue(JSON.stringify([
-        { id: 'cp-test', timestamp: '2024-01-01T00:00:00Z' },
-      ]));
+      mockReadFileSync.mockReturnValue(
+        JSON.stringify([{ id: 'cp-test', timestamp: '2024-01-01T00:00:00Z' }]),
+      );
 
       const result = await rewindToCheckpoint(projectRoot, 'cp-test');
       expect(result).toBe(true);
@@ -84,9 +91,11 @@ describe('checkpoint', () => {
 
     it('pops stash and removes checkpoint on success', async () => {
       mockExistsSync.mockReturnValue(true);
-      mockReadFileSync.mockReturnValue(JSON.stringify([
-        { id: 'cp-test', timestamp: '2024-01-01T00:00:00Z', stashRef: 'stash@{0}' },
-      ]));
+      mockReadFileSync.mockReturnValue(
+        JSON.stringify([
+          { id: 'cp-test', timestamp: '2024-01-01T00:00:00Z', stashRef: 'stash@{0}' },
+        ]),
+      );
       mockExecSync.mockReturnValue('');
 
       const result = await rewindToCheckpoint(projectRoot, 'cp-test');
@@ -99,10 +108,14 @@ describe('checkpoint', () => {
 
     it('returns false when git stash pop fails', async () => {
       mockExistsSync.mockReturnValue(true);
-      mockReadFileSync.mockReturnValue(JSON.stringify([
-        { id: 'cp-test', timestamp: '2024-01-01T00:00:00Z', stashRef: 'stash@{0}' },
-      ]));
-      mockExecSync.mockImplementation(() => { throw new Error('conflict'); });
+      mockReadFileSync.mockReturnValue(
+        JSON.stringify([
+          { id: 'cp-test', timestamp: '2024-01-01T00:00:00Z', stashRef: 'stash@{0}' },
+        ]),
+      );
+      mockExecSync.mockImplementation(() => {
+        throw new Error('conflict');
+      });
 
       const result = await rewindToCheckpoint(projectRoot, 'cp-test');
       expect(result).toBe(false);
@@ -132,10 +145,12 @@ describe('checkpoint', () => {
 
     it('removes checkpoint from index', () => {
       mockExistsSync.mockReturnValue(true);
-      mockReadFileSync.mockReturnValue(JSON.stringify([
-        { id: 'cp-1', timestamp: '2024-01-01T00:00:00Z' },
-        { id: 'cp-2', timestamp: '2024-01-02T00:00:00Z' },
-      ]));
+      mockReadFileSync.mockReturnValue(
+        JSON.stringify([
+          { id: 'cp-1', timestamp: '2024-01-01T00:00:00Z' },
+          { id: 'cp-2', timestamp: '2024-01-02T00:00:00Z' },
+        ]),
+      );
 
       const result = discardCheckpoint(projectRoot, 'cp-1');
       expect(result).toBe(true);

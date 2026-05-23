@@ -13,6 +13,7 @@ import ora from 'ora';
 import chalk from 'chalk';
 import type { GlobalOptions } from '../utils/output.js';
 import { resolveProjectRoot } from '../utils/output.js';
+import { logger } from '../utils/logger.js';
 import { runAgentTurnForCli } from '../core/agent/run-turn.js';
 import type { ToolWriteMode } from '../core/agent/tool-registry.js';
 import { createAgentRegistry } from '../core/agents/registry.js';
@@ -48,7 +49,7 @@ export async function runChat(
         agentAllowedTools = new Set(agentDef.allowedTools);
       }
     } else {
-      console.warn(chalk.yellow(`Agent "${opts.agent}" not found, using default.`));
+      logger.warn(chalk.yellow(`Agent "${opts.agent}" not found, using default.`));
     }
   }
 
@@ -75,39 +76,36 @@ export async function runChat(
   spinner.stop();
 
   if (opts.json) {
-    console.log(
-      JSON.stringify({
-        model: result.model,
-        stopReason: result.stopReason,
-        iterations: result.iterations,
-        content: result.finalContent,
-        toolCalls: result.toolCalls.map((c) => ({
-          tool: c.tool,
-          isError: c.result.isError ?? false,
-          durationMs: c.durationMs,
-        })),
-        usage: result.usage,
-      }),
-    );
+    logger.json({
+      model: result.model,
+      stopReason: result.stopReason,
+      iterations: result.iterations,
+      content: result.finalContent,
+      toolCalls: result.toolCalls.map((c) => ({
+        tool: c.tool,
+        isError: c.result.isError ?? false,
+        durationMs: c.durationMs,
+      })),
+      usage: result.usage,
+    });
     return;
   }
 
   if (result.finalContent) {
-    console.log('\n' + result.finalContent + '\n');
+    logger.info('\n' + result.finalContent + '\n');
   }
   if (result.toolCalls.length > 0) {
     const ok = result.toolCalls.filter((c) => !c.result.isError).length;
     const err = result.toolCalls.length - ok;
-    const summary =
-      err > 0 ? `${ok} ok, ${err} error${err > 1 ? 's' : ''}` : `${ok} ok`;
-    console.log(
+    const summary = err > 0 ? `${ok} ok, ${err} error${err > 1 ? 's' : ''}` : `${ok} ok`;
+    logger.info(
       chalk.dim(
         `  ${result.toolCalls.length} tool call(s) (${summary}) · ${result.iterations} iteration(s) · model ${result.model}`,
       ),
     );
   }
   if (result.stopReason === 'iteration_cap') {
-    console.log(
+    logger.warn(
       chalk.yellow(
         `⚠ Reached iteration cap (${result.iterations}). Re-run with a more focused prompt or raise the cap.`,
       ),

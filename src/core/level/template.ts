@@ -1,11 +1,13 @@
 import type { LevelData, LevelEntity, LevelPath, LevelZone } from './types.js';
 
 function slug(name: string): string {
-  return name
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-|-$/g, '') || 'level';
+  return (
+    name
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-|-$/g, '') || 'level'
+  );
 }
 
 /** Deterministic level scaffold from a short natural-language hint (no LLM). */

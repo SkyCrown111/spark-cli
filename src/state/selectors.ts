@@ -39,20 +39,20 @@ export const selectIsPlanMode = (s: AppState) => s.plan.phase !== 'normal';
 /** Token usage as percentage (0–100) */
 export const selectTokenPercentage = (s: AppState) => {
   if (!s.tokenUsage) return 0;
-  return s.tokenUsage.budget > 0
-    ? Math.round((s.tokenUsage.used / s.tokenUsage.budget) * 100)
-    : 0;
+  return s.tokenUsage.budget > 0 ? Math.round((s.tokenUsage.used / s.tokenUsage.budget) * 100) : 0;
 };
 
 /** Formatted token usage string (e.g., "1.5K / 200K") */
 export const selectTokenDisplay = (s: AppState) => {
   if (!s.tokenUsage) return '';
-  const used = s.tokenUsage.used >= 1000
-    ? `${(s.tokenUsage.used / 1000).toFixed(1)}K`
-    : String(s.tokenUsage.used);
-  const budget = s.tokenUsage.budget >= 1000
-    ? `${(s.tokenUsage.budget / 1000).toFixed(0)}K`
-    : String(s.tokenUsage.budget);
+  const used =
+    s.tokenUsage.used >= 1000
+      ? `${(s.tokenUsage.used / 1000).toFixed(1)}K`
+      : String(s.tokenUsage.used);
+  const budget =
+    s.tokenUsage.budget >= 1000
+      ? `${(s.tokenUsage.budget / 1000).toFixed(0)}K`
+      : String(s.tokenUsage.budget);
   return `${used} / ${budget}`;
 };
 

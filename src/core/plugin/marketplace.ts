@@ -1,7 +1,7 @@
 /**
  * Plugin marketplace — local index of available plugins.
  *
- * Reads from `~/.spark-cli/plugin-index.json` or a bundled index.
+ * Reads from `~/.spark/plugin-index.json` or a bundled index.
  * Provides discovery, search, and metadata for available plugins.
  */
 

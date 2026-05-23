@@ -2,7 +2,7 @@
  * Skills registry.
  *
  * Skills are folder-based context packs:
- *   `<projectRoot>/.spark-cli/skills/<name>/SKILL.md`
+ *   `<projectRoot>/.spark/skills/<name>/SKILL.md`
  *
  * Each skill has YAML-ish frontmatter (`name`, `description`, `triggers`,
  * `allowedTools`) plus a markdown body. The agent system prompt scans for
@@ -47,9 +47,7 @@ export function createSkillRegistry(): SkillRegistry {
       return skills.get(name.toLowerCase());
     },
     list() {
-      return [...skills.values()].sort((a, b) =>
-        a.name.localeCompare(b.name),
-      );
+      return [...skills.values()].sort((a, b) => a.name.localeCompare(b.name));
     },
     findByTrigger(text) {
       const lower = text.toLowerCase();

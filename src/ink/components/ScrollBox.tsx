@@ -145,8 +145,7 @@ export const ScrollBox: React.FC<ScrollBoxProps> = ({
       return Math.max(0, rowCount - visibleRows);
     }
     return 0;
-  // Only compute on mount; subsequent changes handled by useEffect below
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // Only compute on mount; subsequent changes handled by useEffect below
   }, []);
 
   const [offset, setOffset] = useState(initialOffset);
@@ -289,25 +288,31 @@ export const ScrollBox: React.FC<ScrollBoxProps> = ({
   });
 
   // ── Imperative handle ──
-  const scrollTo = useCallback((newOffset: number) => {
-    const maxOff = Math.max(0, rowCount - visibleRows);
-    isStickyRef.current = newOffset >= maxOff;
-    setOffset(Math.max(0, Math.min(maxOff, newOffset)));
-  }, [rowCount, visibleRows]);
+  const scrollTo = useCallback(
+    (newOffset: number) => {
+      const maxOff = Math.max(0, rowCount - visibleRows);
+      isStickyRef.current = newOffset >= maxOff;
+      setOffset(Math.max(0, Math.min(maxOff, newOffset)));
+    },
+    [rowCount, visibleRows],
+  );
 
   const scrollToBottom = useCallback(() => {
     isStickyRef.current = true;
     setOffset(Math.max(0, rowCount - visibleRows));
   }, [rowCount, visibleRows]);
 
-  const scrollBy = useCallback((delta: number) => {
-    setOffset((prev) => {
-      const maxOff = Math.max(0, rowCount - visibleRows);
-      const newOff = Math.max(0, Math.min(maxOff, prev + delta));
-      isStickyRef.current = newOff >= maxOff;
-      return newOff;
-    });
-  }, [rowCount, visibleRows]);
+  const scrollBy = useCallback(
+    (delta: number) => {
+      setOffset((prev) => {
+        const maxOff = Math.max(0, rowCount - visibleRows);
+        const newOff = Math.max(0, Math.min(maxOff, prev + delta));
+        isStickyRef.current = newOff >= maxOff;
+        return newOff;
+      });
+    },
+    [rowCount, visibleRows],
+  );
 
   const getOffsetFn = useCallback(() => offset, [offset]);
   const getRowCountFn = useCallback(() => rowCount, [rowCount]);
@@ -330,7 +335,16 @@ export const ScrollBox: React.FC<ScrollBoxProps> = ({
         subscribe,
       };
     }
-  }, [handleRef, scrollTo, scrollToBottom, scrollBy, getOffsetFn, getRowCountFn, isStickyFn, subscribe]);
+  }, [
+    handleRef,
+    scrollTo,
+    scrollToBottom,
+    scrollBy,
+    getOffsetFn,
+    getRowCountFn,
+    isStickyFn,
+    subscribe,
+  ]);
 
   // Compute visible range with buffer
   const visibleStart = Math.max(0, offset - buffer);
@@ -356,7 +370,10 @@ export const ScrollBox: React.FC<ScrollBoxProps> = ({
       {/* New message pill — shows when content arrives while not at bottom */}
       {!isStickyRef.current && newMessageCount > 0 && (
         <Box justifyContent="center" paddingX={1}>
-          <Text backgroundColor="blue" color="white"> {newMessageCount} new message{newMessageCount > 1 ? 's' : ''} ↓ </Text>
+          <Text backgroundColor="blue" color="white">
+            {' '}
+            {newMessageCount} new message{newMessageCount > 1 ? 's' : ''} ↓{' '}
+          </Text>
         </Box>
       )}
     </Box>

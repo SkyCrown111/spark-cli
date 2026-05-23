@@ -24,7 +24,9 @@ describe('processSkillBody', () => {
   });
 
   it('replaces ${SPARK_PROJECT_ROOT}', () => {
-    const result = processSkillBody('Root: ${SPARK_PROJECT_ROOT}', { projectRoot: '/work/project' });
+    const result = processSkillBody('Root: ${SPARK_PROJECT_ROOT}', {
+      projectRoot: '/work/project',
+    });
     expect(result).toBe('Root: /work/project');
   });
 

@@ -37,7 +37,12 @@ afterEach(() => {
 
 describe('REPL e2e (mocked agent)', () => {
   it('/gen expands to an agent task prompt', async () => {
-    const r = await _handleSlashImpl('/gen component PlayerMove', opts(), freshStateForTest(), registry);
+    const r = await _handleSlashImpl(
+      '/gen component PlayerMove',
+      opts(),
+      freshStateForTest(),
+      registry,
+    );
     expect(r.handled).toBe(true);
     expect(r.syntheticPrompt?.text).toContain('Generate game code');
     expect(r.syntheticPrompt?.text).toContain('PlayerMove');

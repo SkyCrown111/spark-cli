@@ -26,135 +26,136 @@ const globalBindings: Record<string, string> = {
 // ── Chat ────────────────────────────────────────────────
 
 const chatBindings: Record<string, string> = {
-  'enter':      'chat:submit',
-  'shift+tab':  'chat:cycleMode',
-  'meta+p':     'chat:modelPicker',
-  'meta+t':     'chat:toggleThinking',
-  'meta+o':     'chat:toggleFastMode',
-  'ctrl+g':     'chat:externalEditor',
-  'ctrl+s':     'chat:stash',
-  'ctrl+v':     'chat:imagePaste',
+  enter: 'chat:submit',
+  'shift+tab': 'chat:cycleMode',
+  'meta+p': 'chat:modelPicker',
+  'meta+t': 'chat:toggleThinking',
+  'meta+o': 'chat:toggleFastMode',
+  'ctrl+f': 'chat:search',
+  'ctrl+g': 'chat:externalEditor',
+  'ctrl+s': 'chat:stash',
+  'ctrl+v': 'chat:imagePaste',
 };
 
 // ── Scroll ──────────────────────────────────────────────
 
 const scrollBindings: Record<string, string> = {
-  'pageup':       'scroll:pageUp',
-  'pagedown':     'scroll:pageDown',
-  'ctrl+home':    'scroll:top',
-  'ctrl+end':     'scroll:bottom',
+  pageup: 'scroll:pageUp',
+  pagedown: 'scroll:pageDown',
+  'ctrl+home': 'scroll:top',
+  'ctrl+end': 'scroll:bottom',
   'ctrl+shift+c': 'selection:copy',
-  'up':           'scroll:lineUp',
-  'down':         'scroll:lineDown',
+  up: 'scroll:lineUp',
+  down: 'scroll:lineDown',
 };
 
 // ── Autocomplete ────────────────────────────────────────
 
 const autocompleteBindings: Record<string, string> = {
-  'tab':    'autocomplete:accept',
-  'escape': 'autocomplete:dismiss',
+  tab: 'autocomplete:accept',
+  escape: 'autocomplete:dismiss',
 };
 
 // ── Confirmation ────────────────────────────────────────
 
 const confirmationBindings: Record<string, string> = {
-  'y':      'confirm:yes',
-  'enter':  'confirm:yes',
-  'a':      'confirm:always',
-  'n':      'confirm:no',
-  'escape': 'confirm:no',
+  y: 'confirm:yes',
+  enter: 'confirm:yes',
+  a: 'confirm:always',
+  n: 'confirm:no',
+  escape: 'confirm:no',
 };
 
 // ── Select ──────────────────────────────────────────────
 
 const selectBindings: Record<string, string> = {
-  'k':       'select:previous',
-  'j':       'select:next',
-  'ctrl+p':  'select:previous',
-  'ctrl+n':  'select:next',
-  'up':      'select:previous',
-  'down':    'select:next',
-  'enter':   'select:accept',
-  'escape':  'select:cancel',
+  k: 'select:previous',
+  j: 'select:next',
+  'ctrl+p': 'select:previous',
+  'ctrl+n': 'select:next',
+  up: 'select:previous',
+  down: 'select:next',
+  enter: 'select:accept',
+  escape: 'select:cancel',
 };
 
 // ── Settings ────────────────────────────────────────────
 
 const settingsBindings: Record<string, string> = {
-  'escape': 'settings:close',
-  'up':     'settings:navigateUp',
-  'down':   'settings:navigateDown',
-  'enter':  'settings:toggle',
+  escape: 'settings:close',
+  up: 'settings:navigateUp',
+  down: 'settings:navigateDown',
+  enter: 'settings:toggle',
 };
 
 // ── Tabs ────────────────────────────────────────────────
 
 const tabsBindings: Record<string, string> = {
   'ctrl+shift+t': 'tabs:new',
-  'ctrl+w':       'tabs:close',
-  'ctrl+tab':     'tabs:next',
+  'ctrl+w': 'tabs:close',
+  'ctrl+tab': 'tabs:next',
 };
 
 // ── Transcript ──────────────────────────────────────────
 
 const transcriptBindings: Record<string, string> = {
-  'escape':     'transcript:close',
-  'ctrl+f':     'transcript:search',
-  'pageup':     'transcript:pageUp',
-  'pagedown':   'transcript:pageDown',
-  '{':          'transcript:paragraphUp',
-  '}':          'transcript:paragraphDown',
-  'v':          'transcript:openInEditor',
-  '[':          'transcript:writeToScrollback',
+  escape: 'transcript:close',
+  'ctrl+f': 'transcript:search',
+  pageup: 'transcript:pageUp',
+  pagedown: 'transcript:pageDown',
+  '{': 'transcript:paragraphUp',
+  '}': 'transcript:paragraphDown',
+  v: 'transcript:openInEditor',
+  '[': 'transcript:writeToScrollback',
 };
 
 // ── HistorySearch ───────────────────────────────────────
 
 const historySearchBindings: Record<string, string> = {
   'ctrl+r': 'historySearch:next',
-  'tab':    'historySearch:accept',
-  'escape': 'historySearch:dismiss',
+  tab: 'historySearch:accept',
+  escape: 'historySearch:dismiss',
 };
 
 // ── Task ────────────────────────────────────────────────
 
 const taskBindings: Record<string, string> = {
   'ctrl+b': 'task:background',
-  'escape': 'task:cancel',
+  escape: 'task:cancel',
 };
 
 // ── ThemePicker ─────────────────────────────────────────
 
 const themePickerBindings: Record<string, string> = {
-  'escape': 'themePicker:close',
-  'k':      'themePicker:previous',
-  'j':      'themePicker:next',
-  'enter':  'themePicker:accept',
+  escape: 'themePicker:close',
+  k: 'themePicker:previous',
+  j: 'themePicker:next',
+  enter: 'themePicker:accept',
 };
 
 // ── ModelPicker ─────────────────────────────────────────
 
 const modelPickerBindings: Record<string, string> = {
-  'escape': 'modelPicker:close',
-  'k':      'modelPicker:previous',
-  'j':      'modelPicker:next',
-  'enter':  'modelPicker:accept',
+  escape: 'modelPicker:close',
+  k: 'modelPicker:previous',
+  j: 'modelPicker:next',
+  enter: 'modelPicker:accept',
 };
 
 // ── Help ────────────────────────────────────────────────
 
 const helpBindings: Record<string, string> = {
-  'escape': 'help:close',
+  escape: 'help:close',
 };
 
 // ── Attachments ─────────────────────────────────────────
 
 const attachmentsBindings: Record<string, string> = {
-  'escape':     'attachments:close',
-  'ctrl+v':     'attachments:pasteImage',
-  'ctrl+d':     'attachments:removeSelected',
-  'up':         'attachments:previous',
-  'down':       'attachments:next',
+  escape: 'attachments:close',
+  'ctrl+v': 'attachments:pasteImage',
+  'ctrl+d': 'attachments:removeSelected',
+  up: 'attachments:previous',
+  down: 'attachments:next',
 };
 
 // ── Footer ──────────────────────────────────────────────
@@ -166,58 +167,58 @@ const footerBindings: Record<string, string> = {
 // ── MessageSelector ─────────────────────────────────────
 
 const messageSelectorBindings: Record<string, string> = {
-  'up':     'messageSelector:previous',
-  'down':   'messageSelector:next',
-  'enter':  'messageSelector:select',
-  'escape': 'messageSelector:close',
+  up: 'messageSelector:previous',
+  down: 'messageSelector:next',
+  enter: 'messageSelector:select',
+  escape: 'messageSelector:close',
 };
 
 // ── MessageActions ──────────────────────────────────────
 
 const messageActionsBindings: Record<string, string> = {
-  'c':      'messageActions:copy',
-  'e':      'messageActions:edit',
-  'escape': 'messageActions:close',
+  c: 'messageActions:copy',
+  e: 'messageActions:edit',
+  escape: 'messageActions:close',
 };
 
 // ── DiffDialog ──────────────────────────────────────────
 
 const diffDialogBindings: Record<string, string> = {
-  'escape': 'diffDialog:close',
-  'j':      'diffDialog:nextChange',
-  'k':      'diffDialog:previousChange',
-  'enter':  'diffDialog:accept',
+  escape: 'diffDialog:close',
+  j: 'diffDialog:nextChange',
+  k: 'diffDialog:previousChange',
+  enter: 'diffDialog:accept',
 };
 
 // ── Plugin ──────────────────────────────────────────────
 
 const pluginBindings: Record<string, string> = {
-  'escape': 'plugin:close',
+  escape: 'plugin:close',
 };
 
 // ── Aggregate into blocks ───────────────────────────────
 
 const rawBlocks: KeybindingBlock[] = [
-  { context: 'Global',          bindings: globalBindings },
-  { context: 'Chat',            bindings: chatBindings },
-  { context: 'Scroll',          bindings: scrollBindings },
-  { context: 'Autocomplete',    bindings: autocompleteBindings },
-  { context: 'Confirmation',    bindings: confirmationBindings },
-  { context: 'Select',          bindings: selectBindings },
-  { context: 'Settings',        bindings: settingsBindings },
-  { context: 'Tabs',            bindings: tabsBindings },
-  { context: 'Transcript',      bindings: transcriptBindings },
-  { context: 'HistorySearch',   bindings: historySearchBindings },
-  { context: 'Task',            bindings: taskBindings },
-  { context: 'ThemePicker',     bindings: themePickerBindings },
-  { context: 'ModelPicker',     bindings: modelPickerBindings },
-  { context: 'Help',            bindings: helpBindings },
-  { context: 'Attachments',     bindings: attachmentsBindings },
-  { context: 'Footer',          bindings: footerBindings },
+  { context: 'Global', bindings: globalBindings },
+  { context: 'Chat', bindings: chatBindings },
+  { context: 'Scroll', bindings: scrollBindings },
+  { context: 'Autocomplete', bindings: autocompleteBindings },
+  { context: 'Confirmation', bindings: confirmationBindings },
+  { context: 'Select', bindings: selectBindings },
+  { context: 'Settings', bindings: settingsBindings },
+  { context: 'Tabs', bindings: tabsBindings },
+  { context: 'Transcript', bindings: transcriptBindings },
+  { context: 'HistorySearch', bindings: historySearchBindings },
+  { context: 'Task', bindings: taskBindings },
+  { context: 'ThemePicker', bindings: themePickerBindings },
+  { context: 'ModelPicker', bindings: modelPickerBindings },
+  { context: 'Help', bindings: helpBindings },
+  { context: 'Attachments', bindings: attachmentsBindings },
+  { context: 'Footer', bindings: footerBindings },
   { context: 'MessageSelector', bindings: messageSelectorBindings },
-  { context: 'MessageActions',  bindings: messageActionsBindings },
-  { context: 'DiffDialog',      bindings: diffDialogBindings },
-  { context: 'Plugin',          bindings: pluginBindings },
+  { context: 'MessageActions', bindings: messageActionsBindings },
+  { context: 'DiffDialog', bindings: diffDialogBindings },
+  { context: 'Plugin', bindings: pluginBindings },
 ];
 
 /**
@@ -265,9 +266,7 @@ export function getDefaultKeybindings(): KeybindingBlock[] {
 /**
  * Get bindings for a specific context.
  */
-export function getBindingsForContext(
-  context: KeybindingContextName,
-): Record<string, string> {
+export function getBindingsForContext(context: KeybindingContextName): Record<string, string> {
   const blocks = getDefaultKeybindings();
   const block = blocks.find((b) => b.context === context);
   return block ? { ...block.bindings } : {};

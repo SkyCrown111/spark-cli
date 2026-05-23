@@ -1,8 +1,5 @@
 import type { PackageSizeReport } from '../../core/validate/platform-rules.js';
-import {
-  analyzePlatformBuild,
-  findPlatformBuildDir,
-} from '../platform/build-analyzer.js';
+import { analyzePlatformBuild, findPlatformBuildDir } from '../platform/build-analyzer.js';
 
 export type { PackageSizeReport };
 

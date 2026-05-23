@@ -12,6 +12,7 @@ import { analyzePlatformBuild, findPlatformBuildDir } from './build-analyzer.js'
 import { parseCocosScene } from '../cocos/scene-parser.js';
 import { findSceneFiles } from '../cocos/scene-list.js';
 import type { SparkCLIConfig } from '../../config/schema.js';
+import { getProjectSparkDir } from '../../config/paths.js';
 
 export interface AdaptIssue {
   id: string;
@@ -132,7 +133,7 @@ export function runPlatformAdapt(
         id: 'missing_appid',
         severity: 'warn',
         category: 'config',
-        message: `Set ${platform}.appid in spark-cli.config.yaml or ${envKey} env`,
+        message: `Set ${platform}.appid in .spark/settings.json or ${envKey} env`,
       });
     }
   }
@@ -146,7 +147,7 @@ export function applyPlatformAdaptFixes(
   projectRoot: string,
   report: AdaptReport,
 ): { applied: string[]; reportPath: string } {
-  const sparkDir = join(projectRoot, '.spark-cli');
+  const sparkDir = getProjectSparkDir(projectRoot);
   mkdirSync(sparkDir, { recursive: true });
   const reportPath = join(sparkDir, `${platform}-adapt-report.json`);
   writeFileSync(reportPath, JSON.stringify(report, null, 2), 'utf8');

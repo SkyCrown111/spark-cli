@@ -1,5 +1,6 @@
 import chalk from 'chalk';
 import { applyStaging, clearStaging, showDiff, hasStaging } from '../core/staging/patch-manager.js';
+import { logger } from '../utils/logger.js';
 import type { GlobalOptions } from '../utils/output.js';
 import { resolveProjectRoot } from '../utils/output.js';
 import { appendReplayEvent } from '../core/replay/log.js';
@@ -8,15 +9,15 @@ import { SparkCLIError } from '../utils/errors.js';
 export function runDiff(opts: GlobalOptions): void {
   const root = resolveProjectRoot(opts);
   if (!hasStaging(root)) {
-    console.log(chalk.dim('No staged changes.'));
+    logger.info(chalk.dim('No staged changes.'));
     return;
   }
   const diff = showDiff(root);
   if (opts.json) {
-    console.log(JSON.stringify({ diff }, null, 2));
+    logger.json({ diff });
     return;
   }
-  console.log(diff || chalk.dim('(empty diff)'));
+  logger.info(diff || chalk.dim('(empty diff)'));
 }
 
 export async function runApply(opts: GlobalOptions): Promise<void> {
@@ -28,17 +29,17 @@ export async function runApply(opts: GlobalOptions): Promise<void> {
       dryRun: opts.dryRun,
     });
     if (opts.dryRun) {
-      console.log(chalk.yellow('Dry run — would apply:'));
-      for (const f of files) console.log(' ', f);
+      logger.info(chalk.yellow('Dry run — would apply:'));
+      for (const f of files) logger.info(' ', f);
       return;
     }
     if (opts.json) {
-      console.log(JSON.stringify({ applied: files }, null, 2));
+      logger.json({ applied: files });
       return;
     }
     appendReplayEvent(root, 'apply', { files });
-    console.log(chalk.green('✓'), `Applied ${files.length} file(s):`);
-    for (const f of files) console.log(chalk.cyan(' ', f));
+    logger.info(chalk.green('✓'), `Applied ${files.length} file(s):`);
+    for (const f of files) logger.info(chalk.cyan(' ', f));
   } catch (e) {
     if (e instanceof SparkCLIError) throw e;
     throw e;
@@ -48,10 +49,10 @@ export async function runApply(opts: GlobalOptions): Promise<void> {
 export function runRevert(opts: GlobalOptions): void {
   const root = resolveProjectRoot(opts);
   if (!hasStaging(root)) {
-    console.log(chalk.dim('Nothing to revert.'));
+    logger.info(chalk.dim('Nothing to revert.'));
     return;
   }
   clearStaging(root);
   appendReplayEvent(root, 'revert', {});
-  console.log(chalk.green('✓'), 'Staging cleared.');
+  logger.info(chalk.green('✓'), 'Staging cleared.');
 }

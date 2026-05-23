@@ -1,0 +1,10 @@
+dist/
+node_modules/
+fixtures/
+packages/
+extensions/
+editor/
+*.md
+*.json
+*.yaml
+*.yml

@@ -56,7 +56,12 @@ function parseDiffContent(content: string): DiffLine[] {
     } else {
       oldLineNo++;
       newLineNo++;
-      result.push({ type: 'context', content: line.startsWith(' ') ? line.slice(1) : line, oldLineNo, newLineNo });
+      result.push({
+        type: 'context',
+        content: line.startsWith(' ') ? line.slice(1) : line,
+        oldLineNo,
+        newLineNo,
+      });
     }
   }
   return result;
@@ -70,7 +75,12 @@ export const UserToolSuccessMessage: React.FC<UserToolSuccessMessageProps> = ({
   const isDiff = useMemo(() => isDiffContent(content), [content]);
   const collapseResult = useMemo(() => {
     if (expanded) {
-      return { collapsed: false, visibleLines: content.split('\n'), hiddenCount: 0, totalCount: content.split('\n').length };
+      return {
+        collapsed: false,
+        visibleLines: content.split('\n'),
+        hiddenCount: 0,
+        totalCount: content.split('\n').length,
+      };
     }
     return collapseToolResult(content);
   }, [content, expanded]);
@@ -84,7 +94,9 @@ export const UserToolSuccessMessage: React.FC<UserToolSuccessMessageProps> = ({
     return (
       <Box flexDirection="column">
         <Box>
-          <Text bold color={colors.tool}>✓ {toolLabel}</Text>
+          <Text bold color={colors.tool}>
+            ✓ {toolLabel}
+          </Text>
           <Text dimColor> — diff</Text>
         </Box>
         <Box paddingLeft={2}>
@@ -97,23 +109,27 @@ export const UserToolSuccessMessage: React.FC<UserToolSuccessMessageProps> = ({
   return (
     <Box flexDirection="column">
       <Box>
-        <Text bold color="green">✓ {toolLabel}</Text>
-        {collapseResult.collapsed && (
-          <Text dimColor> ({collapseResult.totalCount} lines)</Text>
-        )}
+        <Text bold color="green">
+          ✓ {toolLabel}
+        </Text>
+        {collapseResult.collapsed && <Text dimColor> ({collapseResult.totalCount} lines)</Text>}
       </Box>
       <Box paddingLeft={2} flexDirection="column">
         {collapseResult.visibleLines.map((line, i) => {
           if (line.includes('lines collapsed')) {
             return (
               <Box key={i}>
-                <Text color="yellow" bold>{line}</Text>
+                <Text color="yellow" bold>
+                  {line}
+                </Text>
               </Box>
             );
           }
           return (
             <Box key={i}>
-              <Text dimColor wrap="wrap">{line}</Text>
+              <Text dimColor wrap="wrap">
+                {line}
+              </Text>
             </Box>
           );
         })}

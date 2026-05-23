@@ -13,6 +13,7 @@ import { stageAnimFiles, readAnimFile } from '../core/anim/io.js';
 import { exportAnimForCocos } from '../core/anim/export-cocos.js';
 import { initStaging, stageWriteFile } from '../core/staging/patch-manager.js';
 import { appendReplayEvent } from '../core/replay/log.js';
+import { logger } from '../utils/logger.js';
 
 export async function runAnimNew(
   opts: GlobalOptions,
@@ -27,21 +28,26 @@ export async function runAnimNew(
   const script = buildCocosAnimControllerScript(graph, jsonPath);
 
   if (opts.dryRun) {
-    if (opts.json) console.log(JSON.stringify({ dryRun: true, jsonPath, scriptPath, graph }));
+    if (opts.json) logger.json({ dryRun: true, jsonPath, scriptPath, graph });
     return;
   }
 
   stageAnimFiles(root, jsonPath, graph, scriptPath, script);
-  appendReplayEvent(root, 'command', { cmd: 'anim.new', name, jsonPath, states: graph.states.length });
+  appendReplayEvent(root, 'command', {
+    cmd: 'anim.new',
+    name,
+    jsonPath,
+    states: graph.states.length,
+  });
 
   if (opts.json) {
-    console.log(JSON.stringify({ jsonPath, scriptPath, states: graph.states.map((s) => s.id) }));
+    logger.json({ jsonPath, scriptPath, states: graph.states.map((s) => s.id) });
   } else {
-    console.log(chalk.green('✓'), `Staged anim "${graph.name}"`);
-    console.log(chalk.cyan(' ', jsonPath));
-    console.log(chalk.cyan(' ', scriptPath));
-    console.log(chalk.dim(`  States: ${graph.states.map((s) => s.id).join(' → ')}`));
-    console.log(chalk.dim('  Run: spark-cli diff → spark-cli apply'));
+    logger.info(chalk.green('✓'), `Staged anim "${graph.name}"`);
+    logger.info(chalk.cyan(' ', jsonPath));
+    logger.info(chalk.cyan(' ', scriptPath));
+    logger.info(chalk.dim(`  States: ${graph.states.map((s) => s.id).join(' → ')}`));
+    logger.info(chalk.dim('  Run: spark-cli diff → spark-cli apply'));
   }
 }
 
@@ -63,7 +69,7 @@ export async function runAnimExport(
   const content = exportAnimForCocos(graph);
 
   if (opts.dryRun) {
-    if (opts.json) console.log(JSON.stringify({ dryRun: true, outRel }));
+    if (opts.json) logger.json({ dryRun: true, outRel });
     return;
   }
 
@@ -72,9 +78,9 @@ export async function runAnimExport(
   appendReplayEvent(root, 'command', { cmd: 'anim.export', relPath, outRel, format: fmt });
 
   if (opts.json) {
-    console.log(JSON.stringify({ path: outRel, format: fmt }));
+    logger.json({ path: outRel, format: fmt });
   } else {
-    console.log(chalk.green('✓'), `Staged export: ${outRel}`);
+    logger.info(chalk.green('✓'), `Staged export: ${outRel}`);
   }
 }
 
@@ -82,10 +88,10 @@ export function runAnimShow(opts: GlobalOptions, relPath: string): void {
   const root = resolveProjectRoot(opts);
   const graph = readAnimFile(root, relPath);
   if (opts.json) {
-    console.log(JSON.stringify(graph, null, 2));
+    logger.json(graph);
   } else {
-    console.log(chalk.bold(graph.name));
-    console.log(`  states: ${graph.states.map((s) => s.id).join(', ')}`);
-    console.log(`  transitions: ${graph.transitions.length}`);
+    logger.info(chalk.bold(graph.name));
+    logger.info(`  states: ${graph.states.map((s) => s.id).join(', ')}`);
+    logger.info(`  transitions: ${graph.transitions.length}`);
   }
 }

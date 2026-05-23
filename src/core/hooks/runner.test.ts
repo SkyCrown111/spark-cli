@@ -16,7 +16,7 @@ afterEach(() => {
 });
 
 function writeHookConfig(content: unknown): void {
-  const dir = join(projectRoot, '.spark-cli', 'hooks');
+  const dir = join(projectRoot, '.spark', 'hooks');
   mkdirSync(dir, { recursive: true });
   writeFileSync(join(dir, 'config.json'), JSON.stringify(content), 'utf8');
 }
@@ -52,6 +52,35 @@ describe('loadHookConfig', () => {
     expect(cfg.hooks).toHaveLength(2);
     expect(cfg.hooks[0]?.event).toBe('pre_tool');
     expect(cfg.hooks[1]?.tools).toEqual(['bash']);
+  });
+
+  it('falls back to legacy .spark-cli/hooks/config.json', () => {
+    const dir = join(projectRoot, '.spark-cli', 'hooks');
+    mkdirSync(dir, { recursive: true });
+    writeFileSync(
+      join(dir, 'config.json'),
+      JSON.stringify({ hooks: [{ event: 'pre_tool', command: 'echo hi' }] }),
+      'utf8',
+    );
+    const cfg = loadHookConfig(projectRoot);
+    expect(cfg.hooks).toHaveLength(1);
+  });
+
+  it('prefers .spark/hooks/config.json over legacy config when both exist', () => {
+    writeHookConfig({
+      hooks: [{ event: 'pre_tool', command: 'echo primary' }],
+    });
+    const legacyDir = join(projectRoot, '.spark-cli', 'hooks');
+    mkdirSync(legacyDir, { recursive: true });
+    writeFileSync(
+      join(legacyDir, 'config.json'),
+      JSON.stringify({ hooks: [{ event: 'pre_tool', command: 'echo legacy' }] }),
+      'utf8',
+    );
+
+    const cfg = loadHookConfig(projectRoot);
+    expect(cfg.hooks).toHaveLength(1);
+    expect(cfg.hooks[0]?.command).toBe('echo primary');
   });
 });
 

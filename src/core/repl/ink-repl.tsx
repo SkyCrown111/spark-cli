@@ -1,5 +1,5 @@
 /**
- * Ink-based REPL runner (default REPL since Phase 15).
+ * Ink-based REPL runner (fullscreen renderer only).
  *
  * Wraps the REPL screen component in an Ink render loop and bridges
  * it to the existing shell infrastructure (agent turns, slash commands,
@@ -8,11 +8,12 @@
  * Uses AppState (Zustand) for state management. The bridge writes to
  * the global store; the REPL reads from it via selectors.
  *
- * Imported lazily by runShell() unless --no-ink is set.
+ * Imported lazily by runShell() when renderer=fullscreen.
  */
 
 import React, { useCallback, useRef, useEffect } from 'react';
 import chalk from 'chalk';
+import { logger } from '../../utils/logger.js';
 import { render as inkRender, useApp, useInput } from 'ink';
 import { REPL } from '../../screens/REPL.js';
 import type { InputMode } from '../../components/PromptInput/PromptInput.js';
@@ -23,24 +24,15 @@ import { resolveModelForTask } from '../providers/router.js';
 import { buildTokenUsageSnapshot } from '../context/token-usage.js';
 import { runAgentTurnForCli } from '../agent/run-turn.js';
 import { SparkCLIError } from '../../utils/errors.js';
-import {
-  createSlashRegistry,
-  type SlashRegistry,
-} from '../slash/registry.js';
+import { createSlashRegistry, type SlashRegistry } from '../slash/registry.js';
 import { buildBuiltinCommands } from '../slash/built-ins.js';
 import { loadFileCommands } from '../slash/loader.js';
-import {
-  createPlanState,
-  forceEnterPlan,
-  isPlanMode,
-} from '../slash/plan-mode.js';
+import { createPlanState, forceEnterPlan, isPlanMode } from '../slash/plan-mode.js';
 import { ToolPermissionSession } from '../agent/tool-permissions.js';
 import { getAlwaysAllowPath } from '../../config/paths.js';
 import { buildInkToolConfirm } from './ink-tool-confirm.js';
 import { expandAtReferences } from './at-refs.js';
-import {
-  KeybindingProviderSetup,
-} from '../../keybindings/KeybindingProviderSetup.js';
+import { KeybindingProviderSetup } from '../../keybindings/KeybindingProviderSetup.js';
 import { appState } from '../../state/AppState.js';
 import {
   installSynchronizedOutput,
@@ -61,10 +53,48 @@ import type { DispatchedCall } from '../agent/tool-dispatcher.js';
 import { join } from 'node:path';
 import { createAgentRegistry } from '../agents/registry.js';
 import { loadAgentsFromDisk } from '../agents/loader.js';
+import { renderReplWelcome } from './welcome.js';
+import { isMascotDisabled } from './mascot.js';
+import { scanProjectContext } from '../context/project-scanner.js';
 
 export interface InkShellOptions {
   auto?: boolean;
   noMascot?: boolean;
+}
+
+async function buildWelcomeMessage(
+  opts: GlobalOptions,
+  shellOpts: InkShellOptions,
+  writeMode: 'staging' | 'direct',
+  history: import('../providers/openai-compatible.js').ChatMessage[],
+): Promise<string> {
+  const projectRoot = resolveProjectRoot(opts);
+  const projectContext = scanProjectContext(projectRoot);
+  let modelLine = 'not set - /model use provider/model';
+
+  try {
+    const config = await loadMergedConfig(projectRoot);
+    const resolved = resolveModelForTask(config, 'chat', {
+      provider: opts.provider,
+      model: opts.model,
+    });
+    modelLine = `${resolved.providerId}/${resolved.model}`;
+    const snapshot = buildTokenUsageSnapshot(config, resolved, history);
+    appState.setState({ tokenUsage: { used: snapshot.used, budget: snapshot.budget } });
+  } catch (e) {
+    modelLine = e instanceof Error ? e.message : String(e);
+  }
+
+  return renderReplWelcome({
+    showMascot: !shellOpts.noMascot && !isMascotDisabled(),
+    info: {
+      projectRoot,
+      engine: projectContext.engine,
+      modelLine,
+      writeModeLabel: writeMode === 'direct' ? 'direct (auto-write)' : 'staging (safe)',
+      version: getCliVersion(),
+    },
+  });
 }
 
 /**
@@ -184,7 +214,7 @@ function InkREPLBridge({
     if (opts.resumeSession) {
       snapshot = loadSession(projectRoot, opts.resumeSession);
       if (!snapshot) {
-        console.error(`Session ${opts.resumeSession} not found.`);
+        logger.error(`Session ${opts.resumeSession} not found.`);
       }
     }
     if (!snapshot && opts.continueSession) {
@@ -203,7 +233,7 @@ function InkREPLBridge({
         toolPermissionSession: session,
         sessionTitle: snapshot.title,
       });
-      console.log(`Resumed session: ${snapshot.title || snapshot.id}`);
+      logger.info(`Resumed session: ${snapshot.title || snapshot.id}`);
     } else {
       // Create new session
       const modelState = appState.getState().model;
@@ -216,7 +246,10 @@ function InkREPLBridge({
 
       // Pre-populate always-allow set from --allowedTools
       if (opts.allowedTools) {
-        for (const tool of opts.allowedTools.split(',').map((t) => t.trim()).filter(Boolean)) {
+        for (const tool of opts.allowedTools
+          .split(',')
+          .map((t) => t.trim())
+          .filter(Boolean)) {
           session.allowAlways(tool);
         }
       }
@@ -232,19 +265,12 @@ function InkREPLBridge({
     }
 
     // Welcome message — show project info and tips
-    const version = getCliVersion();
-    const welcomeLines: string[] = [];
-    welcomeLines.push(`SparkCLI${version ? ` v${version}` : ''}`);
-    welcomeLines.push('');
-    welcomeLines.push('Use /help, @file, Shift+Tab to get moving');
-    welcomeLines.push(`Mode: ${_shellOpts.auto ? 'direct' : 'staging'}`);
-
-    appState.setState((prev) => ({
-      messages: [
-        ...prev.messages,
-        { role: 'assistant' as const, content: welcomeLines.join('\n') },
-      ],
-    }));
+    const initialWriteMode: 'staging' | 'direct' = _shellOpts.auto ? 'direct' : 'staging';
+    void buildWelcomeMessage(opts, _shellOpts, initialWriteMode, snapshot?.history ?? []).then(
+      (welcomeMessage) => {
+        appState.setState({ welcomeMessage });
+      },
+    );
 
     // Hooks: session_start
     const hookConfig = loadHookConfig(projectRoot);
@@ -290,7 +316,9 @@ function InkREPLBridge({
       syncTodos(); // Initial sync
     });
 
-    return () => { unsubTodo?.(); };
+    return () => {
+      unsubTodo?.();
+    };
   }, [_shellOpts.auto, projectRoot]);
 
   // ── Handle stateful slash outcomes ──
@@ -370,7 +398,10 @@ function InkREPLBridge({
                 statusText: undefined,
                 messages: [
                   ...appState.getState().messages,
-                  { role: 'assistant', content: `Compaction failed: ${e instanceof Error ? e.message : String(e)}` },
+                  {
+                    role: 'assistant',
+                    content: `Compaction failed: ${e instanceof Error ? e.message : String(e)}`,
+                  },
                 ],
               });
             }
@@ -384,7 +415,9 @@ function InkREPLBridge({
           appState.setState({ showThemePicker: true });
           return true;
         case 'state-set-effort':
-          appState.setState({ effortLevel: outcome.effortLevel as import('../../state/AppState.js').EffortLevel });
+          appState.setState({
+            effortLevel: outcome.effortLevel as import('../../state/AppState.js').EffortLevel,
+          });
           return true;
         case 'state-resume-session': {
           const sid = outcome.sessionId as string | undefined;
@@ -438,8 +471,10 @@ function InkREPLBridge({
           lines.push('');
 
           for (const msg of messages) {
-            const role = msg.role === 'user' ? 'User' : msg.role === 'assistant' ? 'Assistant' : msg.role;
-            const content = typeof msg.content === 'string' ? msg.content : JSON.stringify(msg.content);
+            const role =
+              msg.role === 'user' ? 'User' : msg.role === 'assistant' ? 'Assistant' : msg.role;
+            const content =
+              typeof msg.content === 'string' ? msg.content : JSON.stringify(msg.content);
             lines.push(`[${role}]`);
             lines.push(content);
             lines.push('');
@@ -453,11 +488,23 @@ function InkREPLBridge({
             const { writeFileSync: wf } = await import('node:fs');
             wf(exportPath, exportContent, 'utf8');
             appState.setState((s) => ({
-              messages: [...s.messages, { role: 'assistant', content: `Exported ${messages.length} messages to ${exportFilename}` }],
+              messages: [
+                ...s.messages,
+                {
+                  role: 'assistant',
+                  content: `Exported ${messages.length} messages to ${exportFilename}`,
+                },
+              ],
             }));
           } catch (e) {
             appState.setState((s) => ({
-              messages: [...s.messages, { role: 'assistant', content: `Export failed: ${e instanceof Error ? e.message : String(e)}` }],
+              messages: [
+                ...s.messages,
+                {
+                  role: 'assistant',
+                  content: `Export failed: ${e instanceof Error ? e.message : String(e)}`,
+                },
+              ],
             }));
           }
           return true;
@@ -479,7 +526,9 @@ function InkREPLBridge({
             : [];
           newSession.plan = state.plan;
           newSession.name = branchName || `branch-${Date.now()}`;
-          newSession.title = state.sessionTitle ? `${state.sessionTitle} (branch)` : newSession.name;
+          newSession.title = state.sessionTitle
+            ? `${state.sessionTitle} (branch)`
+            : newSession.name;
 
           saveSession(projectRoot, newSession);
 
@@ -497,7 +546,10 @@ function InkREPLBridge({
           appState.setState((s) => ({
             messages: [
               ...s.messages,
-              { role: 'assistant', content: `Session branched: ${newSession.name || newSession.id}` },
+              {
+                role: 'assistant',
+                content: `Session branched: ${newSession.name || newSession.id}`,
+              },
             ],
           }));
           return true;
@@ -514,7 +566,10 @@ function InkREPLBridge({
               saveSession(projectRoot, snapshot);
               appState.setState({ sessionTitle: newName });
               appState.setState((s) => ({
-                messages: [...s.messages, { role: 'assistant', content: `Session renamed to: ${newName}` }],
+                messages: [
+                  ...s.messages,
+                  { role: 'assistant', content: `Session renamed to: ${newName}` },
+                ],
               }));
             }
           }
@@ -565,11 +620,16 @@ function InkREPLBridge({
           const toCopy = assistantMsgs.slice(-count);
           if (toCopy.length === 0) {
             appState.setState((s) => ({
-              messages: [...s.messages, { role: 'assistant', content: 'No assistant replies to copy.' }],
+              messages: [
+                ...s.messages,
+                { role: 'assistant', content: 'No assistant replies to copy.' },
+              ],
             }));
             return true;
           }
-          const text = toCopy.map((m) => typeof m.content === 'string' ? m.content : JSON.stringify(m.content)).join('\n\n---\n\n');
+          const text = toCopy
+            .map((m) => (typeof m.content === 'string' ? m.content : JSON.stringify(m.content)))
+            .join('\n\n---\n\n');
           try {
             const { execSync } = await import('node:child_process');
             // Use platform-appropriate clipboard command
@@ -582,11 +642,20 @@ function InkREPLBridge({
               execSync('xclip -selection clipboard', { input: text, encoding: 'utf8' });
             }
             appState.setState((s) => ({
-              messages: [...s.messages, { role: 'assistant', content: `Copied ${toCopy.length} reply(ies) to clipboard.` }],
+              messages: [
+                ...s.messages,
+                { role: 'assistant', content: `Copied ${toCopy.length} reply(ies) to clipboard.` },
+              ],
             }));
           } catch (e) {
             appState.setState((s) => ({
-              messages: [...s.messages, { role: 'assistant', content: `Clipboard copy failed: ${e instanceof Error ? e.message : String(e)}\n\nText:\n${text.slice(0, 500)}` }],
+              messages: [
+                ...s.messages,
+                {
+                  role: 'assistant',
+                  content: `Clipboard copy failed: ${e instanceof Error ? e.message : String(e)}\n\nText:\n${text.slice(0, 500)}`,
+                },
+              ],
             }));
           }
           return true;
@@ -595,29 +664,80 @@ function InkREPLBridge({
         case 'state-show-context': {
           const state = appState.getState();
           const messages = state.messages;
-          const totalChars = messages.reduce((sum, m) => {
+          const tokenUsage = state.tokenUsage;
+
+          // Calculate per-message stats
+          const messageStats = messages.map((m, i) => {
             const content = typeof m.content === 'string' ? m.content : JSON.stringify(m.content);
-            return sum + content.length;
-          }, 0);
-          const estimatedTokens = Math.ceil(totalChars / 4);
+            return {
+              index: i,
+              role: m.role,
+              chars: content.length,
+              tokens: Math.ceil(content.length / 4),
+              preview: content.slice(0, 40).replace(/\n/g, ' '),
+            };
+          });
+
+          const totalTokens = messageStats.reduce((sum, s) => sum + s.tokens, 0);
+          const budget = tokenUsage?.budget ?? 200000;
+
+          // Build colored grid visualization
           const lines: string[] = [
-            `Context Window Usage`,
-            `${'─'.repeat(40)}`,
-            `Messages: ${messages.length}`,
-            `Characters: ${totalChars.toLocaleString()}`,
-            `Est. Tokens: ${estimatedTokens.toLocaleString()}`,
+            chalk.bold('Context Window Usage'),
+            chalk.dim('─'.repeat(50)),
             '',
           ];
-          if (outcome.all) {
-            lines.push('Message breakdown:');
-            for (let i = 0; i < messages.length; i++) {
-              const m = messages[i];
-              const content = typeof m.content === 'string' ? m.content : JSON.stringify(m.content);
-              const tokens = Math.ceil(content.length / 4);
-              const preview = content.slice(0, 60).replace(/\n/g, ' ');
-              lines.push(`  [${i}] ${m.role.padEnd(10)} ${tokens.toString().padStart(6)} tok  ${preview}${content.length > 60 ? '...' : ''}`);
+
+          // Token usage bar
+          const barWidth = 40;
+          const usageRatio = Math.min(1, totalTokens / budget);
+          const filledWidth = Math.round(barWidth * usageRatio);
+          const emptyWidth = barWidth - filledWidth;
+
+          let barColor = chalk.green;
+          if (usageRatio > 0.75) barColor = chalk.yellow;
+          if (usageRatio > 0.9) barColor = chalk.red;
+
+          const bar = barColor('█'.repeat(filledWidth)) + chalk.dim('░'.repeat(emptyWidth));
+          const pctStr = (usageRatio * 100).toFixed(1);
+          lines.push(`  [${bar}] ${pctStr}%`);
+          lines.push(
+            `  ${chalk.dim('Tokens:')} ${totalTokens.toLocaleString()} / ${budget.toLocaleString()}`,
+          );
+          lines.push(`  ${chalk.dim('Messages:')} ${messages.length}`);
+          lines.push('');
+
+          // Message grid (colored by role)
+          if (outcome.all || messages.length <= 20) {
+            lines.push(chalk.bold('Message Distribution'));
+            lines.push(chalk.dim('─'.repeat(50)));
+
+            // Grid: each block represents a message, width proportional to tokens
+            const maxTokens = Math.max(...messageStats.map((s) => s.tokens), 1);
+            const gridWidth = 40;
+
+            for (const stat of messageStats) {
+              const blockWidth = Math.max(1, Math.round((stat.tokens / maxTokens) * gridWidth));
+              const block = '█'.repeat(blockWidth);
+              const roleColor =
+                stat.role === 'user'
+                  ? chalk.cyan
+                  : stat.role === 'assistant'
+                    ? chalk.green
+                    : stat.role === 'tool'
+                      ? chalk.yellow
+                      : chalk.dim;
+
+              const roleStr = roleColor(stat.role.padEnd(10));
+              const tokStr = stat.tokens.toString().padStart(6);
+              const previewStr = chalk.dim(stat.preview.slice(0, 30));
+
+              lines.push(`  ${roleStr} ${tokStr} tok ${roleColor(block)} ${previewStr}`);
             }
+          } else {
+            lines.push(chalk.dim(`  Use /context all to see per-message breakdown`));
           }
+
           appState.setState((s) => ({
             messages: [...s.messages, { role: 'assistant', content: lines.join('\n') }],
           }));
@@ -632,13 +752,19 @@ function InkREPLBridge({
           const absDir = resolvePath(projectRoot, dir);
           if (!existsSync(absDir)) {
             appState.setState((s) => ({
-              messages: [...s.messages, { role: 'assistant', content: `Directory not found: ${dir} (resolved: ${absDir})` }],
+              messages: [
+                ...s.messages,
+                { role: 'assistant', content: `Directory not found: ${dir} (resolved: ${absDir})` },
+              ],
             }));
             return true;
           }
           // Add to AppState (we'll need to add extraDirs to AppState)
           appState.setState((s) => ({
-            messages: [...s.messages, { role: 'assistant', content: `Added working directory: ${absDir}` }],
+            messages: [
+              ...s.messages,
+              { role: 'assistant', content: `Added working directory: ${absDir}` },
+            ],
           }));
           return true;
         }
@@ -680,16 +806,19 @@ function InkREPLBridge({
           const unique = [...new Set(toolCalls)];
           if (unique.length === 0) {
             appState.setState((s) => ({
-              messages: [...s.messages, { role: 'assistant', content: 'No tool calls found in this session to analyze.' }],
+              messages: [
+                ...s.messages,
+                { role: 'assistant', content: 'No tool calls found in this session to analyze.' },
+              ],
             }));
             return true;
           }
           const suggestion = [
-            'Based on this session\'s tool usage, consider adding these to your always-allow list:',
+            "Based on this session's tool usage, consider adding these to your always-allow list:",
             '',
             ...unique.map((t) => `  - ${t}`),
             '',
-            'Use /auto on to skip staging, or configure .spark-cli/permissions.json for fine-grained control.',
+            'Use /auto on to skip staging, or configure .spark/permissions.json for fine-grained control.',
           ].join('\n');
           appState.setState((s) => ({
             messages: [...s.messages, { role: 'assistant', content: suggestion }],
@@ -704,7 +833,7 @@ function InkREPLBridge({
           const enabled = current !== '1';
           process.env.SPARK_CLI_DEBUG = enabled ? '1' : '';
           const msg = enabled
-            ? `Debug logging enabled${desc ? ` for: ${desc}` : ''}. Check .spark-cli/debug.log for output.`
+            ? `Debug logging enabled${desc ? ` for: ${desc}` : ''}. Check .spark/debug.log for output.`
             : 'Debug logging disabled.';
           appState.setState((s) => ({
             messages: [...s.messages, { role: 'assistant', content: msg }],
@@ -758,9 +887,9 @@ function InkREPLBridge({
           const agentName = outcome.agentName;
           appState.setState({ activeAgent: agentName } as any);
           if (agentName) {
-            console.log(chalk.green(`Agent "${agentName}" activated.`));
+            logger.info(chalk.green(`Agent "${agentName}" activated.`));
           } else {
-            console.log(chalk.dim('Custom agent deactivated.'));
+            logger.info(chalk.dim('Custom agent deactivated.'));
           }
           return true;
         }
@@ -798,9 +927,10 @@ function InkREPLBridge({
       appState.setState((prev) => ({
         messages: [...prev.messages, { role: 'user', content: trimmed }],
         loading: true,
-        statusText: 'Thinking...',
+        statusText: undefined,
         streamingContent: '',
         isStreaming: false,
+        welcomeMessage: undefined,
       }));
 
       const controller = new AbortController();
@@ -813,7 +943,12 @@ function InkREPLBridge({
         const expanded = expandAtReferences(projectRoot, trimmed);
         // Build disallowedTools set from CLI --disallowedTools
         const disallowedSet = opts.disallowedTools
-          ? new Set(opts.disallowedTools.split(',').map((t) => t.trim()).filter(Boolean))
+          ? new Set(
+              opts.disallowedTools
+                .split(',')
+                .map((t) => t.trim())
+                .filter(Boolean),
+            )
           : undefined;
 
         // Resolve active agent (from --agent flag or /agents use)
@@ -857,7 +992,10 @@ function InkREPLBridge({
             // Push tool result as a tool message
             const toolMsg = {
               role: 'tool' as const,
-              content: typeof call.result.content === 'string' ? call.result.content : JSON.stringify(call.result.content),
+              content:
+                typeof call.result.content === 'string'
+                  ? call.result.content
+                  : JSON.stringify(call.result.content),
               tool_call_id: call.tool_call_id,
             };
             appState.setState((prev) => ({
@@ -882,10 +1020,13 @@ function InkREPLBridge({
           }));
         } else if (result.stopReason === 'iteration_cap') {
           appState.setState((prev) => ({
-            messages: [...prev.messages, {
-              role: 'assistant',
-              content: `Reached iteration cap (${result.iterations}). Refine the request and try again.`,
-            }],
+            messages: [
+              ...prev.messages,
+              {
+                role: 'assistant',
+                content: `Reached iteration cap (${result.iterations}). Refine the request and try again.`,
+              },
+            ],
           }));
         }
 
@@ -964,17 +1105,23 @@ function InkREPLBridge({
         }
       } catch (e) {
         appState.setState({ streamingContent: '', isStreaming: false });
-        const errMsg = e instanceof SparkCLIError
-          ? e.message + (e.hints?.length ? '\n' + e.hints.join('\n') : '')
-          : e instanceof Error
-            ? e.message
-            : String(e);
+        const errMsg =
+          e instanceof SparkCLIError
+            ? e.message + (e.hints?.length ? '\n' + e.hints.join('\n') : '')
+            : e instanceof Error
+              ? e.message
+              : String(e);
         appState.setState((prev) => ({
           messages: [...prev.messages, { role: 'assistant', content: `Error: ${errMsg}` }],
         }));
       } finally {
         activeControllerRef.current = null;
-        appState.setState({ loading: false, statusText: undefined, streamingContent: '', isStreaming: false });
+        appState.setState({
+          loading: false,
+          statusText: undefined,
+          streamingContent: '',
+          isStreaming: false,
+        });
       }
     },
     [opts, projectRoot],
@@ -1000,7 +1147,11 @@ function InkREPLBridge({
             helpLines.push(`  /${c.name.padEnd(max)}  ${c.description}`);
           }
           appState.setState((prev) => ({
-            messages: [...prev.messages, { role: 'user', content: trimmed }, { role: 'assistant', content: helpLines.join('\n') }],
+            messages: [
+              ...prev.messages,
+              { role: 'user', content: trimmed },
+              { role: 'assistant', content: helpLines.join('\n') },
+            ],
           }));
           return;
         }
@@ -1020,7 +1171,13 @@ function InkREPLBridge({
             }));
           } catch (e) {
             appState.setState((prev) => ({
-              messages: [...prev.messages, { role: 'assistant', content: `Doctor failed: ${e instanceof Error ? e.message : String(e)}` }],
+              messages: [
+                ...prev.messages,
+                {
+                  role: 'assistant',
+                  content: `Doctor failed: ${e instanceof Error ? e.message : String(e)}`,
+                },
+              ],
               statusText: undefined,
             }));
           }
@@ -1037,7 +1194,11 @@ function InkREPLBridge({
           }
           if (outcome.kind === 'handled') {
             appState.setState((prev) => ({
-              messages: [...prev.messages, { role: 'user', content: trimmed }, { role: 'assistant', content: 'Done.' }],
+              messages: [
+                ...prev.messages,
+                { role: 'user', content: trimmed },
+                { role: 'assistant', content: 'Done.' },
+              ],
             }));
             return;
           }
@@ -1108,6 +1269,10 @@ function InkREPLBridge({
         handleInterrupt();
         return;
       }
+      if (key.ctrl && _input === 'c') {
+        handleExit();
+        return;
+      }
     }
 
     // Any key clears the interrupt status message
@@ -1138,10 +1303,7 @@ function InkREPLBridge({
 
   return (
     <KeybindingProviderSetup>
-      <REPL
-        onSubmit={handleSubmit}
-        onExit={handleExit}
-      />
+      <REPL onSubmit={handleSubmit} onExit={handleExit} />
     </KeybindingProviderSetup>
   );
 }

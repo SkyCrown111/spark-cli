@@ -16,9 +16,7 @@ export interface HttpHandlerOptions {
   label?: string;
 }
 
-export async function executeHttpHook(
-  opts: HttpHandlerOptions,
-): Promise<SingleHookResult> {
+export async function executeHttpHook(opts: HttpHandlerOptions): Promise<SingleHookResult> {
   const label = opts.label ?? opts.url;
   const timeoutMs = opts.timeoutMs ?? DEFAULT_HTTP_TIMEOUT_MS;
   const controller = new AbortController();
@@ -59,8 +57,7 @@ export async function executeHttpHook(
     };
   } catch (e) {
     clearTimeout(timer);
-    const isTimeout =
-      e instanceof DOMException && e.name === 'AbortError';
+    const isTimeout = e instanceof DOMException && e.name === 'AbortError';
     return {
       label,
       status: 1,

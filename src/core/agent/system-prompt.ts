@@ -65,7 +65,7 @@ PLAN MODE ENGAGED — read-only.
   const writeRules =
     writeMode === 'staging'
       ? `Write-mode: STAGING (default).
-- write_file / edit_file route to .spark-cli/staging/. Nothing touches the
+- write_file / edit_file route to .spark/staging/. Nothing touches the
   project until the user runs /apply.
 - Mention to the user that they can /diff to inspect and /apply to commit.`
       : `Write-mode: DIRECT (--auto / /auto).
@@ -119,7 +119,7 @@ export function buildAgentSystemPrompt(opts: SystemPromptOpts): string {
 
   sections.push(formatContextForPrompt(ctx));
 
-  // Auto-loaded project instructions (SPARKCLI.md)
+  // Auto-loaded project instructions (SPARK.md)
   const instructions = getCachedProjectInstructions(opts.projectRoot);
   const instructionsBlock = formatInstructionsForPrompt(instructions);
   if (instructionsBlock) sections.push(instructionsBlock);
@@ -143,11 +143,7 @@ export function buildAgentSystemPrompt(opts: SystemPromptOpts): string {
   if (opts.userInputForKnowledgeRetrieval) {
     const allMemories = listMemories(opts.projectRoot);
     if (allMemories.length > 0) {
-      const relevant = selectRelevantMemories(
-        allMemories,
-        opts.userInputForKnowledgeRetrieval,
-        3,
-      );
+      const relevant = selectRelevantMemories(allMemories, opts.userInputForKnowledgeRetrieval, 3);
       if (relevant.length > 0) {
         const block = formatRelevantMemoriesForPrompt(relevant);
         if (block) sections.push(block);
@@ -174,7 +170,7 @@ export function buildAgentSystemPrompt(opts: SystemPromptOpts): string {
     if (catalog.length > 0) {
       const lines = [
         '## Skills (index)',
-        'Playbooks may be bundled with SparkCLI, installed under `~/.spark-cli/skills/`, or in `.spark-cli/skills/`. Later layers override the same skill name.',
+        'Playbooks may be bundled with SparkCLI, installed under `~/.spark/skills/`, or in `.spark/skills/`. Later layers override the same skill name.',
         'Call **`load_skill`** with `{ "name": "<skill>" }` to pull the full body. Matching **triggers** may auto-inline excerpts in a later section.',
         '',
       ];
@@ -198,9 +194,7 @@ export function buildAgentSystemPrompt(opts: SystemPromptOpts): string {
   // Skills auto-injection: scan triggers in user input, inline matched bodies
   // until the byte budget is exhausted.
   if (opts.skills && opts.userInputForKnowledgeRetrieval) {
-    const matched = opts.skills.findByTrigger(
-      opts.userInputForKnowledgeRetrieval,
-    );
+    const matched = opts.skills.findByTrigger(opts.userInputForKnowledgeRetrieval);
     if (matched.length > 0) {
       const lines = ['## Loaded skills'];
       let used = 0;
@@ -223,13 +217,14 @@ export function buildAgentSystemPrompt(opts: SystemPromptOpts): string {
 
   // Effort level annotation
   if (opts.effortLevel && opts.effortLevel !== 'medium') {
-    const effortNote = opts.effortLevel === 'low'
-      ? 'Reasoning effort: LOW — be brief, skip lengthy explanations, prioritize speed.'
-      : opts.effortLevel === 'high' || opts.effortLevel === 'xhigh'
-        ? `Reasoning effort: ${opts.effortLevel.toUpperCase()} — think carefully, verify assumptions, consider edge cases before responding.`
-        : opts.effortLevel === 'max'
-          ? 'Reasoning effort: MAX — provide the most thorough analysis possible. Consider all alternatives, document reasoning, double-check every claim.'
-          : '';
+    const effortNote =
+      opts.effortLevel === 'low'
+        ? 'Reasoning effort: LOW — be brief, skip lengthy explanations, prioritize speed.'
+        : opts.effortLevel === 'high' || opts.effortLevel === 'xhigh'
+          ? `Reasoning effort: ${opts.effortLevel.toUpperCase()} — think carefully, verify assumptions, consider edge cases before responding.`
+          : opts.effortLevel === 'max'
+            ? 'Reasoning effort: MAX — provide the most thorough analysis possible. Consider all alternatives, document reasoning, double-check every claim.'
+            : '';
     if (effortNote) sections.push(effortNote);
   }
 

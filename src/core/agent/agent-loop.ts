@@ -18,25 +18,13 @@
  */
 
 import type { ChatMessage } from '../providers/openai-compatible.js';
-import type {
-  ProviderResponse,
-  ToolCall,
-  ToolDefinition,
-} from '../providers/types.js';
-import type {
-  ToolContext,
-  ToolRegistry,
-  ToolRunMode,
-  ToolWriteMode,
-} from './tool-registry.js';
+import type { ProviderResponse, ToolCall, ToolDefinition } from '../providers/types.js';
+import type { ToolContext, ToolRegistry, ToolRunMode, ToolWriteMode } from './tool-registry.js';
 import { dispatchToolCalls, type DispatchedCall } from './tool-dispatcher.js';
 import type { HookConfig } from '../hooks/config.js';
 import { runHooks } from '../hooks/runner.js';
 import type { SkillRegistry } from '../skills/registry.js';
-import {
-  compactHistory,
-  HARD_TURN_CAP,
-} from '../context/compaction.js';
+import { compactHistory, HARD_TURN_CAP } from '../context/compaction.js';
 import { computeBudgetStatus } from '../context/token-budget.js';
 import { appendReplayEvent } from '../replay/log.js';
 
@@ -149,8 +137,7 @@ export async function runAgentTurn(
   const compactionRecentN = cfgCompaction?.recentN;
   const budget = opts.contextBudget ?? cfgContext?.maxTokens ?? DEFAULT_CONTEXT_BUDGET;
 
-  const userTurn: ChatMessage =
-    opts.userMessage ?? { role: 'user', content: userInput };
+  const userTurn: ChatMessage = opts.userMessage ?? { role: 'user', content: userInput };
 
   const messages: ChatMessage[] = [
     { role: 'system', content: opts.systemPrompt },
@@ -166,7 +153,7 @@ export async function runAgentTurn(
   };
 
   /** Rough cost estimation constants. */
-  const EST_INPUT_COST = 3e-6;   // $3/M input tokens
+  const EST_INPUT_COST = 3e-6; // $3/M input tokens
   const EST_OUTPUT_COST = 15e-6; // $15/M output tokens
   let accumulatedCostUsd = 0;
 
@@ -211,14 +198,15 @@ export async function runAgentTurn(
     const overHardCap = nonSystem.length > HARD_TURN_CAP;
     if ((status.overThreshold || overHardCap) && nonSystem.length > 6) {
       const before = nonSystem.length;
-      const { history: compacted, summary, compactedCount } = await compactHistory(
-        nonSystem,
-        {
-          completeFn: opts.completeFn,
-          maxTokens: opts.maxTokens,
-          recentN: compactionRecentN,
-        },
-      );
+      const {
+        history: compacted,
+        summary,
+        compactedCount,
+      } = await compactHistory(nonSystem, {
+        completeFn: opts.completeFn,
+        maxTokens: opts.maxTokens,
+        recentN: compactionRecentN,
+      });
       // Re-assemble: keep the system prompt at index 0.
       messages.length = 0;
       messages.push({ role: 'system', content: opts.systemPrompt });

@@ -53,8 +53,7 @@ describe('image-gen', () => {
     vi.mocked(request).mockResolvedValue({
       statusCode: 200,
       body: {
-        text: async () =>
-          JSON.stringify({ data: [{ b64_json: pngBytes.toString('base64') }] }),
+        text: async () => JSON.stringify({ data: [{ b64_json: pngBytes.toString('base64') }] }),
       },
     } as never);
 

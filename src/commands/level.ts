@@ -1,6 +1,7 @@
 import chalk from 'chalk';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
+import { logger } from '../utils/logger.js';
 import type { GlobalOptions } from '../utils/output.js';
 import { resolveProjectRoot } from '../utils/output.js';
 import {
@@ -27,11 +28,11 @@ export async function runLevelNew(
 
   if (opts.dryRun) {
     if (opts.json) {
-      console.log(JSON.stringify({ dryRun: true, jsonPath, scriptPath, level }));
+      logger.json({ dryRun: true, jsonPath, scriptPath, level });
     } else {
-      console.log(chalk.yellow('Dry run — would stage:'));
-      console.log(chalk.cyan(' ', jsonPath));
-      console.log(chalk.cyan(' ', scriptPath));
+      logger.info(chalk.yellow('Dry run — would stage:'));
+      logger.info(chalk.cyan(' ', jsonPath));
+      logger.info(chalk.cyan(' ', scriptPath));
     }
     return;
   }
@@ -40,12 +41,12 @@ export async function runLevelNew(
   appendReplayEvent(root, 'command', { cmd: 'level.new', name, jsonPath, template: true });
 
   if (opts.json) {
-    console.log(JSON.stringify({ jsonPath, scriptPath, zones: level.zones.length }));
+    logger.json({ jsonPath, scriptPath, zones: level.zones.length });
   } else {
-    console.log(chalk.green('✓'), `Staged level "${level.name}"`);
-    console.log(chalk.cyan(' ', jsonPath));
-    console.log(chalk.cyan(' ', scriptPath));
-    console.log(chalk.dim('  Run: spark-cli diff → spark-cli apply'));
+    logger.info(chalk.green('✓'), `Staged level "${level.name}"`);
+    logger.info(chalk.cyan(' ', jsonPath));
+    logger.info(chalk.cyan(' ', scriptPath));
+    logger.info(chalk.dim('  Run: spark-cli diff → spark-cli apply'));
   }
 }
 
@@ -64,7 +65,7 @@ export async function runLevelEdit(
   const script = buildCocosLevelLoaderScript(patched, relPath);
 
   if (opts.dryRun) {
-    if (opts.json) console.log(JSON.stringify({ dryRun: true, relPath, patched }));
+    if (opts.json) logger.json({ dryRun: true, relPath, patched });
     return;
   }
 
@@ -72,9 +73,9 @@ export async function runLevelEdit(
   appendReplayEvent(root, 'command', { cmd: 'level.edit', relPath, hint: hint.slice(0, 500) });
 
   if (opts.json) {
-    console.log(JSON.stringify({ path: relPath, entities: patched.entities.length }));
+    logger.json({ path: relPath, entities: patched.entities.length });
   } else {
-    console.log(chalk.green('✓'), `Staged level patch: ${relPath}`);
+    logger.info(chalk.green('✓'), `Staged level patch: ${relPath}`);
   }
 }
 
@@ -82,13 +83,15 @@ export function runLevelShow(opts: GlobalOptions, relPath: string): void {
   const root = resolveProjectRoot(opts);
   const level = readLevelFile(root, relPath);
   if (opts.json) {
-    console.log(JSON.stringify(level, null, 2));
+    logger.json(level);
   } else {
-    console.log(chalk.bold(level.name));
-    console.log(chalk.dim(level.description ?? ''));
-    console.log(`  zones: ${level.zones.length}  paths: ${level.paths.length}  entities: ${level.entities.length}`);
+    logger.info(chalk.bold(level.name));
+    logger.info(chalk.dim(level.description ?? ''));
+    logger.info(
+      `  zones: ${level.zones.length}  paths: ${level.paths.length}  entities: ${level.entities.length}`,
+    );
     for (const z of level.zones) {
-      console.log(chalk.cyan(`  [zone] ${z.id}`), `(${z.x},${z.y}) ${z.w}x${z.h}`);
+      logger.info(chalk.cyan(`  [zone] ${z.id}`), `(${z.x},${z.y}) ${z.w}x${z.h}`);
     }
   }
 }

@@ -41,7 +41,8 @@ function readSettings(ctx: ToolContext): WebSettings {
   const w = ctx.config.tools?.web;
   return {
     enabled: w?.enabled === true,
-    timeoutMs: typeof w?.timeoutMs === 'number' && w.timeoutMs > 0 ? w.timeoutMs : DEFAULT_TIMEOUT_MS,
+    timeoutMs:
+      typeof w?.timeoutMs === 'number' && w.timeoutMs > 0 ? w.timeoutMs : DEFAULT_TIMEOUT_MS,
     maxBytes: typeof w?.maxBytes === 'number' && w.maxBytes > 0 ? w.maxBytes : DEFAULT_MAX_BYTES,
     allowHosts: Array.isArray(w?.allowHosts) ? w.allowHosts : [],
     blockHosts: Array.isArray(w?.blockHosts) ? w.blockHosts : [],
@@ -104,7 +105,11 @@ async function fetchWithCaps(
           buf.set(value.subarray(0, remaining), written);
           written += remaining;
           truncated = true;
-          try { await reader.cancel(); } catch { /* ignore */ }
+          try {
+            await reader.cancel();
+          } catch {
+            /* ignore */
+          }
           break;
         }
         buf.set(value, written);
@@ -141,7 +146,8 @@ async function fetchHandler(args: Record<string, unknown>, ctx: ToolContext): Pr
   const settings = readSettings(ctx);
   if (!settings.enabled) {
     return {
-      content: 'web_fetch is disabled. Set `tools.web.enabled: true` in your config to enable outbound HTTP.',
+      content:
+        'web_fetch is disabled. Set `tools.web.enabled: true` in your config to enable outbound HTTP.',
       isError: true,
     };
   }
@@ -188,7 +194,8 @@ function parseDdg(html: string): SearchHit[] {
   const hits: SearchHit[] = [];
   // DDG html result anchors: <a class="result__a" href="…">Title</a>
   // followed by <a class="result__snippet">snippet text</a>.
-  const re = /<a[^>]+class="result__a"[^>]+href="([^"]+)"[^>]*>([\s\S]*?)<\/a>[\s\S]*?<a[^>]+class="result__snippet"[^>]*>([\s\S]*?)<\/a>/gi;
+  const re =
+    /<a[^>]+class="result__a"[^>]+href="([^"]+)"[^>]*>([\s\S]*?)<\/a>[\s\S]*?<a[^>]+class="result__snippet"[^>]*>([\s\S]*?)<\/a>/gi;
   let m: RegExpExecArray | null;
   while ((m = re.exec(html)) && hits.length < MAX_RESULTS) {
     const rawUrl = m[1] ?? '';
@@ -196,7 +203,11 @@ function parseDdg(html: string): SearchHit[] {
     // DDG wraps real URLs as /l/?uddg=<encoded>
     const uddg = /[?&]uddg=([^&]+)/.exec(rawUrl);
     if (uddg) {
-      try { url = decodeURIComponent(uddg[1]!); } catch { /* keep raw */ }
+      try {
+        url = decodeURIComponent(uddg[1]!);
+      } catch {
+        /* keep raw */
+      }
     }
     const title = htmlToText(m[2] ?? '');
     const snippet = htmlToText(m[3] ?? '');
@@ -209,7 +220,8 @@ async function searchHandler(args: Record<string, unknown>, ctx: ToolContext): P
   const settings = readSettings(ctx);
   if (!settings.enabled) {
     return {
-      content: 'web_search is disabled. Set `tools.web.enabled: true` in your config to enable outbound HTTP.',
+      content:
+        'web_search is disabled. Set `tools.web.enabled: true` in your config to enable outbound HTTP.',
       isError: true,
     };
   }
@@ -264,7 +276,8 @@ export const webFetchTool: RegisteredTool = {
       format: {
         type: 'string',
         enum: ['text', 'raw'],
-        description: 'How to return the body. "text" (default) strips HTML; "raw" returns bytes as UTF-8.',
+        description:
+          'How to return the body. "text" (default) strips HTML; "raw" returns bytes as UTF-8.',
       },
     },
     required: ['url'],

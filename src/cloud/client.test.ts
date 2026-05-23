@@ -60,9 +60,7 @@ describe('cloudProxyChat schema parity', () => {
         },
         { role: 'tool', content: 'a.ts', tool_call_id: 'prev' },
       ],
-      tools: [
-        { type: 'function', function: { name: 'read_file', parameters: {} } },
-      ],
+      tools: [{ type: 'function', function: { name: 'read_file', parameters: {} } }],
       toolChoice: 'auto',
       token: 'tkn',
     });

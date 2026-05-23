@@ -33,12 +33,20 @@ export function auditMaterials(projectRoot: string): MaterialAuditFinding[] {
   const keywordMap = new Map<string, string[]>();
 
   for (const abs of files) {
-    const rel = abs.replace(projectRoot, '').replace(/^[/\\]/, '').replace(/\\/g, '/');
+    const rel = abs
+      .replace(projectRoot, '')
+      .replace(/^[/\\]/, '')
+      .replace(/\\/g, '/');
     const text = readFileSync(abs, 'utf8');
-    const keywords = [...text.matchAll(/(?:m_Keywords|keywords|shaderKeywords)\s*[:=]\s*\[([^\]]*)\]/gi)];
+    const keywords = [
+      ...text.matchAll(/(?:m_Keywords|keywords|shaderKeywords)\s*[:=]\s*\[([^\]]*)\]/gi),
+    ];
     for (const k of keywords) {
       const raw = k[1] ?? '';
-      for (const kw of raw.split(/[,|]/).map((s) => s.trim().replace(/['"]/g, '')).filter(Boolean)) {
+      for (const kw of raw
+        .split(/[,|]/)
+        .map((s) => s.trim().replace(/['"]/g, ''))
+        .filter(Boolean)) {
         const list = keywordMap.get(kw) ?? [];
         list.push(rel);
         keywordMap.set(kw, list);

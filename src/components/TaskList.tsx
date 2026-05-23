@@ -31,18 +31,15 @@ export interface TaskListProps {
 // ── Status indicators ──────────────────────────────────
 
 const STATUS_INDICATORS: Record<TaskInfo['status'], { icon: string; color: string }> = {
-  running:   { icon: '⠋', color: 'cyan' },
+  running: { icon: '⠋', color: 'cyan' },
   completed: { icon: '✓', color: 'green' },
-  failed:    { icon: '✗', color: 'red' },
-  pending:   { icon: '○', color: 'gray' },
+  failed: { icon: '✗', color: 'red' },
+  pending: { icon: '○', color: 'gray' },
 };
 
 // ── Component ──────────────────────────────────────────
 
-export const TaskList: React.FC<TaskListProps> = ({
-  tasks,
-  maxVisible = 5,
-}) => {
+export const TaskList: React.FC<TaskListProps> = ({ tasks, maxVisible = 5 }) => {
   if (tasks.length === 0) return null;
 
   const visibleTasks = tasks.slice(0, maxVisible);
@@ -56,7 +53,9 @@ export const TaskList: React.FC<TaskListProps> = ({
           <Box key={task.id} flexDirection="row" gap={1}>
             <Text color={indicator.color}>{indicator.icon}</Text>
             <Text
-              color={task.status === 'failed' ? 'red' : task.status === 'completed' ? 'green' : undefined}
+              color={
+                task.status === 'failed' ? 'red' : task.status === 'completed' ? 'green' : undefined
+              }
               dimColor={task.status === 'pending'}
             >
               {task.label}
@@ -70,7 +69,7 @@ export const TaskList: React.FC<TaskListProps> = ({
 
       {tasks.length > maxVisible && (
         <Box>
-          <Text dimColor>  + {tasks.length - maxVisible} more tasks</Text>
+          <Text dimColor> + {tasks.length - maxVisible} more tasks</Text>
         </Box>
       )}
     </Box>

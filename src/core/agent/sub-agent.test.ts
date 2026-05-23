@@ -3,11 +3,7 @@ import { mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { spawnSubAgent } from './sub-agent.js';
-import {
-  createToolRegistry,
-  type ToolContext,
-  type ToolRegistry,
-} from './tool-registry.js';
+import { createToolRegistry, type ToolContext, type ToolRegistry } from './tool-registry.js';
 import type { SparkCLIConfig } from '../../config/schema.js';
 import type { ProviderResponse } from '../providers/types.js';
 import type { ChatMessage } from '../providers/openai-compatible.js';
@@ -175,7 +171,9 @@ describe('spawnSubAgent', () => {
       systemPrompt: 's',
       completeFn,
     });
-    expect(observedTools.sort()).toEqual(['glob', 'grep', 'list_dir', 'load_skill', 'read_file'].sort());
+    expect(observedTools.sort()).toEqual(
+      ['glob', 'grep', 'list_dir', 'load_skill', 'read_file'].sort(),
+    );
     expect(observedTools).not.toContain('write_file');
   });
 });

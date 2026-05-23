@@ -12,40 +12,40 @@ export type SpinnerVerb = string;
  * Map tool identifiers to display verbs.
  */
 export const TOOL_VERB_MAP: Record<string, SpinnerVerb> = {
-  'read_file':      'Reading',
-  'write_file':     'Writing',
-  'edit_file':      'Editing',
-  'create_file':    'Creating',
-  'delete_file':    'Deleting',
-  'search_files':   'Searching',
-  'list_directory': 'Listing',
-  'run_command':    'Running',
-  'bash':           'Running',
-  'shell':          'Executing',
-  'web_search':     'Searching',
-  'web_fetch':      'Fetching',
-  'analyze':        'Analyzing',
-  'plan':           'Planning',
-  'validate':       'Validating',
-  'build':          'Building',
-  'compile':        'Compiling',
-  'test':           'Testing',
-  'deploy':         'Deploying',
-  'diff':           'Comparing',
-  'apply':          'Applying',
-  'revert':         'Reverting',
+  read_file: 'Reading',
+  write_file: 'Writing',
+  edit_file: 'Editing',
+  create_file: 'Creating',
+  delete_file: 'Deleting',
+  search_files: 'Searching',
+  list_directory: 'Listing',
+  run_command: 'Running',
+  bash: 'Running',
+  shell: 'Executing',
+  web_search: 'Searching',
+  web_fetch: 'Fetching',
+  analyze: 'Analyzing',
+  plan: 'Planning',
+  validate: 'Validating',
+  build: 'Building',
+  compile: 'Compiling',
+  test: 'Testing',
+  deploy: 'Deploying',
+  diff: 'Comparing',
+  apply: 'Applying',
+  revert: 'Reverting',
 };
 
 /**
  * Map slash commands to display verbs.
  */
 export const COMMAND_VERB_MAP: Record<string, SpinnerVerb> = {
-  '/model':   'Loading models',
-  '/theme':   'Loading themes',
-  '/doctor':  'Running diagnostics',
-  '/apply':   'Applying changes',
-  '/revert':  'Reverting changes',
-  '/diff':    'Computing diff',
+  '/model': 'Loading models',
+  '/theme': 'Loading themes',
+  '/doctor': 'Running diagnostics',
+  '/apply': 'Applying changes',
+  '/revert': 'Reverting changes',
+  '/diff': 'Computing diff',
 };
 
 /**

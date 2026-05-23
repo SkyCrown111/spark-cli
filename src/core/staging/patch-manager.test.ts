@@ -27,7 +27,11 @@ describe('patch-manager', () => {
 
   it('stages and applies a new file', async () => {
     initStaging(root);
-    stageWriteFile(root, 'assets/scripts/Test.ts', '// @spark-cli-generated\nexport const x = 1;\n');
+    stageWriteFile(
+      root,
+      'assets/scripts/Test.ts',
+      '// @spark-cli-generated\nexport const x = 1;\n',
+    );
     expect(hasStaging(root)).toBe(true);
     const diff = showDiff(root);
     expect(diff).toContain('Test.ts');

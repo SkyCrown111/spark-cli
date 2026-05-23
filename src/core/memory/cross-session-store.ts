@@ -1,6 +1,6 @@
 /**
  * Cross-session, file-based memory store. Lives at
- * `~/.spark-cli/projects/<slug>/memory/` so memories follow a project across
+ * `~/.spark/projects/<slug>/memory/` so memories follow a project across
  * machines (when synced) and survive REPL restarts.
  *
  * Each memory is a small markdown file with YAML frontmatter:
@@ -23,7 +23,15 @@
  *   reference — pointers to external systems (Linear, dashboards, …)
  */
 
-import { existsSync, mkdirSync, readFileSync, writeFileSync, readdirSync, rmSync, statSync } from 'node:fs';
+import {
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  writeFileSync,
+  readdirSync,
+  rmSync,
+  statSync,
+} from 'node:fs';
 import { join, basename } from 'node:path';
 import { getCrossSessionMemoryDir } from '../../config/paths.js';
 
@@ -51,11 +59,13 @@ function ensureDir(dir: string): void {
 }
 
 function slugify(input: string): string {
-  return input
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '_')
-    .replace(/^_+|_+$/g, '')
-    .slice(0, 60) || 'memory';
+  return (
+    input
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '_')
+      .replace(/^_+|_+$/g, '')
+      .slice(0, 60) || 'memory'
+  );
 }
 
 function parseFrontmatter(raw: string): { meta: Record<string, string>; body: string } | null {
@@ -85,14 +95,22 @@ export function listMemories(projectRoot: string): MemoryRecord[] {
     if (name === 'MEMORY.md' || !FILENAME_RE.test(name)) continue;
     const path = join(dir, name);
     let raw: string;
-    try { raw = readFileSync(path, 'utf8'); } catch { continue; }
+    try {
+      raw = readFileSync(path, 'utf8');
+    } catch {
+      continue;
+    }
     const parsed = parseFrontmatter(raw);
     if (!parsed) continue;
     const type = (VALID_TYPES as readonly string[]).includes(parsed.meta.type ?? '')
       ? (parsed.meta.type as MemoryType)
       : 'project';
     let updatedAt = 0;
-    try { updatedAt = statSync(path).mtimeMs; } catch { /* ignore */ }
+    try {
+      updatedAt = statSync(path).mtimeMs;
+    } catch {
+      /* ignore */
+    }
     out.push({
       id: basename(name, '.md'),
       name: parsed.meta.name ?? basename(name, '.md'),
@@ -118,7 +136,7 @@ export function saveMemory(
   }
   const dir = getCrossSessionMemoryDir(projectRoot);
   ensureDir(dir);
-  const id = (input.id && FILENAME_RE.test(`${input.id}.md`)) ? input.id : slugify(input.name);
+  const id = input.id && FILENAME_RE.test(`${input.id}.md`) ? input.id : slugify(input.name);
   const path = join(dir, `${id}.md`);
   writeFileSync(path, formatRecord(input), 'utf8');
   rebuildIndex(projectRoot);

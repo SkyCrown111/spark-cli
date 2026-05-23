@@ -1,6 +1,6 @@
 /**
  * Load user keybindings — reads and validates user-defined
- * keybinding overrides from ~/.spark-cli/keybindings.json.
+ * keybinding overrides from ~/.spark/keybindings.json.
  */
 
 import fs from 'fs';
@@ -64,10 +64,12 @@ export function loadUserBindings(): {
         bindings: [],
         validation: {
           valid: false,
-          issues: [{
-            severity: 'error',
-            message: 'keybindings.json must have a "bindings" array',
-          }],
+          issues: [
+            {
+              severity: 'error',
+              message: 'keybindings.json must have a "bindings" array',
+            },
+          ],
         },
         error: 'Invalid format: missing "bindings" array',
       };
@@ -85,10 +87,12 @@ export function loadUserBindings(): {
       bindings: [],
       validation: {
         valid: false,
-        issues: [{
-          severity: 'error',
-          message: `Failed to parse keybindings.json: ${e.message}`,
-        }],
+        issues: [
+          {
+            severity: 'error',
+            message: `Failed to parse keybindings.json: ${e.message}`,
+          },
+        ],
       },
       error: e.message,
     };

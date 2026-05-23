@@ -16,11 +16,19 @@ export function findUnitySceneFiles(projectRoot: string): string[] {
   while (stack.length > 0) {
     const dir = stack.pop()!;
     let entries: string[];
-    try { entries = readdirSync(dir); } catch { continue; }
+    try {
+      entries = readdirSync(dir);
+    } catch {
+      continue;
+    }
     for (const name of entries) {
       const full = join(dir, name);
       let st: ReturnType<typeof statSync>;
-      try { st = statSync(full); } catch { continue; }
+      try {
+        st = statSync(full);
+      } catch {
+        continue;
+      }
       if (st.isDirectory()) {
         // Skip Library/Temp-style folders just in case.
         if (name === 'Library' || name === 'Temp' || name === 'obj') continue;

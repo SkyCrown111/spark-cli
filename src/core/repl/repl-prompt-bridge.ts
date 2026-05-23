@@ -10,18 +10,12 @@ export interface ReplKeypress {
   meta?: boolean;
 }
 
-export type ReplModalKeyHandler = (
-  chunk: string | undefined,
-  key: ReplKeypress,
-) => boolean;
+export type ReplModalKeyHandler = (chunk: string | undefined, key: ReplKeypress) => boolean;
 
 let modalHandler: ReplModalKeyHandler | null = null;
 let modalHooks: { onOpen?: () => void; onClose?: () => void } = {};
 
-export function registerReplModalHooks(hooks: {
-  onOpen?: () => void;
-  onClose?: () => void;
-}): void {
+export function registerReplModalHooks(hooks: { onOpen?: () => void; onClose?: () => void }): void {
   modalHooks = hooks;
 }
 
@@ -32,10 +26,7 @@ export function setReplModalHandler(handler: ReplModalKeyHandler | null): void {
 }
 
 /** Returns true when a modal consumed the key. */
-export function dispatchReplModalKey(
-  chunk: string | undefined,
-  key: ReplKeypress,
-): boolean {
+export function dispatchReplModalKey(chunk: string | undefined, key: ReplKeypress): boolean {
   return modalHandler?.(chunk, key) ?? false;
 }
 

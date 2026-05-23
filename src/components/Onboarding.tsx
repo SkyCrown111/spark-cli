@@ -30,13 +30,16 @@ export const Onboarding: React.FC<OnboardingProps> = ({ onDismiss }) => {
   return (
     <Box flexDirection="column" paddingX={2} paddingY={1}>
       <Box paddingBottom={1}>
-        <Text bold color="cyan" inverse> Welcome to SparkCLI! </Text>
+        <Text bold color="cyan" inverse>
+          {' '}
+          Welcome to SparkCLI!{' '}
+        </Text>
       </Box>
 
       <Box paddingBottom={1}>
         <Text>
-          SparkCLI is an AI-powered assistant for game development.
-          It can generate code, manage files, and interact with your game engine.
+          SparkCLI is an AI-powered assistant for game development. It can generate code, manage
+          files, and interact with your game engine.
         </Text>
       </Box>
 
@@ -58,11 +61,11 @@ export const Onboarding: React.FC<OnboardingProps> = ({ onDismiss }) => {
 
       <Box flexDirection="column" paddingBottom={1}>
         <Text bold>Slash Commands:</Text>
-        <Text dimColor>  /help   — Show all commands</Text>
-        <Text dimColor>  /model  — Change AI model</Text>
-        <Text dimColor>  /clear  — Clear conversation</Text>
-        <Text dimColor>  /plan   — Enter plan mode</Text>
-        <Text dimColor>  /auto   — Auto-apply mode</Text>
+        <Text dimColor> /help — Show all commands</Text>
+        <Text dimColor> /model — Change AI model</Text>
+        <Text dimColor> /clear — Clear conversation</Text>
+        <Text dimColor> /plan — Enter plan mode</Text>
+        <Text dimColor> /auto — Auto-apply mode</Text>
       </Box>
 
       <Box paddingTop={1}>

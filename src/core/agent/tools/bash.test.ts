@@ -16,10 +16,7 @@ describe('bash runShell', () => {
 
   it('reports nonzero exit and captures stderr', async () => {
     const root = mkdtempSync(join(tmpdir(), 'spark-cli-bash-'));
-    const cmd =
-      process.platform === 'win32'
-        ? 'cmd /c "exit 7"'
-        : 'sh -c "echo err 1>&2; exit 7"';
+    const cmd = process.platform === 'win32' ? 'cmd /c "exit 7"' : 'sh -c "echo err 1>&2; exit 7"';
     const r = await runShell(cmd, { cwd: root, timeoutMs: 5000 });
     expect(r.exitCode).toBe(7);
   });

@@ -2,10 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import {
-  parseFrontmatter,
-  loadFileCommands,
-} from '../../core/slash/loader.js';
+import { parseFrontmatter, loadFileCommands } from '../../core/slash/loader.js';
 import { createSlashRegistry } from '../../core/slash/registry.js';
 import { buildBuiltinCommands } from '../../core/slash/built-ins.js';
 
@@ -67,17 +64,13 @@ describe('parseFrontmatter', () => {
 
 describe('loadFileCommands', () => {
   it('loads project markdown commands and exposes a synthetic prompt', async () => {
-    const dir = join(projectRoot, '.spark-cli', 'commands');
+    const dir = join(projectRoot, '.spark', 'commands');
     mkdirSync(dir, { recursive: true });
     writeFileSync(
       join(dir, 'scan.md'),
-      [
-        '---',
-        'description: Scan files',
-        'mode: plan',
-        '---',
-        'Scan the repo for $ARGUMENTS',
-      ].join('\n'),
+      ['---', 'description: Scan files', 'mode: plan', '---', 'Scan the repo for $ARGUMENTS'].join(
+        '\n',
+      ),
       'utf8',
     );
 
@@ -98,7 +91,7 @@ describe('loadFileCommands', () => {
   });
 
   it('skips files with non-conforming names', () => {
-    const dir = join(projectRoot, '.spark-cli', 'commands');
+    const dir = join(projectRoot, '.spark', 'commands');
     mkdirSync(dir, { recursive: true });
     writeFileSync(join(dir, 'Bad Name.md'), 'body', 'utf8');
 
@@ -108,7 +101,7 @@ describe('loadFileCommands', () => {
   });
 
   it('does not override built-in commands', () => {
-    const dir = join(projectRoot, '.spark-cli', 'commands');
+    const dir = join(projectRoot, '.spark', 'commands');
     mkdirSync(dir, { recursive: true });
     writeFileSync(join(dir, 'help.md'), 'project help override', 'utf8');
 
@@ -125,5 +118,17 @@ describe('loadFileCommands', () => {
     loadFileCommands(reg, projectRoot);
     const r = await reg.dispatch('/missing', { project: projectRoot });
     expect(r.kind).toBe('unknown');
+  });
+
+  it('falls back to legacy .spark-cli/commands', async () => {
+    const dir = join(projectRoot, '.spark-cli', 'commands');
+    mkdirSync(dir, { recursive: true });
+    writeFileSync(join(dir, 'legacy.md'), 'legacy body', 'utf8');
+
+    const reg = createSlashRegistry();
+    loadFileCommands(reg, projectRoot);
+
+    const cmd = reg.get('legacy');
+    expect(cmd?.source).toBe('project');
   });
 });

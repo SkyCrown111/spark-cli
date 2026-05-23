@@ -1,9 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import {
-  clearTtyViewport,
-  shouldUseAlternateScreen,
-  watchTtyResize,
-} from './viewport.js';
+import { clearTtyViewport, shouldUseAlternateScreen, watchTtyResize } from './viewport.js';
 
 describe('viewport', () => {
   afterEach(() => {
@@ -48,16 +44,9 @@ describe('viewport', () => {
     expect(writes.join('')).toContain('\x1b[3J');
   });
 
-  it('uses alternate screen only when opted in', () => {
-    vi.stubEnv('SPARK_CLI_ALT_SCREEN', '');
-    vi.stubEnv('SPARK_CLI_NO_ALT_SCREEN', '');
-    if (process.stdout.isTTY) {
-      expect(shouldUseAlternateScreen()).toBe(false);
-    }
+  it('never uses alternate screen in default renderer', () => {
     vi.stubEnv('SPARK_CLI_ALT_SCREEN', '1');
-    if (process.stdout.isTTY) {
-      expect(shouldUseAlternateScreen()).toBe(true);
-    }
+    expect(shouldUseAlternateScreen()).toBe(false);
     vi.unstubAllEnvs();
   });
 

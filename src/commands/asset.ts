@@ -12,6 +12,7 @@ import type { GlobalOptions } from '../utils/output.js';
 import { printJson, resolveProjectRoot } from '../utils/output.js';
 import { SparkCLIError } from '../utils/errors.js';
 import { formatBytes } from '../core/validate/wechat-limits.js';
+import { logger } from '../utils/logger.js';
 
 export function runAssetList(opts: GlobalOptions, type?: string): void {
   const root = resolveProjectRoot(opts);
@@ -23,13 +24,13 @@ export function runAssetList(opts: GlobalOptions, type?: string): void {
     return;
   }
 
-  console.log(chalk.bold('\nAssets\n'));
+  logger.info(chalk.bold('\nAssets\n'));
   if (!assets.length) {
-    console.log(chalk.dim('  No assets found under assets/'));
+    logger.info(chalk.dim('  No assets found under assets/'));
     return;
   }
   for (const a of assets) {
-    console.log(`  ${chalk.cyan(a.path)}  ${chalk.dim(a.type)}  ${formatBytes(a.bytes)}`);
+    logger.info(`  ${chalk.cyan(a.path)}  ${chalk.dim(a.type)}  ${formatBytes(a.bytes)}`);
   }
 }
 
@@ -42,14 +43,14 @@ export function runAssetAnalyze(opts: GlobalOptions): void {
     return;
   }
 
-  console.log(chalk.bold('\nAsset analyze\n'));
-  console.log(`  Total files: ${report.total}`);
+  logger.info(chalk.bold('\nAsset analyze\n'));
+  logger.info(`  Total files: ${report.total}`);
   for (const [type, stats] of Object.entries(report.byType)) {
-    console.log(`  ${type}: ${stats.count} (${formatBytes(stats.bytes)})`);
+    logger.info(`  ${type}: ${stats.count} (${formatBytes(stats.bytes)})`);
   }
-  console.log(chalk.bold('\nLargest\n'));
+  logger.info(chalk.bold('\nLargest\n'));
   for (const a of report.largest) {
-    console.log(`  ${formatBytes(a.bytes).padStart(10)}  ${a.path}`);
+    logger.info(`  ${formatBytes(a.bytes).padStart(10)}  ${a.path}`);
   }
 }
 
@@ -62,34 +63,30 @@ export function runAssetUnused(opts: GlobalOptions): void {
     return;
   }
 
-  console.log(chalk.bold('\nUnused assets (heuristic)\n'));
+  logger.info(chalk.bold('\nUnused assets (heuristic)\n'));
   if (!unused.length) {
-    console.log(chalk.green('  None detected'));
+    logger.info(chalk.green('  None detected'));
     return;
   }
   for (const a of unused) {
-    console.log(`  ${chalk.yellow('?')} ${a.path}  ${formatBytes(a.bytes)}`);
+    logger.info(`  ${chalk.yellow('?')} ${a.path}  ${formatBytes(a.bytes)}`);
   }
-  console.log(chalk.dim('\n  Review before deleting — reference detection is best-effort.'));
+  logger.info(chalk.dim('\n  Review before deleting — reference detection is best-effort.'));
 }
 
-export function runAssetImport(
-  opts: GlobalOptions,
-  source: string,
-  dest: string,
-): void {
+export function runAssetImport(opts: GlobalOptions, source: string, dest: string): void {
   const root = resolveProjectRoot(opts);
   if (!existsSync(source)) {
     throw new SparkCLIError(`Source not found: ${source}`, 1);
   }
   if (opts.dryRun) {
     if (opts.json) printJson({ dryRun: true, source, dest });
-    else console.log(chalk.dim(`Would import ${source} → ${dest}`));
+    else logger.info(chalk.dim(`Would import ${source} → ${dest}`));
     return;
   }
   const written = importAsset(root, source, dest);
   if (opts.json) printJson({ imported: written });
-  else console.log(chalk.green('✓'), 'Imported to', chalk.cyan(written));
+  else logger.info(chalk.green('✓'), 'Imported to', chalk.cyan(written));
 }
 
 export async function runAssetAudit(
@@ -97,7 +94,12 @@ export async function runAssetAudit(
   cmdOpts: { dir?: string; disable?: string },
 ): Promise<void> {
   const root = resolveProjectRoot(opts);
-  const disable = cmdOpts.disable ? cmdOpts.disable.split(',').map((s) => s.trim()).filter(Boolean) : undefined;
+  const disable = cmdOpts.disable
+    ? cmdOpts.disable
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean)
+    : undefined;
   const issues = await auditAssets(root, { dir: cmdOpts.dir, disable });
 
   if (opts.json) {
@@ -105,19 +107,20 @@ export async function runAssetAudit(
     return;
   }
 
-  console.log(chalk.bold('\nAssets audit\n'));
+  logger.info(chalk.bold('\nAssets audit\n'));
   if (!issues.length) {
-    console.log(chalk.green('  No issues detected'));
+    logger.info(chalk.green('  No issues detected'));
     return;
   }
   for (const i of issues) {
-    const sev = i.severity === 'error'
-      ? chalk.red('ERR')
-      : i.severity === 'warn'
-      ? chalk.yellow('WRN')
-      : chalk.dim('hint');
-    console.log(`  ${sev}  ${chalk.cyan(i.path)}  [${i.rule}] ${i.message}`);
-    if (i.suggestion) console.log(chalk.dim(`        ↳ ${i.suggestion}`));
+    const sev =
+      i.severity === 'error'
+        ? chalk.red('ERR')
+        : i.severity === 'warn'
+          ? chalk.yellow('WRN')
+          : chalk.dim('hint');
+    logger.info(`  ${sev}  ${chalk.cyan(i.path)}  [${i.rule}] ${i.message}`);
+    if (i.suggestion) logger.info(chalk.dim(`        ↳ ${i.suggestion}`));
   }
 }
 
@@ -131,20 +134,22 @@ export async function runAssetFix(
   );
   if (!issues.length) {
     if (opts.json) printJson({ rule: cmdOpts.rule, results: [] });
-    else console.log(chalk.dim(`No issues match rule "${cmdOpts.rule}"`));
+    else logger.info(chalk.dim(`No issues match rule "${cmdOpts.rule}"`));
     return;
   }
-  const results = issues.map((issue: AuditIssue) => applyFix(root, issue, { apply: !!cmdOpts.apply }));
+  const results = issues.map((issue: AuditIssue) =>
+    applyFix(root, issue, { apply: !!cmdOpts.apply }),
+  );
   if (opts.json) {
     printJson({ rule: cmdOpts.rule, applied: !!cmdOpts.apply, results });
     return;
   }
-  console.log(chalk.bold(`\nAssets fix [${cmdOpts.rule}]\n`));
+  logger.info(chalk.bold(`\nAssets fix [${cmdOpts.rule}]\n`));
   for (const r of results) {
     const tag = r.applied ? chalk.green('✓') : chalk.dim('•');
-    console.log(`  ${tag} ${r.path}  ${r.message}`);
+    logger.info(`  ${tag} ${r.path}  ${r.message}`);
   }
   if (!cmdOpts.apply) {
-    console.log(chalk.dim('\n  Re-run with --apply to stage the fixes.'));
+    logger.info(chalk.dim('\n  Re-run with --apply to stage the fixes.'));
   }
 }

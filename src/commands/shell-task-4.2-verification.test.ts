@@ -1,6 +1,6 @@
 /**
  * Verification test for Task 4.2: Try-finally block ensures flag reset
- * 
+ *
  * This test verifies that the layoutRerendering flag is always reset,
  * even when an error occurs during the rerender operation.
  */
@@ -51,12 +51,12 @@ describe('Task 4.2: Try-finally ensures flag reset', () => {
       // Task 4.2: Try-finally block
       try {
         // Simulate async operations
-        await new Promise(resolve => setTimeout(resolve, 10));
-        
+        await new Promise((resolve) => setTimeout(resolve, 10));
+
         if (shouldThrowError) {
           throw new Error('Simulated error during rerender');
         }
-        
+
         // Simulate rendering operations
         mockStdout.write('Welcome banner\n');
       } finally {
@@ -78,7 +78,7 @@ describe('Task 4.2: Try-finally ensures flag reset', () => {
       errorThrown = true;
       expect((e as Error).message).toBe('Simulated error during rerender');
     }
-    
+
     expect(errorThrown).toBe(true);
     expect(layoutRerendering).toBe(false); // Flag reset even after error!
     expect(rerenderAttempts).toBe(2);
@@ -103,12 +103,12 @@ describe('Task 4.2: Try-finally ensures flag reset', () => {
       try {
         activeRerenders++;
         maxConcurrentRerenders = Math.max(maxConcurrentRerenders, activeRerenders);
-        
+
         // Simulate async operations
-        await new Promise(resolve => setTimeout(resolve, 20));
-        
+        await new Promise((resolve) => setTimeout(resolve, 20));
+
         mockStdout.write('Rerender\n');
-        
+
         activeRerenders--;
       } finally {
         // Task 4.2: Always reset flag
@@ -117,11 +117,7 @@ describe('Task 4.2: Try-finally ensures flag reset', () => {
     };
 
     // Trigger multiple concurrent rerender attempts
-    const promises = [
-      rerenderLayout(),
-      rerenderLayout(),
-      rerenderLayout(),
-    ];
+    const promises = [rerenderLayout(), rerenderLayout(), rerenderLayout()];
 
     await Promise.all(promises);
 
@@ -141,7 +137,7 @@ describe('Task 4.2: Try-finally ensures flag reset', () => {
 
       // Task 4.2: Try-finally block
       try {
-        await new Promise(resolve => setTimeout(resolve, 10));
+        await new Promise((resolve) => setTimeout(resolve, 10));
         rerenderCount++;
         mockStdout.write(`Rerender ${rerenderCount}\n`);
       } finally {

@@ -19,7 +19,11 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-  try { rmSync(TMP_ROOT, { recursive: true, force: true }); } catch { /* ignore */ }
+  try {
+    rmSync(TMP_ROOT, { recursive: true, force: true });
+  } catch {
+    /* ignore */
+  }
 });
 
 describe('generateSessionId', () => {

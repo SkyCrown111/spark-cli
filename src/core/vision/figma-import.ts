@@ -23,11 +23,9 @@ export function parseFigmaUrl(url: string): FigmaUrlParts {
     if (nodeId) nodeId = nodeId.replace(/-/g, ':');
     return { fileKey: parts[keyIdx], nodeId };
   } catch (e) {
-    throw new SparkCLIError(
-      `Invalid Figma URL: ${e instanceof Error ? e.message : String(e)}`,
-      1,
-      ['Example: https://www.figma.com/design/ABC123/My-File?node-id=1-2'],
-    );
+    throw new SparkCLIError(`Invalid Figma URL: ${e instanceof Error ? e.message : String(e)}`, 1, [
+      'Example: https://www.figma.com/design/ABC123/My-File?node-id=1-2',
+    ]);
   }
 }
 
@@ -54,7 +52,7 @@ export async function fetchFigmaDesignSummary(
 ): Promise<{ summary: string; fileKey: string; name?: string }> {
   if (!token) {
     throw new SparkCLIError('FIGMA_TOKEN is required for --figma', 2, [
-      'Set environment variable FIGMA_TOKEN or figma.token in spark-cli.config.yaml',
+      'Set environment variable FIGMA_TOKEN or figma.token in .spark/settings.json',
     ]);
   }
 

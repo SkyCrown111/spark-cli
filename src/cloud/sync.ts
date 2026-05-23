@@ -4,11 +4,11 @@ import { createHash } from 'node:crypto';
 import type { SparkCLIConfig } from '../config/schema.js';
 
 const DEFAULT_SYNC_PATHS = [
-  'spark-cli.config.yaml',
+  '.spark/settings.json',
   'assets/scripts',
   'scripts',
   'Assets/Scripts',
-  '.spark-cli/memory',
+  '.spark/memory',
 ];
 
 export function projectCloudId(projectRoot: string): string {
@@ -19,9 +19,7 @@ export function collectSyncFiles(
   projectRoot: string,
   config: SparkCLIConfig,
 ): Record<string, string> {
-  const patterns = config.cloud?.syncPaths?.length
-    ? config.cloud.syncPaths
-    : DEFAULT_SYNC_PATHS;
+  const patterns = config.cloud?.syncPaths?.length ? config.cloud.syncPaths : DEFAULT_SYNC_PATHS;
   const files: Record<string, string> = {};
 
   for (const pattern of patterns) {
@@ -39,7 +37,7 @@ export function collectSyncFiles(
 
 function walkDir(dir: string, root: string, out: Record<string, string>): void {
   for (const name of readdirSync(dir)) {
-    if (name.startsWith('.') && name !== '.spark-cli') continue;
+    if (name.startsWith('.') && name !== '.spark') continue;
     const full = join(dir, name);
     const st = statSync(full);
     if (st.isDirectory()) {

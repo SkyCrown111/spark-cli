@@ -1,11 +1,11 @@
 /**
  * Agent definition loader.
  *
- * Reads agent definitions from `.spark-cli/agents/<name>.md` files with YAML
+ * Reads agent definitions from `.spark/agents/<name>.md` files with YAML
  * frontmatter. Each definition specifies the agent's name, model, allowed tools,
  * and whether it runs in the background.
  *
- * Example `.spark-cli/agents/code-reviewer.md`:
+ * Example `.spark/agents/code-reviewer.md`:
  * ```yaml
  * ---
  * name: code-reviewer
@@ -44,9 +44,7 @@ export interface AgentDefinition {
  * Minimal YAML frontmatter parser — handles simple `key: value` and
  * `key: [a, b, c]` patterns. Does not support nested objects.
  */
-function parseFrontmatter(
-  text: string,
-): { meta: Record<string, unknown>; body: string } {
+function parseFrontmatter(text: string): { meta: Record<string, unknown>; body: string } {
   const match = text.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n?([\s\S]*)$/);
   if (!match) {
     return { meta: {}, body: text };
@@ -114,7 +112,7 @@ export function loadAgentDefinition(filePath: string): AgentDefinition | null {
 }
 
 /**
- * Load all agent definitions from `.spark-cli/agents/*.md`.
+ * Load all agent definitions from `.spark/agents/*.md`.
  */
 export function loadAllAgentDefinitions(projectRoot: string): AgentDefinition[] {
   const agentsDir = join(getProjectSparkDir(projectRoot), 'agents');
@@ -132,10 +130,7 @@ export function loadAllAgentDefinitions(projectRoot: string): AgentDefinition[] 
 /**
  * Find a specific agent definition by name.
  */
-export function findAgentDefinition(
-  projectRoot: string,
-  name: string,
-): AgentDefinition | null {
+export function findAgentDefinition(projectRoot: string, name: string): AgentDefinition | null {
   // Direct file match
   const directPath = join(getProjectSparkDir(projectRoot), 'agents', `${name}.md`);
   const direct = loadAgentDefinition(directPath);

@@ -20,9 +20,7 @@ export function detectCocosProject(root: string): CocosProjectInfo | null {
   if (existsSync(settingsV2)) {
     try {
       const json = JSON.parse(readFileSync(settingsV2, 'utf8')) as Record<string, unknown>;
-      version =
-        (json.version as string) ??
-        (json.engine as { version?: string })?.version;
+      version = (json.version as string) ?? (json.engine as { version?: string })?.version;
     } catch {
       /* ignore */
     }

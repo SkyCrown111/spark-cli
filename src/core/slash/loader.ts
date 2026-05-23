@@ -1,7 +1,7 @@
 /**
  * Loader for file-based slash commands.
  *
- * Scans `.spark-cli/commands/*.md` (project) and `~/.spark-cli/commands/*.md`
+ * Scans `.spark/commands/*.md` (project) and `~/.spark/commands/*.md`
  * (user). Project-local commands win on name collisions. Each markdown file
  * may declare YAML-ish frontmatter; the body becomes the synthetic user
  * prompt fed to the agent loop when the command is invoked.
@@ -71,7 +71,10 @@ export function parseFrontmatter(raw: string): ParsedCommand {
       if (value === 'plan' || value === 'normal' || value === 'auto') fm.mode = value;
     }
   }
-  const body = lines.slice(fmEnd + 1).join('\n').trim();
+  const body = lines
+    .slice(fmEnd + 1)
+    .join('\n')
+    .trim();
   return { frontmatter: fm, body };
 }
 
@@ -86,11 +89,15 @@ function parseList(value: string): string[] | undefined {
 }
 
 function commandsDirProject(projectRoot: string): string {
-  return join(projectRoot, '.spark-cli', 'commands');
+  return existsSync(join(projectRoot, '.spark', 'commands'))
+    ? join(projectRoot, '.spark', 'commands')
+    : join(projectRoot, '.spark-cli', 'commands');
 }
 
 function commandsDirUser(): string {
-  return join(homedir(), '.spark-cli', 'commands');
+  return existsSync(join(homedir(), '.spark', 'commands'))
+    ? join(homedir(), '.spark', 'commands')
+    : join(homedir(), '.spark-cli', 'commands');
 }
 
 function readMdFiles(dir: string): Array<{ name: string; path: string }> {
@@ -141,10 +148,7 @@ function fileToCommand(
  *
  * Built-in handlers always win — file-based commands cannot replace them.
  */
-export function loadFileCommands(
-  registry: SlashRegistry,
-  projectRoot: string,
-): void {
+export function loadFileCommands(registry: SlashRegistry, projectRoot: string): void {
   // User scope first; project scope overrides if names match.
   for (const f of readMdFiles(commandsDirUser())) {
     if (registry.get(f.name)?.source === 'builtin') continue;

@@ -186,7 +186,8 @@ function splitSpecifiers(s: string): string[] {
   return out;
 }
 
-const UCLASS_RE = /UCLASS\s*\(([^)]*)\)\s*([\s\S]*?)\bclass\s+(?:[A-Z][A-Z0-9_]*_API\s+)?(\w+)\s*(?::\s*public\s+(\w+))?[^{]*\{([\s\S]*?)\bGENERATED_BODY\s*\(/g;
+const UCLASS_RE =
+  /UCLASS\s*\(([^)]*)\)\s*([\s\S]*?)\bclass\s+(?:[A-Z][A-Z0-9_]*_API\s+)?(\w+)\s*(?::\s*public\s+(\w+))?[^{]*\{([\s\S]*?)\bGENERATED_BODY\s*\(/g;
 
 function extractUClasses(text: string): CppUClass[] {
   const out: CppUClass[] = [];
@@ -202,7 +203,8 @@ function extractUClasses(text: string): CppUClass[] {
     });
   }
   // Case 2: UCLASS without GENERATED_BODY (still record but flag it).
-  const simpleRe = /UCLASS\s*\(([^)]*)\)\s*([\s\S]{0,200}?)\bclass\s+(?:[A-Z][A-Z0-9_]*_API\s+)?(\w+)\s*(?::\s*public\s+(\w+))?/g;
+  const simpleRe =
+    /UCLASS\s*\(([^)]*)\)\s*([\s\S]{0,200}?)\bclass\s+(?:[A-Z][A-Z0-9_]*_API\s+)?(\w+)\s*(?::\s*public\s+(\w+))?/g;
   let s: RegExpExecArray | null;
   while ((s = simpleRe.exec(text)) !== null) {
     const name = s[3]!;

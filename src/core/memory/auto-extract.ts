@@ -155,9 +155,13 @@ function parseExtractedFacts(response: string): ExtractedFact[] {
       if (typeof item.name !== 'string' || !item.name.trim()) continue;
       if (typeof item.description !== 'string' || !item.description.trim()) continue;
       if (typeof item.body !== 'string' || !item.body.trim()) continue;
-      const type = validTypes.includes(item.type) ? item.type as MemoryType : 'project';
+      const type = validTypes.includes(item.type) ? (item.type as MemoryType) : 'project';
       facts.push({
-        name: item.name.trim().toLowerCase().replace(/[^a-z0-9_]/g, '_').slice(0, 60),
+        name: item.name
+          .trim()
+          .toLowerCase()
+          .replace(/[^a-z0-9_]/g, '_')
+          .slice(0, 60),
         description: item.description.trim().slice(0, 200),
         type,
         body: item.body.trim(),

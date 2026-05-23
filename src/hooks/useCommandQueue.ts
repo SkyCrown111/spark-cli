@@ -69,27 +69,36 @@ export function useCommandQueue(options: UseCommandQueueOptions): UseCommandQueu
   const currentCommand = queue.find((c) => !c.processed) ?? null;
   const isActive = pendingCount > 0;
 
-  const enqueue = useCallback((text: string) => {
-    const trimmed = text.trim();
-    if (!trimmed) return;
+  const enqueue = useCallback(
+    (text: string) => {
+      const trimmed = text.trim();
+      if (!trimmed) return;
 
-    setQueue((prev) => {
-      if (prev.length >= maxQueueSize) return prev;
-      return [...prev, { id: nextCommandId++, text: trimmed, processed: false }];
-    });
-  }, [maxQueueSize]);
+      setQueue((prev) => {
+        if (prev.length >= maxQueueSize) return prev;
+        return [...prev, { id: nextCommandId++, text: trimmed, processed: false }];
+      });
+    },
+    [maxQueueSize],
+  );
 
-  const enqueueLines = useCallback((text: string) => {
-    const lines = text.split('\n').map((l) => l.trim()).filter((l) => l.length > 0);
-    if (lines.length === 0) return;
+  const enqueueLines = useCallback(
+    (text: string) => {
+      const lines = text
+        .split('\n')
+        .map((l) => l.trim())
+        .filter((l) => l.length > 0);
+      if (lines.length === 0) return;
 
-    setQueue((prev) => {
-      const newCommands = lines
-        .slice(0, maxQueueSize - prev.length)
-        .map((text) => ({ id: nextCommandId++, text, processed: false }));
-      return [...prev, ...newCommands];
-    });
-  }, [maxQueueSize]);
+      setQueue((prev) => {
+        const newCommands = lines
+          .slice(0, maxQueueSize - prev.length)
+          .map((text) => ({ id: nextCommandId++, text, processed: false }));
+        return [...prev, ...newCommands];
+      });
+    },
+    [maxQueueSize],
+  );
 
   const processNext = useCallback((): boolean => {
     let found = false;

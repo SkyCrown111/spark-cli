@@ -16,10 +16,7 @@ import React, { useMemo, useRef } from 'react';
 import { Box, Text, useInput } from 'ink';
 import { ScrollBox, type ScrollBoxHandle } from '../ink/components/ScrollBox.js';
 import { colors } from '../theme/colors.js';
-import {
-  buildTranscriptData,
-  type TranscriptEntry,
-} from '../core/repl/transcript-data.js';
+import { buildTranscriptData, type TranscriptEntry } from '../core/repl/transcript-data.js';
 import type { ChatMessage } from '../core/providers/openai-compatible.js';
 import { useTerminalSize } from '../hooks/useTerminalSize.js';
 
@@ -60,10 +57,7 @@ export const TranscriptOverlay: React.FC<TranscriptOverlayProps> = ({
   const [expandAll, setExpandAll] = React.useState(true);
 
   // Build structured transcript data
-  const allEntries = useMemo(
-    () => buildTranscriptData(agentHistory),
-    [agentHistory],
-  );
+  const allEntries = useMemo(() => buildTranscriptData(agentHistory), [agentHistory]);
 
   // Filter entries by search query
   const filteredEntries = useMemo(() => {
@@ -218,17 +212,19 @@ export const TranscriptOverlay: React.FC<TranscriptOverlayProps> = ({
         lines.push('');
       }
       const text = lines.join('\n');
-      import('node:child_process').then(({ execSync }) => {
-        if (process.platform === 'win32') {
-          execSync('clip', { input: text, encoding: 'utf8' });
-        } else if (process.platform === 'darwin') {
-          execSync('pbcopy', { input: text, encoding: 'utf8' });
-        } else {
-          execSync('xclip -selection clipboard', { input: text, encoding: 'utf8' });
-        }
-      }).catch(() => {
-        // Clipboard not available
-      });
+      import('node:child_process')
+        .then(({ execSync }) => {
+          if (process.platform === 'win32') {
+            execSync('clip', { input: text, encoding: 'utf8' });
+          } else if (process.platform === 'darwin') {
+            execSync('pbcopy', { input: text, encoding: 'utf8' });
+          } else {
+            execSync('xclip -selection clipboard', { input: text, encoding: 'utf8' });
+          }
+        })
+        .catch(() => {
+          // Clipboard not available
+        });
       return;
     }
 
@@ -244,11 +240,7 @@ export const TranscriptOverlay: React.FC<TranscriptOverlayProps> = ({
   const contentHeight = Math.max(1, height - headerHeight - footerHeight);
 
   return (
-    <Box
-      flexDirection="column"
-      width={width}
-      height={height}
-    >
+    <Box flexDirection="column" width={width} height={height}>
       {/* Title bar */}
       <Box
         flexDirection="row"
@@ -257,7 +249,9 @@ export const TranscriptOverlay: React.FC<TranscriptOverlayProps> = ({
         borderBottom={false}
         borderColor="cyan"
       >
-        <Text bold color="cyan">Transcript</Text>
+        <Text bold color="cyan">
+          Transcript
+        </Text>
         <Box flexGrow={1} />
         <Text dimColor>
           {filteredEntries.length}/{allEntries.length} entries
@@ -274,14 +268,41 @@ export const TranscriptOverlay: React.FC<TranscriptOverlayProps> = ({
           borderBottom={false}
           borderColor="yellow"
         >
-          <Text bold color="yellow">Keyboard Shortcuts</Text>
-          <Text>  <Text bold>?</Text>        Toggle this help</Text>
-          <Text>  <Text bold>{'{'}{'}'}</Text>        Jump to prev/next user prompt</Text>
-          <Text>  <Text bold>Ctrl+E</Text>   Expand/collapse all tool calls</Text>
-          <Text>  <Text bold>/</Text>        Search transcript</Text>
-          <Text>  <Text bold>[</Text>        Copy transcript to clipboard</Text>
-          <Text>  <Text bold>PgUp/PgDn</Text> Scroll</Text>
-          <Text>  <Text bold>Esc</Text>      Close</Text>
+          <Text bold color="yellow">
+            Keyboard Shortcuts
+          </Text>
+          <Text>
+            {' '}
+            <Text bold>?</Text> Toggle this help
+          </Text>
+          <Text>
+            {' '}
+            <Text bold>
+              {'{'}
+              {'}'}
+            </Text>{' '}
+            Jump to prev/next user prompt
+          </Text>
+          <Text>
+            {' '}
+            <Text bold>Ctrl+E</Text> Expand/collapse all tool calls
+          </Text>
+          <Text>
+            {' '}
+            <Text bold>/</Text> Search transcript
+          </Text>
+          <Text>
+            {' '}
+            <Text bold>[</Text> Copy transcript to clipboard
+          </Text>
+          <Text>
+            {' '}
+            <Text bold>PgUp/PgDn</Text> Scroll
+          </Text>
+          <Text>
+            {' '}
+            <Text bold>Esc</Text> Close
+          </Text>
         </Box>
       )}
 
@@ -295,9 +316,13 @@ export const TranscriptOverlay: React.FC<TranscriptOverlayProps> = ({
           borderBottom={false}
           borderColor="yellow"
         >
-          <Text color="yellow" bold>{'>'}</Text>
+          <Text color="yellow" bold>
+            {'>'}
+          </Text>
           <Text color="white">{searchQuery}</Text>
-          <Text color="white" bold>_</Text>
+          <Text color="white" bold>
+            _
+          </Text>
         </Box>
       )}
 
@@ -373,7 +398,9 @@ const TranscriptEntryView: React.FC<TranscriptEntryViewProps> = ({
     <Box flexDirection="column" marginY={0}>
       {/* Role header */}
       <Box>
-        <Text bold color={roleColor}>{'>'}</Text>
+        <Text bold color={roleColor}>
+          {'>'}
+        </Text>
       </Box>
 
       {/* Content */}
@@ -396,13 +423,11 @@ const TranscriptEntryView: React.FC<TranscriptEntryViewProps> = ({
           <Box key={toolKey} flexDirection="column" paddingLeft={2}>
             <Box>
               <Text color="yellow">{'⏺ '}</Text>
-              <Text bold color={colors.tool}>{tc.name}</Text>
-              {tc.durationMs != null && (
-                <Text dimColor> ({formatDuration(tc.durationMs)})</Text>
-              )}
-              <Text
-                dimColor
-              > {isExpanded ? '▼' : '▶'} click to expand</Text>
+              <Text bold color={colors.tool}>
+                {tc.name}
+              </Text>
+              {tc.durationMs != null && <Text dimColor> ({formatDuration(tc.durationMs)})</Text>}
+              <Text dimColor> {isExpanded ? '▼' : '▶'} click to expand</Text>
             </Box>
 
             {isExpanded && (
@@ -411,7 +436,9 @@ const TranscriptEntryView: React.FC<TranscriptEntryViewProps> = ({
                 <Box flexDirection="column">
                   {formatJsonLines(tc.args).map((line, i) => (
                     <Box key={i}>
-                      <Text dimColor wrap="wrap">{line}</Text>
+                      <Text dimColor wrap="wrap">
+                        {line}
+                      </Text>
                     </Box>
                   ))}
                 </Box>

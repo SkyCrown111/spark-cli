@@ -45,7 +45,9 @@ export const UserImageMessage: React.FC<UserImageMessageProps> = ({ image }) => 
       <Text color="cyan">{'>'}</Text>
       <Box flexDirection="column">
         <Box flexDirection="row" gap={1}>
-          <Text color="cyan" bold>{image.filename}</Text>
+          <Text color="cyan" bold>
+            {image.filename}
+          </Text>
           <Text dimColor>({formatFileSize(image.size)})</Text>
         </Box>
         <Text dimColor>{image.filePath}</Text>

@@ -14,7 +14,14 @@
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, basename, relative } from 'node:path';
 
-export type UnrealModuleType = 'Runtime' | 'Editor' | 'Developer' | 'Program' | 'Server' | 'Client' | 'Unknown';
+export type UnrealModuleType =
+  | 'Runtime'
+  | 'Editor'
+  | 'Developer'
+  | 'Program'
+  | 'Server'
+  | 'Client'
+  | 'Unknown';
 
 export interface UnrealModuleInfo {
   name: string;
@@ -98,8 +105,14 @@ function walkCs(dir: string, out: string[]): void {
 function parseBuildCs(full: string, rel: string): UnrealModuleInfo {
   const name = basename(full).replace(/\.Build\.cs$/i, '');
   const text = readFileSync(full, 'utf8');
-  const publicDeps = extractAddRange(text, /Public(?:Dependency)?ModuleNames\s*\.\s*AddRange\s*\(\s*new\s+string\s*\[\s*\]\s*\{([^}]*)\}\s*\)/g);
-  const privateDeps = extractAddRange(text, /Private(?:Dependency)?ModuleNames\s*\.\s*AddRange\s*\(\s*new\s+string\s*\[\s*\]\s*\{([^}]*)\}\s*\)/g);
+  const publicDeps = extractAddRange(
+    text,
+    /Public(?:Dependency)?ModuleNames\s*\.\s*AddRange\s*\(\s*new\s+string\s*\[\s*\]\s*\{([^}]*)\}\s*\)/g,
+  );
+  const privateDeps = extractAddRange(
+    text,
+    /Private(?:Dependency)?ModuleNames\s*\.\s*AddRange\s*\(\s*new\s+string\s*\[\s*\]\s*\{([^}]*)\}\s*\)/g,
+  );
   return {
     name,
     type: 'Runtime', // Build.cs alone doesn't carry type — refined later from .uproject

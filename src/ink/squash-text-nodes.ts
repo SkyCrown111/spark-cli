@@ -19,9 +19,7 @@ export interface SquashableTextNode {
  * Attempt to squash adjacent text nodes with matching styles.
  * Returns the merged list — nodes with identical styles are combined.
  */
-export function squashTextNodes(
-  nodes: SquashableTextNode[],
-): SquashableTextNode[] {
+export function squashTextNodes(nodes: SquashableTextNode[]): SquashableTextNode[] {
   if (nodes.length === 0) return [];
 
   const result: SquashableTextNode[] = [{ ...nodes[0] }];

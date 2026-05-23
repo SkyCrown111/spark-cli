@@ -7,6 +7,7 @@ import { stageGodotTemplateGen } from '../engines/godot/template-gen.js';
 import { stageUnrealTemplateGen } from '../engines/unreal/template-gen.js';
 import { appendReplayEvent } from '../core/replay/log.js';
 import type { GlobalOptions } from '../utils/output.js';
+import { logger } from '../utils/logger.js';
 
 export async function runGen(
   opts: GlobalOptions,
@@ -22,10 +23,10 @@ export async function runGen(
       const { files } = stageGodotTemplateGen(root, prompt || 'sample component');
       appendReplayEvent(root, 'command', { cmd: 'gen.template', engine: 'godot', files });
       if (opts.json) {
-        console.log(JSON.stringify({ template: true, engine: 'godot', files }));
+        logger.json({ template: true, engine: 'godot', files });
       } else {
-        console.log(chalk.green('✓'), `Staged ${files.length} file(s) (Godot template):`);
-        for (const f of files) console.log(chalk.cyan(' ', f));
+        logger.info(chalk.green('✓'), `Staged ${files.length} file(s) (Godot template):`);
+        for (const f of files) logger.info(chalk.cyan(' ', f));
       }
       return;
     }
@@ -33,10 +34,10 @@ export async function runGen(
       const { files } = stageUnrealTemplateGen(root, prompt || 'sample actor');
       appendReplayEvent(root, 'command', { cmd: 'gen.template', engine: 'unreal', files });
       if (opts.json) {
-        console.log(JSON.stringify({ template: true, engine: 'unreal', files }));
+        logger.json({ template: true, engine: 'unreal', files });
       } else {
-        console.log(chalk.green('✓'), `Staged ${files.length} file(s) (Unreal template):`);
-        for (const f of files) console.log(chalk.cyan(' ', f));
+        logger.info(chalk.green('✓'), `Staged ${files.length} file(s) (Unreal template):`);
+        for (const f of files) logger.info(chalk.cyan(' ', f));
       }
       return;
     }

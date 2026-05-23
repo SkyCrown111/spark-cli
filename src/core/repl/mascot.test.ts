@@ -9,12 +9,12 @@ import {
 import { stripAnsi } from './terminal.js';
 
 describe('Spark mascot', () => {
-  it('has orange gamepad art in welcome card', () => {
+  it('has ASCII gamepad art in welcome card', () => {
     expect(MASCOT_NAME).toBe('Spark');
     expect(SPARK_GAMEPAD_LINES.length).toBeGreaterThan(3);
     const plain = stripAnsi(renderSparkPixel().join('\n'));
-    expect(plain).toContain('▓');
-    expect(plain).toContain('═');
+    expect(plain).toContain('_____');
+    expect(plain).toContain('o');
   });
 
   it('picks deterministic greetings from seed', () => {

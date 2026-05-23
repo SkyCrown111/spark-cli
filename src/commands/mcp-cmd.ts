@@ -1,14 +1,21 @@
 import chalk from 'chalk';
 import { startMcpServer } from '../mcp/server.js';
+import { logger } from '../utils/logger.js';
 import type { GlobalOptions } from '../utils/output.js';
 import { resolveProjectRoot } from '../utils/output.js';
-import { loadMergedConfig, saveGlobalConfig, loadGlobalConfig, writeProjectConfigYaml } from '../config/load.js';
+import {
+  loadMergedConfig,
+  saveGlobalConfig,
+  loadGlobalConfig,
+  writeProjectConfigYaml,
+} from '../config/load.js';
 import type { McpServerConfig, SparkCLIConfig } from '../config/schema.js';
 import { connectToServer, disconnectClient } from '../mcp/client.js';
+import { getErrorMessage } from '../utils/errors.js';
 
 export async function runMcpServe(): Promise<void> {
   if (process.env.SPARK_CLI_MCP_VERBOSE) {
-    console.error(chalk.dim('[spark-cli] MCP server starting (stdio)...'));
+    logger.debug(chalk.dim('[spark-cli] MCP server starting (stdio)...'));
   }
   await startMcpServer();
 }
@@ -35,12 +42,12 @@ export async function runMcpAdd(
   const root = resolveProjectRoot(globalOpts);
 
   if (transport === 'stdio' && !opts.command) {
-    console.error(chalk.red('Error: --command is required for stdio transport.'));
+    logger.error(chalk.red('Error: --command is required for stdio transport.'));
     process.exitCode = 1;
     return;
   }
   if (transport === 'sse' && !opts.url) {
-    console.error(chalk.red('Error: --url is required for sse transport.'));
+    logger.error(chalk.red('Error: --url is required for sse transport.'));
     process.exitCode = 1;
     return;
   }
@@ -59,12 +66,12 @@ export async function runMcpAdd(
     const config = loadGlobalConfig();
     addServerToConfig(config, serverConfig);
     saveGlobalConfig(config);
-    console.log(chalk.green(`Added MCP server "${name}" to global config.`));
+    logger.info(chalk.green(`Added MCP server "${name}" to global config.`));
   } else {
     const config = await loadMergedConfig(root);
     addServerToConfig(config, serverConfig);
     writeProjectConfigYaml(root, config);
-    console.log(chalk.green(`Added MCP server "${name}" to project config.`));
+    logger.info(chalk.green(`Added MCP server "${name}" to project config.`));
   }
 }
 
@@ -78,20 +85,23 @@ export async function runMcpList(globalOpts: GlobalOptions): Promise<void> {
   const servers = config.mcp?.servers ?? [];
 
   if (servers.length === 0) {
-    console.log(chalk.dim('No MCP servers configured.'));
-    console.log(chalk.dim('Add one with: spark-cli mcp add <name> --transport stdio --command <cmd>'));
+    logger.info(chalk.dim('No MCP servers configured.'));
+    logger.info(
+      chalk.dim('Add one with: spark-cli mcp add <name> --transport stdio --command <cmd>'),
+    );
     return;
   }
 
-  console.log(chalk.bold('Configured MCP servers:\n'));
+  logger.info(chalk.bold('Configured MCP servers:\n'));
   for (const s of servers) {
     const status = s.enabled === false ? chalk.red('disabled') : chalk.green('enabled');
     const transport = chalk.cyan(s.transport);
-    const target = s.transport === 'stdio'
-      ? `${s.command}${s.args ? ' ' + s.args.join(' ') : ''}`
-      : s.url ?? '(no url)';
-    console.log(`  ${chalk.bold(s.name)}  [${transport}]  ${status}`);
-    console.log(`    ${chalk.dim(target)}`);
+    const target =
+      s.transport === 'stdio'
+        ? `${s.command}${s.args ? ' ' + s.args.join(' ') : ''}`
+        : (s.url ?? '(no url)');
+    logger.info(`  ${chalk.bold(s.name)}  [${transport}]  ${status}`);
+    logger.info(`    ${chalk.dim(target)}`);
   }
 }
 
@@ -113,21 +123,21 @@ export async function runMcpRemove(
   if (opts.global) {
     const config = loadGlobalConfig();
     if (!removeServerFromConfig(config, name)) {
-      console.error(chalk.red(`MCP server "${name}" not found in global config.`));
+      logger.error(chalk.red(`MCP server "${name}" not found in global config.`));
       process.exitCode = 1;
       return;
     }
     saveGlobalConfig(config);
-    console.log(chalk.green(`Removed MCP server "${name}" from global config.`));
+    logger.info(chalk.green(`Removed MCP server "${name}" from global config.`));
   } else {
     const config = await loadMergedConfig(root);
     if (!removeServerFromConfig(config, name)) {
-      console.error(chalk.red(`MCP server "${name}" not found in project config.`));
+      logger.error(chalk.red(`MCP server "${name}" not found in project config.`));
       process.exitCode = 1;
       return;
     }
     writeProjectConfigYaml(root, config);
-    console.log(chalk.green(`Removed MCP server "${name}" from project config.`));
+    logger.info(chalk.green(`Removed MCP server "${name}" from project config.`));
   }
 }
 
@@ -135,33 +145,30 @@ export async function runMcpRemove(
  * `mcp test <name>`
  * Tests connectivity to a configured MCP server.
  */
-export async function runMcpTest(
-  globalOpts: GlobalOptions,
-  name: string,
-): Promise<void> {
+export async function runMcpTest(globalOpts: GlobalOptions, name: string): Promise<void> {
   const root = resolveProjectRoot(globalOpts);
   const config = await loadMergedConfig(root);
   const servers = config.mcp?.servers ?? [];
   const server = servers.find((s) => s.name === name);
 
   if (!server) {
-    console.error(chalk.red(`MCP server "${name}" not found in config.`));
+    logger.error(chalk.red(`MCP server "${name}" not found in config.`));
     process.exitCode = 1;
     return;
   }
 
-  console.log(chalk.dim(`Connecting to MCP server "${name}" (${server.transport})...`));
+  logger.info(chalk.dim(`Connecting to MCP server "${name}" (${server.transport})...`));
   try {
     const conn = await connectToServer(server);
-    console.log(chalk.green(`Connected successfully.`));
-    console.log(chalk.dim(`  Tools discovered: ${conn.tools.length}`));
+    logger.info(chalk.green(`Connected successfully.`));
+    logger.info(chalk.dim(`  Tools discovered: ${conn.tools.length}`));
     for (const tool of conn.tools) {
       const ro = tool.readOnly ? chalk.dim(' (read-only)') : chalk.yellow(' (write)');
-      console.log(`    - ${tool.prefixedName}${ro}: ${tool.description.slice(0, 80)}`);
+      logger.info(`    - ${tool.prefixedName}${ro}: ${tool.description.slice(0, 80)}`);
     }
     await disconnectClient(conn);
   } catch (e) {
-    console.error(chalk.red(`Connection failed: ${(e as Error).message}`));
+    logger.error(chalk.red(`Connection failed: ${getErrorMessage(e)}`));
     process.exitCode = 1;
   }
 }

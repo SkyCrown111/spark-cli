@@ -37,10 +37,12 @@ async function ensureConfigured(): Promise<boolean> {
       ]);
 
       // Register marked-terminal as a marked extension
-      marked.use(markedTerminal({
-        showSectionPrefix: false,
-        tab: 2,
-      }));
+      marked.use(
+        markedTerminal({
+          showSectionPrefix: false,
+          tab: 2,
+        }),
+      );
 
       markedParse = marked.parse as MarkedParseFn;
       configured = true;

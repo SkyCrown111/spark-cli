@@ -116,7 +116,10 @@ export function lintShadersInProject(
 
   const all: ShaderLintFinding[] = [];
   for (const abs of files) {
-    const rel = abs.replace(projectRoot, '').replace(/^[/\\]/, '').replace(/\\/g, '/');
+    const rel = abs
+      .replace(projectRoot, '')
+      .replace(/^[/\\]/, '')
+      .replace(/\\/g, '/');
     all.push(...lintShaderSource(rel, readFileSync(abs, 'utf8')));
   }
   return all;

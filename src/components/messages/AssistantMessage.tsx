@@ -22,9 +22,10 @@ export interface AssistantMessageProps {
  * Formats message content, handling both string and content parts.
  * Also extracts thinking content from content parts.
  */
-function formatContent(
-  content: string | Array<{ type: string; text?: string }>,
-): { text: string; thinking?: string } {
+function formatContent(content: string | Array<{ type: string; text?: string }>): {
+  text: string;
+  thinking?: string;
+} {
   if (typeof content === 'string') {
     return { text: content };
   }
@@ -57,23 +58,17 @@ function formatContent(
  * <AssistantMessage message={{ role: 'assistant', content: '**Hello!** How can I help?' }} />
  * ```
  */
-export const AssistantMessage: React.FC<AssistantMessageProps> = ({
-  message,
-}) => {
+export const AssistantMessage: React.FC<AssistantMessageProps> = ({ message }) => {
   const { text, thinking } = formatContent(message.content);
   const hasToolCalls = message.tool_calls && message.tool_calls.length > 0;
 
   return (
     <Box flexDirection="column">
       {/* Thinking block (if present) */}
-      {thinking && (
-        <AssistantThinkingMessage content={thinking} />
-      )}
+      {thinking && <AssistantThinkingMessage content={thinking} />}
 
       {/* Text content */}
-      {text && text.trim() && (
-        <MarkdownRenderer>{text}</MarkdownRenderer>
-      )}
+      {text && text.trim() && <MarkdownRenderer>{text}</MarkdownRenderer>}
 
       {/* Tool calls indicator */}
       {hasToolCalls && (

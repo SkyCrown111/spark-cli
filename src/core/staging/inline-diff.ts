@@ -76,7 +76,9 @@ export function summarizeStagedFileDiff(projectRoot: string, relPath: string): s
   const delta = newLines - oldLines;
 
   const patch = createTwoFilesPatch(relPath, relPath + ' (staged)', oldContent, newContent);
-  const patchLines = patch.split('\n').filter((line) => line.startsWith('+') || line.startsWith('-'));
+  const patchLines = patch
+    .split('\n')
+    .filter((line) => line.startsWith('+') || line.startsWith('-'));
   const preview = patchLines
     .slice(0, PREVIEW_LINES)
     .map((line) => {

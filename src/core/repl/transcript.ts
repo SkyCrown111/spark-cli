@@ -3,6 +3,7 @@
  */
 
 import chalk from 'chalk';
+import { logger } from '../../utils/logger.js';
 import { accent, accentBold, frameDim } from './theme.js';
 import { frameChars, stripAnsi, supportsUnicodeUi, terminalWidth } from './terminal.js';
 import { renderMarkdown } from './markdown-renderer.js';
@@ -31,7 +32,7 @@ function assistantBullet(): string {
 /** Thin rule between welcome card and conversation. */
 export function printTranscriptSeparator(): void {
   const w = terminalWidth();
-  console.log(chalk.hex('#52525B')('  ' + frameChars().horizontal.repeat(Math.max(12, w - 4))));
+  logger.info(chalk.hex('#52525B')('  ' + frameChars().horizontal.repeat(Math.max(12, w - 4))));
 }
 
 /** User turn as a full-width gray bar with `> text`. */
@@ -39,12 +40,12 @@ export function printUserTurn(text: string): void {
   const w = terminalWidth();
   const inner = Math.max(12, w - 4);
   const body = padBar(chalk.white('> ' + text), inner);
-  console.log('  ' + chalk.bgHex(USER_BAR_BG)(body));
+  logger.info('  ' + chalk.bgHex(USER_BAR_BG)(body));
 }
 
 /** Static thinking status fallback. */
 export function printThinkingStatus(label = 'Concocting...'): void {
-  console.log(accent(`  ${frameChars().middleDot} `) + accentBold(label));
+  logger.info(accent(`  ${frameChars().middleDot} `) + accentBold(label));
 }
 
 /** Animated thinking status similar to Claude Code. */
@@ -81,33 +82,33 @@ export function printAssistantBlock(text: string): void {
 
   for (const line of lines) {
     if (line.trim() === '') {
-      console.log('');
+      logger.info('');
       continue;
     }
 
     if (!usedLeadBullet) {
-      console.log(`  ${chalk.white(assistantBullet())} ${line}`);
+      logger.info(`  ${chalk.white(assistantBullet())} ${line}`);
       usedLeadBullet = true;
       continue;
     }
 
-    console.log(`    ${line}`);
+    logger.info(`    ${line}`);
   }
 
   if (!usedLeadBullet) {
-    console.log(`  ${chalk.white(assistantBullet())} ${chalk.dim('(no content)')}`);
+    logger.info(`  ${chalk.white(assistantBullet())} ${chalk.dim('(no content)')}`);
   }
 }
 
 /** Error / API message. */
 export function printAssistantError(message: string): void {
   const short = message.split('\n')[0] ?? message;
-  console.log(`  ${chalk.hex(ERR_COLOR)(assistantBullet())} ${chalk.hex(ERR_COLOR)(short)}`);
+  logger.info(`  ${chalk.hex(ERR_COLOR)(assistantBullet())} ${chalk.hex(ERR_COLOR)(short)}`);
 }
 
 /** Ctrl+C interrupt acknowledgement. */
 export function printInterrupted(): void {
-  console.log(
+  logger.info(
     chalk.hex(TOOL_PENDING)(`  ${assistantBullet()} `) +
       chalk.white('Interrupted') +
       chalk.dim(` ${frameChars().middleDot} What should SparkCLI do instead?`),
@@ -116,7 +117,7 @@ export function printInterrupted(): void {
 
 /** @deprecated Use {@link printToolBatch} — one compact line per tool round. */
 export function printToolIteration(_iteration: number, tools: string): void {
-  console.log(chalk.dim(`  ${frameChars().middleDot} ${tools}`));
+  logger.info(chalk.dim(`  ${frameChars().middleDot} ${tools}`));
 }
 
 export interface ToolBatchCall {
@@ -163,14 +164,9 @@ export function printToolBatch(calls: ToolBatchCall[]): void {
   if (calls.length === 0) return;
   const { label, errorCount, totalMs } = summarizeToolBatch(calls);
   const icon =
-    errorCount > 0
-      ? chalk.hex(TOOL_ERR)('✕')
-      : chalk.hex(TOOL_OK)(supportsUnicodeUi() ? '✓' : '+');
-  const errSuffix =
-    errorCount > 0 ? chalk.hex(TOOL_ERR)(` · ${errorCount} failed`) : '';
-  console.log(
-    `  ${icon} ${chalk.dim(label)}${errSuffix} ${chalk.dim(formatDuration(totalMs))}`,
-  );
+    errorCount > 0 ? chalk.hex(TOOL_ERR)('✕') : chalk.hex(TOOL_OK)(supportsUnicodeUi() ? '✓' : '+');
+  const errSuffix = errorCount > 0 ? chalk.hex(TOOL_ERR)(` · ${errorCount} failed`) : '';
+  logger.info(`  ${icon} ${chalk.dim(label)}${errSuffix} ${chalk.dim(formatDuration(totalMs))}`);
 }
 
 /**
@@ -207,7 +203,7 @@ export function printToolCallCard(
   const label = argsSummary ? `${tool} (${truncateToolLabel(argsSummary)})` : tool;
   const suffix = isError ? chalk.hex(TOOL_ERR)(' error') : chalk.dim(` ${duration}`);
 
-  console.log(`  ${icon} ${chalk.dim(label)}${suffix}`);
+  logger.info(`  ${icon} ${chalk.dim(label)}${suffix}`);
 }
 
 /** Duration / cook status after a long turn. */
@@ -215,7 +211,7 @@ export function printCookStatus(seconds: number): void {
   const m = Math.floor(seconds / 60);
   const s = seconds % 60;
   const label = m > 0 ? `${m}m ${s}s` : `${s}s`;
-  console.log(frameDim(`  * Sparked for ${label}`));
+  logger.info(frameDim(`  * Sparked for ${label}`));
 }
 
 function formatDuration(ms: number): string {

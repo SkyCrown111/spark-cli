@@ -35,7 +35,15 @@ import { completeChat, resolveModelForTask } from '../providers/router.js';
 import { resolveOutputMaxTokens } from '../../config/output-tokens.js';
 import { getProjectSparkDir } from '../../config/paths.js';
 
-const DEFAULT_SUBAGENT_TOOLS = ['read_file', 'glob', 'grep', 'list_dir', 'load_skill', 'remember', 'recall'];
+const DEFAULT_SUBAGENT_TOOLS = [
+  'read_file',
+  'glob',
+  'grep',
+  'list_dir',
+  'load_skill',
+  'remember',
+  'recall',
+];
 const DEFAULT_MAX_DEPTH = 1;
 
 export interface SpawnSubAgentOptions {
@@ -69,7 +77,7 @@ export interface SpawnSubAgentOptions {
   parentHistory?: ChatMessage[];
   /**
    * Worktree isolation: if true, creates a git worktree under
-   * `.spark-cli/worktrees/sub-<id>` so the sub-agent's file mutations
+   * `.spark/worktrees/sub-<id>` so the sub-agent's file mutations
    * are isolated from the parent's working tree.
    */
   useWorktree?: boolean;
@@ -87,9 +95,7 @@ export interface SubAgentResult {
   isError?: boolean;
 }
 
-export async function spawnSubAgent(
-  opts: SpawnSubAgentOptions,
-): Promise<SubAgentResult> {
+export async function spawnSubAgent(opts: SpawnSubAgentOptions): Promise<SubAgentResult> {
   const cfg = opts.parent.config as {
     subagent?: { maxDepth?: number; maxIterations?: number; model?: string };
   };
@@ -166,18 +172,18 @@ export async function spawnSubAgent(
   }
 
   // Worktree isolation: create a git worktree so the sub-agent's mutations
-  // are sandboxed. The worktree is created under .spark-cli/worktrees/sub-<id>.
+  // are sandboxed. The worktree is created under .spark/worktrees/sub-<id>.
   let effectiveProjectRoot = opts.parent.projectRoot;
   let worktreePath: string | undefined;
   if (opts.useWorktree) {
     worktreePath = join(getProjectSparkDir(opts.parent.projectRoot), 'worktrees', childAgentId);
     mkdirSync(worktreePath, { recursive: true });
     try {
-      const branchName = `spark-cli/sub-${childAgentId}`;
-      execSync(
-        `git worktree add -b ${branchName} "${worktreePath}" HEAD`,
-        { cwd: opts.parent.projectRoot, stdio: 'ignore' },
-      );
+      const branchName = `spark/sub-${childAgentId}`;
+      execSync(`git worktree add -b ${branchName} "${worktreePath}" HEAD`, {
+        cwd: opts.parent.projectRoot,
+        stdio: 'ignore',
+      });
       effectiveProjectRoot = worktreePath;
       appendReplayEvent(opts.parent.projectRoot, 'subagent_worktree_created', {
         agentId: childAgentId,
@@ -218,7 +224,7 @@ export async function spawnSubAgent(
     // skill widening as the parent.
     skills: opts.skills ?? opts.parent.skills,
     hooks: opts.hooks,
-    memoryNamespace: opts.memoryNamespace ?? (childAgentId),
+    memoryNamespace: opts.memoryNamespace ?? childAgentId,
   });
 
   // Clean up worktree if one was created
@@ -244,10 +250,7 @@ export async function spawnSubAgent(
   };
 }
 
-function filterRegistry(
-  parent: ToolRegistry,
-  allowed: Set<string>,
-): ToolRegistry {
+function filterRegistry(parent: ToolRegistry, allowed: Set<string>): ToolRegistry {
   const filtered = createToolRegistry();
   for (const def of parent.list()) {
     if (!allowed.has(def.function.name)) continue;
@@ -265,4 +268,11 @@ export const _internals = {
 
 // Re-export RegisteredTool/ProviderResponse so test code can import from one
 // place without reaching into tool-registry/providers directly.
-export type { RegisteredTool, ToolResult, ProviderResponse, ToolDefinition, ChatMessage, ToolWriteMode };
+export type {
+  RegisteredTool,
+  ToolResult,
+  ProviderResponse,
+  ToolDefinition,
+  ChatMessage,
+  ToolWriteMode,
+};

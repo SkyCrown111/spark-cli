@@ -1,10 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { join } from 'node:path';
 import { readFileSync } from 'node:fs';
-import {
-  addSceneNodeToStaging,
-  updateSceneComponentInStaging,
-} from './scene-writer.js';
+import { addSceneNodeToStaging, updateSceneComponentInStaging } from './scene-writer.js';
 import { applyStaging, clearStaging, hasStaging } from '../../core/staging/patch-manager.js';
 
 const fixture = join(process.cwd(), 'fixtures/cocos-3.8-mini');
@@ -17,10 +14,7 @@ describe('scene-writer', () => {
     expect(result.nodePath).toBe('Canvas/HUD');
     expect(hasStaging(fixture)).toBe(true);
 
-    const staged = readFileSync(
-      join(fixture, '.spark-cli/staging/files', sceneRel),
-      'utf8',
-    );
+    const staged = readFileSync(join(fixture, '.spark/staging/files', sceneRel), 'utf8');
     expect(staged).toContain('"HUD"');
 
     clearStaging(fixture);

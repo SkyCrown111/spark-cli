@@ -10,10 +10,7 @@
  */
 
 import type { ChatMessage } from '../core/providers/openai-compatible.js';
-import type {
-  ProviderResponse,
-  ToolDefinition,
-} from '../core/providers/types.js';
+import type { ProviderResponse, ToolDefinition } from '../core/providers/types.js';
 
 export interface CapturedCall {
   messages: ChatMessage[];

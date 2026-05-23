@@ -11,7 +11,7 @@ describe('replay export', () => {
 
   beforeEach(() => {
     root = mkdtempSync(join(tmpdir(), 'spark-cli-replay-'));
-    mkdirSync(join(root, '.spark-cli'), { recursive: true });
+    mkdirSync(join(root, '.spark'), { recursive: true });
     writeFileSync(join(root, 'spark-cli.config.yaml'), 'project:\n  engine: cocos-creator\n');
   });
 

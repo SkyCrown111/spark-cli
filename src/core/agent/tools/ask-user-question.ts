@@ -11,7 +11,9 @@
 import type { RegisteredTool, ToolContext, ToolResult } from '../tool-registry.js';
 import type { AskUserQuestion } from '../tool-permissions.js';
 
-function parseQuestions(raw: unknown): { ok: true; questions: AskUserQuestion[] } | { ok: false; reason: string } {
+function parseQuestions(
+  raw: unknown,
+): { ok: true; questions: AskUserQuestion[] } | { ok: false; reason: string } {
   if (!Array.isArray(raw) || raw.length === 0) {
     return { ok: false, reason: '`questions` must be a non-empty array' };
   }
@@ -52,10 +54,7 @@ function parseQuestions(raw: unknown): { ok: true; questions: AskUserQuestion[] 
   return { ok: true, questions: out };
 }
 
-async function handler(
-  args: Record<string, unknown>,
-  ctx: ToolContext,
-): Promise<ToolResult> {
+async function handler(args: Record<string, unknown>, ctx: ToolContext): Promise<ToolResult> {
   if (!ctx.askUser) {
     return {
       content:

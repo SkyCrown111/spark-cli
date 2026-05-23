@@ -1,19 +1,26 @@
 import type { AnimGraph, AnimState, AnimTransition } from './types.js';
 
 function slug(name: string): string {
-  return name
-    .trim()
-    .replace(/([a-z])([A-Z])/g, '$1-$2')
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-|-$/g, '') || 'controller';
+  return (
+    name
+      .trim()
+      .replace(/([a-z])([A-Z])/g, '$1-$2')
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-|-$/g, '') || 'controller'
+  );
 }
 
 /** Parse "Idle→Run→Jump" or "Idle->Run" chains. */
 export function parseStateChain(spec: string): string[] {
   const parts = spec
     .split(/→|->|>|,|、/)
-    .map((s) => s.replace(/[，,、].*$/, '').replace(/\s+.*$/, '').trim())
+    .map((s) =>
+      s
+        .replace(/[，,、].*$/, '')
+        .replace(/\s+.*$/, '')
+        .trim(),
+    )
     .filter(Boolean);
   return parts.length ? parts : ['Idle', 'Run'];
 }

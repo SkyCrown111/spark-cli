@@ -28,15 +28,20 @@ import { KeybindingProvider, useKeybindingContext } from './KeybindingContext.js
 const GlobalKeyHandler: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { resolveKeyEvent, dispatchAction } = useKeybindingContext();
 
-  useInput(useCallback((input: string, key: any) => {
-    // Resolve the key event to an action
-    const action = resolveKeyEvent(input, key);
+  useInput(
+    useCallback(
+      (input: string, key: any) => {
+        // Resolve the key event to an action
+        const action = resolveKeyEvent(input, key);
 
-    // If an action was found, dispatch it
-    if (action) {
-      dispatchAction(action);
-    }
-  }, [resolveKeyEvent, dispatchAction]));
+        // If an action was found, dispatch it
+        if (action) {
+          dispatchAction(action);
+        }
+      },
+      [resolveKeyEvent, dispatchAction],
+    ),
+  );
 
   return <>{children}</>;
 };
@@ -61,9 +66,7 @@ export interface KeybindingProviderSetupProps {
 export const KeybindingProviderSetup: React.FC<KeybindingProviderSetupProps> = ({ children }) => {
   return (
     <KeybindingProvider>
-      <GlobalKeyHandler>
-        {children}
-      </GlobalKeyHandler>
+      <GlobalKeyHandler>{children}</GlobalKeyHandler>
     </KeybindingProvider>
   );
 };

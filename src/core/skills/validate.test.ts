@@ -16,7 +16,7 @@ afterEach(() => {
 });
 
 function writeProjectSkill(name: string, raw: string): void {
-  const dir = join(projectRoot, '.spark-cli', 'skills', name);
+  const dir = join(projectRoot, '.spark', 'skills', name);
   mkdirSync(dir, { recursive: true });
   writeFileSync(join(dir, 'SKILL.md'), raw, 'utf8');
 }
@@ -34,7 +34,9 @@ describe('validateSkills', () => {
   it('passes for a minimal valid skill', () => {
     writeProjectSkill(
       'ok',
-      ['---', 'name: ok', 'triggers: [test]', 'allowedTools: [read_file]', '---', 'body'].join('\n'),
+      ['---', 'name: ok', 'triggers: [test]', 'allowedTools: [read_file]', '---', 'body'].join(
+        '\n',
+      ),
     );
     const r = validateSkills(projectRoot, DEFAULT_CONFIG);
     expect(r.errors).toEqual([]);

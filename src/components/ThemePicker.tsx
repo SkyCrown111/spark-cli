@@ -47,10 +47,7 @@ const ThemePreview: React.FC<{ theme: Theme }> = ({ theme }) => (
 
 // ── Component ──────────────────────────────────────────
 
-export const ThemePicker: React.FC<ThemePickerProps> = ({
-  onSelect,
-  onCancel,
-}) => {
+export const ThemePicker: React.FC<ThemePickerProps> = ({ onSelect, onCancel }) => {
   // Register ThemePicker context for keybinding resolution
   useRegisterKeybindingContext('ThemePicker');
 
@@ -62,23 +59,29 @@ export const ThemePicker: React.FC<ThemePickerProps> = ({
       value: name,
       label: name === 'dark' ? 'Dark (default)' : name === 'light' ? 'Light' : name,
       selected: name === currentThemeName,
-      description: name === 'dark'
-        ? 'Dark background with cyan accents'
-        : name === 'light'
-          ? 'Light background with blue accents'
-          : undefined,
+      description:
+        name === 'dark'
+          ? 'Dark background with cyan accents'
+          : name === 'light'
+            ? 'Light background with blue accents'
+            : undefined,
     }));
   }, [currentThemeName]);
 
-  const handleSelect = useCallback((themeName: string) => {
-    setTheme(themeName);
-    onSelect(themeName);
-  }, [onSelect]);
+  const handleSelect = useCallback(
+    (themeName: string) => {
+      setTheme(themeName);
+      onSelect(themeName);
+    },
+    [onSelect],
+  );
 
   return (
     <Box flexDirection="column" paddingX={2}>
       <Box paddingBottom={1}>
-        <Text bold color="cyan">Select Theme</Text>
+        <Text bold color="cyan">
+          Select Theme
+        </Text>
         <Text dimColor> — current: {currentThemeName}</Text>
       </Box>
 

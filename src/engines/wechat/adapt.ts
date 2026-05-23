@@ -1,15 +1,13 @@
 import { existsSync, mkdirSync, readdirSync, statSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import {
-  analyzeWechatBuild,
-  findWechatBuildDir,
-} from './build-analyzer.js';
+import { analyzeWechatBuild, findWechatBuildDir } from './build-analyzer.js';
 import {
   compareToLimits,
   formatBytes,
   loadWechatRules,
   type LimitCheck,
 } from '../../core/validate/wechat-limits.js';
+import { getProjectSparkDir } from '../../config/paths.js';
 import { parseCocosScene } from '../cocos/scene-parser.js';
 import { findSceneFiles } from '../cocos/scene-list.js';
 import { suggestWechatSplits } from './suggest-split.js';
@@ -96,7 +94,10 @@ export function runWechatAdapt(projectRoot: string): AdaptReport {
     sizes,
     limitChecks,
     issues,
-    suggestions: !ok || issues.some((i) => i.category === 'package') ? suggestWechatSplits(projectRoot) : undefined,
+    suggestions:
+      !ok || issues.some((i) => i.category === 'package')
+        ? suggestWechatSplits(projectRoot)
+        : undefined,
   };
 }
 
@@ -131,12 +132,9 @@ export interface AdaptFixResult {
   reportPath: string;
 }
 
-/** Safe fixes: write adapt report + optional game.json snippet to .spark-cli/ */
-export function applyWechatAdaptFixes(
-  projectRoot: string,
-  report: AdaptReport,
-): AdaptFixResult {
-  const sparkDir = join(projectRoot, '.spark-cli');
+/** Safe fixes: write adapt report + optional game.json snippet to .spark/. */
+export function applyWechatAdaptFixes(projectRoot: string, report: AdaptReport): AdaptFixResult {
+  const sparkDir = getProjectSparkDir(projectRoot);
   mkdirSync(sparkDir, { recursive: true });
 
   const reportPath = join(sparkDir, 'wechat-adapt-report.json');
@@ -150,11 +148,7 @@ export function applyWechatAdaptFixes(
       name: s.name,
       root: s.root,
     }));
-    writeFileSync(
-      snippetPath,
-      JSON.stringify({ subpackages }, null, 2) + '\n',
-      'utf8',
-    );
+    writeFileSync(snippetPath, JSON.stringify({ subpackages }, null, 2) + '\n', 'utf8');
     applied.push(`Wrote subpackage snippet ${snippetPath}`);
   }
 

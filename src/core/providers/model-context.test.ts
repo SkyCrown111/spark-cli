@@ -1,8 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import {
-  DEEPSEEK_V4_CONTEXT_BUDGET,
-  resolveContextBudget,
-} from './model-context.js';
+import { DEEPSEEK_V4_CONTEXT_BUDGET, resolveContextBudget } from './model-context.js';
 
 describe('resolveContextBudget', () => {
   it('infers a larger context window for MiMo v2.5 models', () => {

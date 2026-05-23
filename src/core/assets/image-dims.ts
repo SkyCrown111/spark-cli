@@ -41,10 +41,7 @@ export function isSharpInstalled(): boolean {
 
 const IMAGE_EXTS = new Set(['.png', '.jpg', '.jpeg', '.webp']);
 
-export async function readImageDimensions(
-  full: string,
-  ext: string,
-): Promise<ImageDims | null> {
+export async function readImageDimensions(full: string, ext: string): Promise<ImageDims | null> {
   const normalized = ext.toLowerCase();
   if (!IMAGE_EXTS.has(normalized)) return null;
 

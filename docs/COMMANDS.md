@@ -21,11 +21,40 @@ Running **`spark-cli`** with no subcommand starts an **agent REPL** (same as `sp
 | `/doctor`, `/validate`, `/init` | Project commands |
 | `/model`, `/model list`, `/model use <p/m>` | Model management |
 | `/skills`, `/hooks`, `/memory`, `/replay` | Session utilities |
+| `/tag add\|remove <tags>` | Session tags |
+| `/search <query>` | Cross-session search |
+| `/cleanup [--delete]` | Clean up old sessions |
+| `/context [all]` | Token distribution visualization |
+| `/wakeup <delay> <msg>` | Schedule a wake-up reminder |
+| `/style <style>` | Set output style |
 | `/help`, `/exit` | Help or quit |
+| `/tui default\|fullscreen` | Persist renderer preference (restart to apply) |
 
-Flags: `spark-cli --auto` starts in direct-write mode. `spark-cli --no-ink` falls back to the legacy readline UI.
+**Renderer** (Claude Code–aligned):
 
-**REPL UX**: Ink (React)–based UI — scrollable messages, inline permission dialogs, streaming responses, Shift+Tab mode cycling, status line with model/tokens/hints. `spark-cli --no-mascot` hides the mascot. `spark-cli --no-ink` uses the legacy readline UI.
+| Mode | Behavior |
+|------|----------|
+| `default` (default) | Main terminal buffer; session output stays in native scrollback. Use the terminal's scroll wheel, Cmd+F, or tmux copy mode to review. |
+| `fullscreen` (opt-in) | Alternate screen via Ink; input fixed at bottom; scroll/search/copy in-app. |
+
+Enable fullscreen: `spark-cli --fullscreen`, `spark-cli --renderer fullscreen`, `/tui fullscreen`, `ui.renderer: fullscreen` in `~/.spark/settings.json`, or `SPARK_CLI_NO_FLICKER=1`.
+
+Force default: `spark-cli --renderer default`, `/tui default`, or `SPARK_CLI_DISABLE_ALTERNATE_SCREEN=1`.
+
+Priority: CLI flags > persisted `ui.renderer` > environment variables > `default`.
+
+Deprecated aliases: `--ink` / `--no-ink` (use `--fullscreen` / `--renderer default`).
+
+Flags: `spark-cli --auto` starts in direct-write mode.
+
+**Global flags**:
+- `--bare` — minimal mode: skip auto-discovery of hooks/skills/plugins/MCP
+- `--fallback-model <model>` — auto-fallback model if primary fails
+- `--tools <tools>` — comma-separated list of available built-in tools
+- `--output-format <format>` — output format: text|json|stream-json
+- `--add-dir <path>` — add extra working directory (can be repeated)
+
+**REPL UX**: Default renderer uses the main terminal buffer (native scrollback). Fullscreen renderer (`--fullscreen` or `--renderer fullscreen`) uses Ink — scrollable messages, inline permission dialogs, streaming responses, Shift+Tab mode cycling, status line with model/tokens/hints. `spark-cli --no-mascot` hides the mascot.
 
 **Input features**:
 - **Multi-line**: `Shift+Enter` or `Option+Enter` (macOS) for newline, `\` + `Enter` quick newline, `Ctrl+J` alternative newline
@@ -183,6 +212,12 @@ MCP config supports: `stdio`/`sse`/`http` transports, `${VAR}` and `${VAR:-defau
 |---------|-------------|
 | `spark-cli replay export [file]` | Export `replay.json` |
 | `spark-cli plugin list\|install\|uninstall` | Local plugins in `.spark-cli/plugins/` |
+| `spark-cli playtest record [scene]` | Create playtest session file |
+| `spark-cli playtest replay <file>` | Replay a recorded playtest session |
+| `spark-cli playtest compare <a> <b>` | Compare two playtest sessions |
+| `spark-cli profile capture` | Plan engine profile capture |
+| `spark-cli profile analyze <file>` | Analyze captured profile data |
+| `spark-cli profile budget` | Show/generate performance budget |
 
 Plugins support: **hook integration** (define `hooks` in manifest to handle events), **MCP server binding** (define `mcpServers` in manifest to provide MCP tools), **hot-reload** (file watcher detects changes), **marketplace discovery** (local index at `~/.spark-cli/plugin-index.json`).
 
@@ -223,6 +258,55 @@ Plugins support: **hook integration** (define `hooks` in manifest to handle even
 | `spark-cli cloud push` / `pull` | Sync whitelisted paths |
 
 Set `SPARK_CLI_CLOUD_ENDPOINT` for non-default API URL.
+
+## Agent workflows
+
+| Command | Description |
+|---------|-------------|
+| `spark-cli agent farm <plan>` | Run parallel sub-agents from a YAML plan |
+| `spark-cli agents list` | List background agents and agent definitions |
+| `spark-cli agents attach <id>` | Attach to a background agent (show its output) |
+| `spark-cli agents logs <id>` | Show agent logs |
+| `spark-cli agents kill <id>` | Kill a running background agent |
+
+## Sessions
+
+| Command | Description |
+|---------|-------------|
+| `spark-cli sessions list` | List all sessions for this project |
+| `spark-cli sessions show <id>` | Show session details and history |
+| `spark-cli sessions delete <id>` | Delete a saved session |
+
+## Worktrees
+
+| Command | Description |
+|---------|-------------|
+| `spark-cli worktree list` | List worktrees managed by spark-cli |
+| `spark-cli worktree add [name]` | Create a new worktree for isolated work |
+| `spark-cli worktree remove <name>` | Remove a worktree |
+
+## Cron
+
+| Command | Description |
+|---------|-------------|
+| `spark-cli cron list` | List scheduled cron jobs |
+| `spark-cli cron add <schedule> <prompt>` | Add a recurring cron job |
+| `spark-cli cron remove <id>` | Remove a cron job |
+| `spark-cli cron tick` | Manually trigger pending cron jobs |
+
+## Shaders
+
+| Command | Description |
+|---------|-------------|
+| `spark-cli shader lint` | Lint project shaders for issues |
+| `spark-cli shader translate <file>` | Translate shaders between languages |
+
+## Project utilities
+
+| Command | Description |
+|---------|-------------|
+| `spark-cli project info` | Show project metadata and detected engine |
+| `spark-cli project scan` | Scan project structure and assets |
 
 ## Phase docs
 

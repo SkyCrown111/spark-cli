@@ -76,22 +76,25 @@ export interface UseKeybindingsOptions {
  * ```
  */
 export const useKeybindings = ({ bindings, enabled = true }: UseKeybindingsOptions): void => {
-  const handleInput = useCallback((input: string, key: any) => {
-    if (!enabled) return;
+  const handleInput = useCallback(
+    (input: string, key: any) => {
+      if (!enabled) return;
 
-    // Find matching keybinding
-    for (const binding of bindings) {
-      const ctrlMatch = binding.ctrl === undefined || binding.ctrl === key.ctrl;
-      const shiftMatch = binding.shift === undefined || binding.shift === key.shift;
-      const metaMatch = binding.meta === undefined || binding.meta === key.meta;
-      const keyMatch = input === binding.key;
+      // Find matching keybinding
+      for (const binding of bindings) {
+        const ctrlMatch = binding.ctrl === undefined || binding.ctrl === key.ctrl;
+        const shiftMatch = binding.shift === undefined || binding.shift === key.shift;
+        const metaMatch = binding.meta === undefined || binding.meta === key.meta;
+        const keyMatch = input === binding.key;
 
-      if (ctrlMatch && shiftMatch && metaMatch && keyMatch) {
-        binding.handler();
-        return;
+        if (ctrlMatch && shiftMatch && metaMatch && keyMatch) {
+          binding.handler();
+          return;
+        }
       }
-    }
-  }, [bindings, enabled]);
+    },
+    [bindings, enabled],
+  );
 
   useInput(handleInput);
 };

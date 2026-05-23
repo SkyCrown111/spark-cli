@@ -47,7 +47,9 @@ export function translateShader(
     notes.push('Rule-based GLSL→HLSL — verify in Unity/UE');
     unsafe = true;
   } else if (target === 'wgsl') {
-    out = `// WGSL stub from ${sourcePath}\n// Install naga for production translation\n` + out.slice(0, 500);
+    out =
+      `// WGSL stub from ${sourcePath}\n// Install naga for production translation\n` +
+      out.slice(0, 500);
     notes.push('WGSL translation requires optional naga — output is placeholder');
     unsafe = true;
   } else if (target === 'metal') {

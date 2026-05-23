@@ -12,6 +12,7 @@
 
 import { execSync } from 'node:child_process';
 import type { Skill } from './registry.js';
+import { getErrorMessage } from '../../utils/errors.js';
 
 export interface SkillProcessContext {
   /** Arguments passed to the skill (e.g. from load_skill or /skill). */
@@ -27,10 +28,7 @@ export interface SkillProcessContext {
 /**
  * Process a skill body: expand variables and execute inline commands.
  */
-export function processSkillBody(
-  body: string,
-  ctx: SkillProcessContext = {},
-): string {
+export function processSkillBody(body: string, ctx: SkillProcessContext = {}): string {
   let result = body;
 
   // 1. Execute `` !`command` `` inline commands
@@ -44,14 +42,12 @@ export function processSkillBody(
       });
       return output.trim();
     } catch (e) {
-      return `[command failed: ${(e as Error).message}]`;
+      return `[command failed: ${getErrorMessage(e)}]`;
     }
   });
 
   // 2. Split arguments for positional replacement
-  const args = ctx.arguments
-    ? ctx.arguments.split(/\s+/).filter(Boolean)
-    : [];
+  const args = ctx.arguments ? ctx.arguments.split(/\s+/).filter(Boolean) : [];
 
   // 3. Replace $ARGUMENTS (full argument string)
   result = result.replace(/\$ARGUMENTS/g, ctx.arguments ?? '');

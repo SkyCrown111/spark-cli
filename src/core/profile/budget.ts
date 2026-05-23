@@ -19,10 +19,7 @@ export interface FrameBudgetReport {
   ok: boolean;
 }
 
-export function checkFrameBudget(
-  analysis: ProfileAnalysis,
-  targetFps: number,
-): FrameBudgetReport {
+export function checkFrameBudget(analysis: ProfileAnalysis, targetFps: number): FrameBudgetReport {
   const budgetMs = 1000 / Math.max(1, targetFps);
   const violations: BudgetViolation[] = [];
 

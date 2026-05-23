@@ -128,10 +128,7 @@ export function listCheckpoints(projectRoot: string): Checkpoint[] {
 /**
  * Remove a checkpoint from the index without popping the stash.
  */
-export function discardCheckpoint(
-  projectRoot: string,
-  checkpointId: string,
-): boolean {
+export function discardCheckpoint(projectRoot: string, checkpointId: string): boolean {
   const index = loadCheckpointIndex(projectRoot);
   const found = index.some((c) => c.id === checkpointId);
   if (!found) return false;

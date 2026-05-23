@@ -1,5 +1,5 @@
 /**
- * `spark-cli cron` — durable, file-based job scheduler.
+ * `spark-cli cron` - durable, file-based job scheduler.
  *
  * Subcommands:
  *   add <cron> <prompt...>   add a new job (5-field cron). Pass --once for
@@ -9,17 +9,17 @@
  *   tick                     run any jobs due now and exit. Recurring jobs are
  *                            kept; one-shot jobs are deleted after firing.
  *
- * Storage is `~/.spark-cli/cron.json`. Tick is intentionally fire-and-forget —
- * each due job spawns `spark-cli chat <prompt>` so the heavy lifting reuses the
+ * Storage is `~/.spark/cron.json`. Tick is intentionally fire-and-forget.
+ * Each due job spawns `spark-cli chat <prompt>` so the heavy lifting reuses the
  * normal one-shot pipeline. The cron command never imports the agent loop
  * directly; that keeps `tick` cheap and isolated.
  */
-
 import { spawn } from 'node:child_process';
 import chalk from 'chalk';
 import type { GlobalOptions } from '../utils/output.js';
 import { resolveProjectRoot } from '../utils/output.js';
-import { SparkCLIError } from '../utils/errors.js';
+import { SparkCLIError, getErrorMessage } from '../utils/errors.js';
+import { logger } from '../utils/logger.js';
 import { addJob, listJobs, removeJob, markRan, type CronJob } from '../core/cron/store.js';
 import { matches, parseCron, nextRun } from '../core/cron/parser.js';
 
@@ -33,37 +33,46 @@ export async function runCronAdd(
   opts: { cron: string; prompt: string; once?: boolean; ttlDays?: number },
 ): Promise<void> {
   resolveProjectRoot(globals);
-  try { parseCron(opts.cron); }
-  catch (e) { throw new SparkCLIError(`invalid cron: ${(e as Error).message}`); }
+  try {
+    parseCron(opts.cron);
+  } catch (e) {
+    throw new SparkCLIError(`invalid cron: ${getErrorMessage(e)}`);
+  }
   const job = addJob({
     cron: opts.cron,
     prompt: opts.prompt,
     recurring: !opts.once,
     ttlDays: opts.ttlDays,
   });
-  console.log(chalk.green('check'), `cron job ${chalk.cyan(job.id)} scheduled (${job.cron})`);
-  console.log(`  next run: ${fmtTs(nextRun(parseCron(job.cron)).getTime())}`);
+  logger.info(chalk.green('check'), `cron job ${chalk.cyan(job.id)} scheduled (${job.cron})`);
+  logger.info(`  next run: ${fmtTs(nextRun(parseCron(job.cron)).getTime())}`);
 }
 
 export async function runCronList(_globals: GlobalOptions): Promise<void> {
   const jobs = listJobs();
   if (jobs.length === 0) {
-    console.log('(no cron jobs)');
+    logger.info('(no cron jobs)');
     return;
   }
   for (const j of jobs) {
-    const next = (() => { try { return fmtTs(nextRun(parseCron(j.cron)).getTime()); } catch { return '-'; } })();
-    console.log(
+    const next = (() => {
+      try {
+        return fmtTs(nextRun(parseCron(j.cron)).getTime());
+      } catch {
+        return '-';
+      }
+    })();
+    logger.info(
       `${chalk.cyan(j.id)}  ${j.cron}  ${j.recurring ? 'recurring' : 'once'}  next=${next}  last=${fmtTs(j.lastRunAt)}`,
     );
-    console.log(`    ${j.prompt}`);
+    logger.info(`    ${j.prompt}`);
   }
 }
 
 export async function runCronRemove(_globals: GlobalOptions, opts: { id: string }): Promise<void> {
   const ok = removeJob(opts.id);
   if (!ok) throw new SparkCLIError(`no cron job with id "${opts.id}"`);
-  console.log(chalk.green('check'), `removed cron job ${opts.id}`);
+  logger.info(chalk.green('check'), `removed cron job ${opts.id}`);
 }
 
 export async function runCronTick(globals: GlobalOptions): Promise<void> {
@@ -73,14 +82,14 @@ export async function runCronTick(globals: GlobalOptions): Promise<void> {
   const jobs = listJobs();
   const due = jobs.filter((j) => matches(parseCron(j.cron), now) && j.lastRunAt !== now.getTime());
   if (due.length === 0) {
-    console.log('(no jobs due)');
+    logger.info('(no jobs due)');
     return;
   }
   for (const j of due) {
     runOne(j, projectRoot);
     markRan(j.id, now.getTime());
   }
-  console.log(chalk.green('check'), `dispatched ${due.length} cron job(s)`);
+  logger.info(chalk.green('check'), `dispatched ${due.length} cron job(s)`);
 }
 
 function runOne(job: CronJob, projectRoot: string): void {
@@ -92,5 +101,5 @@ function runOne(job: CronJob, projectRoot: string): void {
     windowsHide: true,
   });
   p.unref();
-  console.log(chalk.dim('  -> dispatched:'), `chat <prompt> --project ${projectRoot}`);
+  logger.debug(chalk.dim('  -> dispatched:'), `chat <prompt> --project ${projectRoot}`);
 }

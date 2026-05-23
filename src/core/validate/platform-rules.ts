@@ -2,6 +2,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { dirname } from 'node:path';
+import { getProjectSparkDir, getLegacyProjectSparkDir } from '../../config/paths.js';
 
 export type PlatformId = 'wechat' | 'douyin' | 'alipay' | 'huawei';
 
@@ -44,7 +45,8 @@ export interface LimitCheck {
 
 function ruleCandidates(projectRoot: string, platform: PlatformId): string[] {
   return [
-    join(projectRoot, '.spark-cli', 'rules', `${platform}.json`),
+    join(getProjectSparkDir(projectRoot), 'rules', `${platform}.json`),
+    join(getLegacyProjectSparkDir(projectRoot), 'rules', `${platform}.json`),
     join(projectRoot, 'rules', `${platform}.json`),
   ];
 }
@@ -63,10 +65,7 @@ export function getBuiltinRulesPath(platform: PlatformId): string {
   return join(here, '..', 'rules', file);
 }
 
-export function loadPlatformRules(
-  platform: PlatformId,
-  projectRoot?: string,
-): PlatformRules {
+export function loadPlatformRules(platform: PlatformId, projectRoot?: string): PlatformRules {
   const paths = projectRoot
     ? [...ruleCandidates(projectRoot, platform), getBuiltinRulesPath(platform)]
     : [getBuiltinRulesPath(platform)];
@@ -78,10 +77,7 @@ export function loadPlatformRules(
   throw new Error(`${platform} rules not found (rules/${platform}.json)`);
 }
 
-export function compareToLimits(
-  sizes: PackageSizeReport,
-  rules: PlatformRules,
-): LimitCheck[] {
+export function compareToLimits(sizes: PackageSizeReport, rules: PlatformRules): LimitCheck[] {
   const checks: LimitCheck[] = [];
   const { limits, thresholds } = rules;
 

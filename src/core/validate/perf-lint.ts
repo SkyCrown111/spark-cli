@@ -111,7 +111,10 @@ export function lintPerfInProject(
 
   const all: PerfLintFinding[] = [];
   for (const abs of files) {
-    const rel = abs.replace(projectRoot, '').replace(/^[/\\]/, '').replace(/\\/g, '/');
+    const rel = abs
+      .replace(projectRoot, '')
+      .replace(/^[/\\]/, '')
+      .replace(/\\/g, '/');
     const src = readFileSync(abs, 'utf8');
     all.push(...lintPerfInFile(rel, src));
   }

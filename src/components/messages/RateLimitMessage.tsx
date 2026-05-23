@@ -15,22 +15,20 @@ export interface RateLimitMessageProps {
   model?: string;
 }
 
-export const RateLimitMessage: React.FC<RateLimitMessageProps> = ({
-  retryAfterSeconds,
-  model,
-}) => {
+export const RateLimitMessage: React.FC<RateLimitMessageProps> = ({ retryAfterSeconds, model }) => {
   const retryText = retryAfterSeconds
     ? `Retry in ${retryAfterSeconds}s`
     : 'Please wait before retrying';
 
   return (
-    <Box
-      flexDirection="column"
-      paddingX={1}
-    >
+    <Box flexDirection="column" paddingX={1}>
       <Box flexDirection="row" gap={1}>
-        <Text color="yellow" bold>!</Text>
-        <Text color="yellow" bold>Rate limit reached</Text>
+        <Text color="yellow" bold>
+          !
+        </Text>
+        <Text color="yellow" bold>
+          Rate limit reached
+        </Text>
         {model && <Text dimColor>({model})</Text>}
       </Box>
       <Box paddingLeft={2}>

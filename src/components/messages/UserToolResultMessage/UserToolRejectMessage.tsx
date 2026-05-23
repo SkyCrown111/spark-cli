@@ -19,17 +19,18 @@ export const UserToolRejectMessage: React.FC<UserToolRejectMessageProps> = ({
   content,
 }) => {
   return (
-    <Box
-      flexDirection="column"
-      paddingX={1}
-    >
+    <Box flexDirection="column" paddingX={1}>
       <Box>
-        <Text bold color="yellow">{'>'} {toolLabel}</Text>
+        <Text bold color="yellow">
+          {'>'} {toolLabel}
+        </Text>
         <Text color="yellow"> — rejected</Text>
       </Box>
       {content && (
         <Box paddingLeft={2}>
-          <Text dimColor wrap="wrap">{content}</Text>
+          <Text dimColor wrap="wrap">
+            {content}
+          </Text>
         </Box>
       )}
     </Box>

@@ -111,7 +111,11 @@ const WordChanges: React.FC<{ changes: WordChange[]; baseColor: string }> = ({
           </Text>
         );
       }
-      return <Text key={i} color={baseColor}>{wc.text}</Text>;
+      return (
+        <Text key={i} color={baseColor}>
+          {wc.text}
+        </Text>
+      );
     })}
   </>
 );
@@ -147,7 +151,9 @@ export const StructuredDiff: React.FC<StructuredDiffProps> = ({
     <Box flexDirection="column">
       {fileName && (
         <Box paddingBottom={1}>
-          <Text bold color="cyan">{fileName}</Text>
+          <Text bold color="cyan">
+            {fileName}
+          </Text>
         </Box>
       )}
 
@@ -162,7 +168,9 @@ export const StructuredDiff: React.FC<StructuredDiffProps> = ({
           }
           return (
             <Box key={i}>
-              <Text color="cyan" bold>{line.content}</Text>
+              <Text color="cyan" bold>
+                {line.content}
+              </Text>
             </Box>
           );
         }
@@ -196,16 +204,17 @@ export const StructuredDiff: React.FC<StructuredDiffProps> = ({
                 )}
               </Text>
             )}
-            {line.type === 'context' && (
-              <Text dimColor>  {line.content}</Text>
-            )}
+            {line.type === 'context' && <Text dimColor> {line.content}</Text>}
           </Box>
         );
       })}
 
       {collapsedCount > 0 && (
         <Box paddingTop={1}>
-          <Text dimColor>  ({collapsedCount} lines hidden, {lines.length} total)</Text>
+          <Text dimColor>
+            {' '}
+            ({collapsedCount} lines hidden, {lines.length} total)
+          </Text>
         </Box>
       )}
     </Box>
@@ -218,11 +227,7 @@ export const StructuredDiff: React.FC<StructuredDiffProps> = ({
  * Simple line-based diff with word-level highlighting.
  * Uses prefix/suffix common detection (no external dependency).
  */
-export function createSimpleDiff(
-  fileName: string,
-  oldText: string,
-  newText: string,
-): DiffLine[] {
+export function createSimpleDiff(fileName: string, oldText: string, newText: string): DiffLine[] {
   const oldLines = oldText.split('\n');
   const newLines = newText.split('\n');
 
@@ -348,7 +353,12 @@ export async function createDiffAsync(
         } else if (change.removed) {
           result.push({ type: 'delete', content: line, oldLineNo: oldLineNo++ });
         } else {
-          result.push({ type: 'context', content: line, oldLineNo: oldLineNo++, newLineNo: newLineNo++ });
+          result.push({
+            type: 'context',
+            content: line,
+            oldLineNo: oldLineNo++,
+            newLineNo: newLineNo++,
+          });
         }
       }
     }

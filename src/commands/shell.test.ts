@@ -7,6 +7,8 @@ import {
   _handleSlashImpl,
   buildShellRegistry,
   classifyInterrupt,
+  shouldUseInkShell,
+  resolveRenderer,
   type ShellState,
 } from './shell.js';
 import type { GlobalOptions } from '../utils/output.js';
@@ -65,6 +67,48 @@ describe('interrupt handling', () => {
   });
 });
 
+describe('shell UI selection', () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it('defaults to the main-screen renderer', () => {
+    expect(shouldUseInkShell({})).toBe(false);
+    expect(resolveRenderer({})).toBe('default');
+  });
+
+  it('enables fullscreen when renderer is set explicitly', () => {
+    expect(shouldUseInkShell({ renderer: 'fullscreen' })).toBe(true);
+  });
+
+  it('keeps default renderer on explicit renderer selection', () => {
+    expect(shouldUseInkShell({ renderer: 'default' })).toBe(false);
+  });
+
+  it('allows env opt-in for fullscreen renderer', () => {
+    vi.stubEnv('SPARK_CLI_NO_FLICKER', '1');
+    expect(shouldUseInkShell({})).toBe(true);
+  });
+
+  it('lets explicit default override env opt-in', () => {
+    vi.stubEnv('SPARK_CLI_RENDERER', 'fullscreen');
+    expect(shouldUseInkShell({ renderer: 'default' })).toBe(false);
+  });
+
+  it('supports fullscreen flag as renderer alias', () => {
+    expect(shouldUseInkShell({ fullscreen: true })).toBe(true);
+  });
+
+  it('lets --no-ink compatibility flag override legacy env opt-in', () => {
+    vi.stubEnv('SPARK_CLI_INK', '1');
+    expect(shouldUseInkShell({ noInk: true })).toBe(false);
+  });
+
+  it('uses config ui.renderer when CLI is silent', () => {
+    expect(shouldUseInkShell({ configRenderer: 'fullscreen' })).toBe(true);
+  });
+});
+
 describe('slash dispatcher', () => {
   it('passes through plain prose', async () => {
     const r = await _handleSlashImpl('hello there', opts(), freshState(), registry);
@@ -107,12 +151,7 @@ describe('slash dispatcher', () => {
     let r = await _handleSlashImpl('/auto on', opts(), freshState(), registry);
     expect(r.state.writeMode).toBe('direct');
 
-    r = await _handleSlashImpl(
-      '/auto off',
-      opts(),
-      freshState({ writeMode: 'direct' }),
-      registry,
-    );
+    r = await _handleSlashImpl('/auto off', opts(), freshState({ writeMode: 'direct' }), registry);
     expect(r.state.writeMode).toBe('staging');
   });
 

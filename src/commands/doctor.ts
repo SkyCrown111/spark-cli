@@ -2,6 +2,7 @@ import chalk from 'chalk';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { loadMergedConfig } from '../config/load.js';
+import { logger } from '../utils/logger.js';
 import {
   BUILTIN_PROVIDERS,
   resolveConfiguredApiKey,
@@ -39,7 +40,9 @@ export async function runDoctor(opts: GlobalOptions): Promise<number> {
   checks.push({
     name: 'node',
     ok: nodeOk,
-    message: nodeOk ? `Node ${process.versions.node}` : `Node ${process.versions.node} (need >= 20)`,
+    message: nodeOk
+      ? `Node ${process.versions.node}`
+      : `Node ${process.versions.node} (need >= 20)`,
   });
 
   let config;
@@ -178,12 +181,21 @@ export async function runDoctor(opts: GlobalOptions): Promise<number> {
   // Parity snapshot — surfaces the Phase 13 alignment surface so users can see
   // tools/skills/hooks/memory/worktree/cron at a glance.
   const parity = (() => {
-    const reg = config ? buildDefaultRegistry({ projectRoot: root, config, includeMcp: false }) : null;
-    const tools = reg?.list({ mode: 'normal' }).map((t) => t.function.name).sort() ?? [];
+    const reg = config
+      ? buildDefaultRegistry({ projectRoot: root, config, includeMcp: false })
+      : null;
+    const tools =
+      reg
+        ?.list({ mode: 'normal' })
+        .map((t) => t.function.name)
+        .sort() ?? [];
 
     const skillReg = createSkillRegistry();
     if (config) loadSkillsFromDisk(skillReg, root);
-    const skills = skillReg.list().map((s) => s.name).sort();
+    const skills = skillReg
+      .list()
+      .map((s) => s.name)
+      .sort();
     const skillValidation = config
       ? validateSkills(root, config)
       : { errors: [] as string[], warnings: [] as string[] };
@@ -198,12 +210,18 @@ export async function runDoctor(opts: GlobalOptions): Promise<number> {
     try {
       memoryDir = getCrossSessionMemoryDir(root);
       memoryCount = listMemories(root).length;
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
 
     const worktreeDir = join(getProjectSparkDir(root), 'worktrees');
     const worktrees = existsSync(worktreeDir);
     const cronCount = (() => {
-      try { return listCronJobs().length; } catch { return 0; }
+      try {
+        return listCronJobs().length;
+      } catch {
+        return 0;
+      }
     })();
 
     const web = config?.tools?.web?.enabled === true;
@@ -254,48 +272,60 @@ export async function runDoctor(opts: GlobalOptions): Promise<number> {
     return allOk ? 0 : 2;
   }
 
-  console.log(chalk.bold('\nSparkCLI Doctor\n'));
+  logger.info(chalk.bold('\nSparkCLI Doctor\n'));
   for (const c of checks) {
     const icon = c.ok ? chalk.green('✓') : chalk.red('✗');
-    console.log(`  ${icon} ${chalk.dim(c.name)}  ${c.message}`);
+    logger.info(`  ${icon} ${chalk.dim(c.name)}  ${c.message}`);
   }
-  console.log(chalk.bold('\nParity'));
-  console.log(`  ${chalk.dim('tools')}     ${parity.tools.count} registered`);
-  console.log(`  ${chalk.dim('skills')}    ${parity.skills.count} loaded`);
+  logger.info(chalk.bold('\nParity'));
+  logger.info(`  ${chalk.dim('tools')}     ${parity.tools.count} registered`);
+  logger.info(`  ${chalk.dim('skills')}    ${parity.skills.count} loaded`);
   if (parity.skills.errors.length > 0) {
     for (const e of parity.skills.errors) {
-      console.log(`    ${chalk.red('✗')} ${e}`);
+      logger.error(`    ${chalk.red('✗')} ${e}`);
     }
   }
   if (parity.skills.warnings.length > 0) {
     for (const w of parity.skills.warnings.slice(0, 12)) {
-      console.log(`    ${chalk.yellow('!')} ${w}`);
+      logger.warn(`    ${chalk.yellow('!')} ${w}`);
     }
     if (parity.skills.warnings.length > 12) {
-      console.log(chalk.dim(`    …and ${parity.skills.warnings.length - 12} more (spark-cli skills validate)`));
+      logger.info(
+        chalk.dim(
+          `    …and ${parity.skills.warnings.length - 12} more (spark-cli skills validate)`,
+        ),
+      );
     }
   }
-  const hookSummary = Object.entries(parity.hooks).map(([k, n]) => `${k}=${n}`).join(' ');
-  console.log(`  ${chalk.dim('hooks')}     ${hookSummary || '(none)'}`);
-  console.log(`  ${chalk.dim('memory')}    ${parity.memory.count} entries`);
-  console.log(`  ${chalk.dim('worktree')}  ${parity.worktrees.dirExists ? 'dir present' : 'no worktrees yet'}`);
-  console.log(`  ${chalk.dim('cron')}      ${parity.cron.count} job(s)`);
-  console.log(`  ${chalk.dim('web')}       ${parity.web.enabled ? 'enabled' : 'disabled'}`);
+  const hookSummary = Object.entries(parity.hooks)
+    .map(([k, n]) => `${k}=${n}`)
+    .join(' ');
+  logger.info(`  ${chalk.dim('hooks')}     ${hookSummary || '(none)'}`);
+  logger.info(`  ${chalk.dim('memory')}    ${parity.memory.count} entries`);
+  logger.info(
+    `  ${chalk.dim('worktree')}  ${parity.worktrees.dirExists ? 'dir present' : 'no worktrees yet'}`,
+  );
+  logger.info(`  ${chalk.dim('cron')}      ${parity.cron.count} job(s)`);
+  logger.info(`  ${chalk.dim('web')}       ${parity.web.enabled ? 'enabled' : 'disabled'}`);
   if (parity.capabilities) {
     const c = parity.capabilities;
-    console.log(`  ${chalk.dim('imageGen')}  ${c.imageGen.enabled ? c.imageGen.effectiveProvider : 'disabled'}`);
-    console.log(`  ${chalk.dim('audioGen')}  ${c.audioGen.enabled ? c.audioGen.effectiveProvider : 'disabled'}`);
-    console.log(
+    logger.info(
+      `  ${chalk.dim('imageGen')}  ${c.imageGen.enabled ? c.imageGen.effectiveProvider : 'disabled'}`,
+    );
+    logger.info(
+      `  ${chalk.dim('audioGen')}  ${c.audioGen.enabled ? c.audioGen.effectiveProvider : 'disabled'}`,
+    );
+    logger.info(
       `  ${chalk.dim('cppIndex')}  ${c.unrealCppIndex.backend}${c.unrealCppIndex.treeSitterInstalled ? ' (pkg ok)' : ''}`,
     );
-    console.log(`  ${chalk.dim('assets')}    image dims via ${c.assetsAudit.imageDimBackend}`);
+    logger.info(`  ${chalk.dim('assets')}    image dims via ${c.assetsAudit.imageDimBackend}`);
     const opt = Object.entries(c.optionalPackages)
       .filter(([, v]) => !v.installed)
       .map(([k]) => k);
     if (opt.length > 0) {
-      console.log(`  ${chalk.dim('optional')}  not installed: ${opt.join(', ')}`);
+      logger.info(`  ${chalk.dim('optional')}  not installed: ${opt.join(', ')}`);
     }
   }
-  console.log(allOk ? chalk.green('\nAll checks passed.') : chalk.yellow('\nSome checks failed.'));
+  logger.info(allOk ? chalk.green('\nAll checks passed.') : chalk.yellow('\nSome checks failed.'));
   return allOk ? 0 : 2;
 }

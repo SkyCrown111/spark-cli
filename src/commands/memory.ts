@@ -7,6 +7,7 @@ import {
   getProjectMemory,
   getSessionMemory,
 } from '../core/memory/store.js';
+import { logger } from '../utils/logger.js';
 import type { GlobalOptions } from '../utils/output.js';
 import { printJson, resolveProjectRoot } from '../utils/output.js';
 
@@ -20,31 +21,27 @@ export function runMemoryShow(opts: GlobalOptions): void {
     return;
   }
 
-  console.log(chalk.bold('\nProject memory\n'));
-  if (!project.entries.length) console.log(chalk.dim('  (empty)'));
+  logger.info(chalk.bold('\nProject memory\n'));
+  if (!project.entries.length) logger.info(chalk.dim('  (empty)'));
   for (const e of project.entries) {
-    console.log(`  ${chalk.cyan(e.key)}: ${e.value}`);
+    logger.info(`  ${chalk.cyan(e.key)}: ${e.value}`);
   }
 
-  console.log(chalk.bold('\nSession memory\n'));
-  if (!session.entries.length) console.log(chalk.dim('  (empty)'));
+  logger.info(chalk.bold('\nSession memory\n'));
+  if (!session.entries.length) logger.info(chalk.dim('  (empty)'));
   for (const e of session.entries) {
-    console.log(`  ${chalk.cyan(e.key)}: ${e.value}`);
+    logger.info(`  ${chalk.cyan(e.key)}: ${e.value}`);
   }
 }
 
-export function runMemoryAdd(
-  opts: GlobalOptions,
-  key: string,
-  value: string,
-): void {
+export function runMemoryAdd(opts: GlobalOptions, key: string, value: string): void {
   const root = resolveProjectRoot(opts);
   addProjectMemory(root, key, value);
   if (opts.json) {
     printJson({ key, value });
     return;
   }
-  console.log(chalk.green('✓'), 'Remembered', chalk.cyan(key));
+  logger.info(chalk.green('✓'), 'Remembered', chalk.cyan(key));
 }
 
 export function runMemoryClear(opts: GlobalOptions, scope?: string): void {
@@ -57,5 +54,5 @@ export function runMemoryClear(opts: GlobalOptions, scope?: string): void {
     printJson({ cleared: scope ?? 'all' });
     return;
   }
-  console.log(chalk.green('✓'), `Cleared ${scope ?? 'all'} memory`);
+  logger.info(chalk.green('✓'), `Cleared ${scope ?? 'all'} memory`);
 }

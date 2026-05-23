@@ -32,5 +32,10 @@ export interface LevelData {
 export function validateLevelData(data: unknown): data is LevelData {
   if (!data || typeof data !== 'object') return false;
   const d = data as LevelData;
-  return d.version === 1 && typeof d.name === 'string' && Array.isArray(d.zones) && Array.isArray(d.paths);
+  return (
+    d.version === 1 &&
+    typeof d.name === 'string' &&
+    Array.isArray(d.zones) &&
+    Array.isArray(d.paths)
+  );
 }

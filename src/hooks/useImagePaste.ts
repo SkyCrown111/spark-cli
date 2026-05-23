@@ -39,8 +39,16 @@ export interface ImageReference {
 // ── Image extensions ───────────────────────────────────
 
 const IMAGE_EXTENSIONS = new Set([
-  '.png', '.jpg', '.jpeg', '.gif', '.bmp', '.webp', '.svg',
-  '.ico', '.tiff', '.tif',
+  '.png',
+  '.jpg',
+  '.jpeg',
+  '.gif',
+  '.bmp',
+  '.webp',
+  '.svg',
+  '.ico',
+  '.tiff',
+  '.tif',
 ]);
 
 /**
@@ -58,8 +66,10 @@ function isImagePath(filePath: string): boolean {
 function tryParseImageFile(pastedText: string): ImageReference | null {
   // Trim whitespace and quotes (some terminals wrap paths in quotes)
   let cleanPath = pastedText.trim();
-  if ((cleanPath.startsWith('"') && cleanPath.endsWith('"')) ||
-      (cleanPath.startsWith("'") && cleanPath.endsWith("'"))) {
+  if (
+    (cleanPath.startsWith('"') && cleanPath.endsWith('"')) ||
+    (cleanPath.startsWith("'") && cleanPath.endsWith("'"))
+  ) {
     cleanPath = cleanPath.slice(1, -1);
   }
 
@@ -154,10 +164,13 @@ export function useImagePaste(options: UseImagePasteOptions = {}): UseImagePaste
     setPastedImages([]);
   }, []);
 
-  const tryParseImagePaste = useCallback((text: string): ImageReference | null => {
-    if (!enabled) return null;
-    return tryParseImageFile(text);
-  }, [enabled]);
+  const tryParseImagePaste = useCallback(
+    (text: string): ImageReference | null => {
+      if (!enabled) return null;
+      return tryParseImageFile(text);
+    },
+    [enabled],
+  );
 
   // ── Clipboard image detection (OSC 1337 for iTerm2) ──
   // This is a placeholder for future implementation.

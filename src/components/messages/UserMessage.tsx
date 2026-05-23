@@ -20,10 +20,10 @@ function formatContent(content: string | Array<{ type: string; text?: string }>)
   if (typeof content === 'string') {
     return content;
   }
-  
+
   // Handle content parts (e.g., text + images)
   return content
-    .map(part => {
+    .map((part) => {
       if (part.type === 'text' && part.text) {
         return part.text;
       }
@@ -38,7 +38,7 @@ function formatContent(content: string | Array<{ type: string; text?: string }>)
 
 /**
  * UserMessage component for displaying user input
- * 
+ *
  * @example
  * ```tsx
  * <UserMessage message={{ role: 'user', content: 'Hello!' }} />
@@ -46,11 +46,13 @@ function formatContent(content: string | Array<{ type: string; text?: string }>)
  */
 export const UserMessage: React.FC<UserMessageProps> = ({ message }) => {
   const content = formatContent(message.content);
-  
+
   return (
     <Box flexDirection="column">
       <Box>
-        <Text bold color={colors.user}>{'>'}</Text>
+        <Text bold color={colors.user}>
+          {'>'}
+        </Text>
         <Text> {content}</Text>
       </Box>
     </Box>

@@ -18,6 +18,8 @@ import type { ToolContext, ToolRegistry, ToolResult } from './tool-registry.js';
 import { appendReplayEvent } from '../replay/log.js';
 import { runHooks } from '../hooks/runner.js';
 import type { HookConfig } from '../hooks/config.js';
+import type { SandboxConfig } from './sandbox.js';
+import { checkFilePath, checkBashCommand, extractPathsFromArgs } from './sandbox.js';
 
 export interface DispatchedCall {
   tool_call_id: string;
@@ -73,6 +75,8 @@ export interface DispatchOptions {
   abortSignal?: AbortSignal;
   /** Pre-loaded hook config; if undefined, hooks are skipped. */
   hooks?: HookConfig;
+  /** Sandbox config for filesystem/network restrictions. If undefined, sandbox is disabled. */
+  sandbox?: SandboxConfig;
 }
 
 export async function dispatchToolCalls(
@@ -120,9 +124,10 @@ export async function dispatchToolCalls(
 
         // Explicit deny decision or legacy blocking
         if (pre.decision === 'deny' || pre.blocked) {
-          const reason = pre.decision === 'deny'
-            ? (pre.additionalContext ?? 'Denied by pre_tool hook.')
-            : (pre.reason ?? 'Blocked by pre_tool hook.');
+          const reason =
+            pre.decision === 'deny'
+              ? (pre.additionalContext ?? 'Denied by pre_tool hook.')
+              : (pre.reason ?? 'Blocked by pre_tool hook.');
           appendReplayEvent(ctx.projectRoot, 'tool_call', {
             tool: tc.function.name,
             args: tc.function.arguments,
@@ -145,17 +150,52 @@ export async function dispatchToolCalls(
           };
         }
       }
+
+      // ── Sandbox checks ──
+      if (opts.sandbox?.enabled) {
+        const toolName = tc.function.name;
+        let args: Record<string, unknown> = {};
+        try {
+          args = JSON.parse(tc.function.arguments ?? '{}');
+        } catch {
+          /* ignore parse errors */
+        }
+
+        // Check bash commands
+        if (toolName === 'bash' && typeof args.command === 'string') {
+          const bashCheck = checkBashCommand(args.command, opts.sandbox);
+          if (!bashCheck.allowed) {
+            return {
+              tool_call_id: tc.id,
+              tool: toolName,
+              result: { content: `Sandbox: ${bashCheck.reason}`, isError: true },
+              durationMs: 0,
+            };
+          }
+        }
+
+        // Check file paths
+        const paths = extractPathsFromArgs(toolName, args);
+        for (const path of paths) {
+          const pathCheck = checkFilePath(path, ctx.projectRoot, opts.sandbox);
+          if (!pathCheck.allowed) {
+            return {
+              tool_call_id: tc.id,
+              tool: toolName,
+              result: { content: `Sandbox: ${pathCheck.reason}`, isError: true },
+              durationMs: 0,
+            };
+          }
+        }
+      }
+
       const start = Date.now();
-      const result = await registry.dispatch(
-        tc.function.name,
-        tc.function.arguments ?? '{}',
-        {
-          ...ctx,
-          abortSignal: opts.abortSignal,
-          hookDecision,
-          hookAdditionalContext,
-        },
-      );
+      const result = await registry.dispatch(tc.function.name, tc.function.arguments ?? '{}', {
+        ...ctx,
+        abortSignal: opts.abortSignal,
+        hookDecision,
+        hookAdditionalContext,
+      });
       const durationMs = Date.now() - start;
       const replayContent = truncateForReplay(result.content);
       appendReplayEvent(ctx.projectRoot, 'tool_call', {

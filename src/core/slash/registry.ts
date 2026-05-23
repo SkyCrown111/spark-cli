@@ -2,8 +2,9 @@
  * Slash command registry.
  *
  * - Built-ins (`/help`, `/exit`, `/auto`, `/clear`, `/diff`, …) plus user-defined
- *   commands loaded from `.spark-cli/commands/*.md` (project) and
- *   `~/.spark-cli/commands/*.md` (user). Project wins on name collisions.
+ *   commands loaded from `.spark/commands/*.md` (project) and
+ *   `~/.spark/commands/*.md` (user), with legacy `.spark-cli` fallback.
+ *   Project wins on name collisions.
  * - File-based commands are NOT synchronous JS handlers — they expand to a
  *   user-prompt string the agent loop runs as the next turn (see
  *   `loader.ts`'s `body` field). The dispatcher decides whether a command
@@ -59,10 +60,7 @@ export interface SlashRegistry {
    * Dispatch a `/...` line. Returns `{ kind: 'unknown' }` if no command
    * matches; the caller treats unknown slashes as plain prose.
    */
-  dispatch(
-    line: string,
-    globalOpts: GlobalOptions,
-  ): Promise<SlashOutcome | { kind: 'unknown' }>;
+  dispatch(line: string, globalOpts: GlobalOptions): Promise<SlashOutcome | { kind: 'unknown' }>;
 }
 
 export function createSlashRegistry(): SlashRegistry {

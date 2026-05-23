@@ -10,8 +10,8 @@
 
 /** Reserved key combos that cannot be overridden */
 export const RESERVED_SHORTCUTS: readonly string[] = [
-  'ctrl+c',   // app:interrupt — always works to stop the current operation
-  'ctrl+d',   // app:exit — always works to exit the REPL
+  'ctrl+c', // app:interrupt — always works to stop the current operation
+  'ctrl+d', // app:exit — always works to exit the REPL
 ];
 
 /**
@@ -32,10 +32,7 @@ export function getReservedShortcuts(): string[] {
 /**
  * Reserved actions that must always have a binding.
  */
-export const RESERVED_ACTIONS: readonly string[] = [
-  'app:interrupt',
-  'app:exit',
-];
+export const RESERVED_ACTIONS: readonly string[] = ['app:interrupt', 'app:exit'];
 
 /**
  * Check if an action is reserved.

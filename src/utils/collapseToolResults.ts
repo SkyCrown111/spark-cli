@@ -67,10 +67,7 @@ export function collapseToolResult(
  * Collapse background bash output — folds long running
  * background command notifications.
  */
-export function collapseBackgroundBash(
-  content: string,
-  maxLines = 8,
-): CollapseResult {
+export function collapseBackgroundBash(content: string, maxLines = 8): CollapseResult {
   const lines = content.split('\n');
   const totalCount = lines.length;
 

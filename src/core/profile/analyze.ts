@@ -41,7 +41,10 @@ export function analyzeProfileJson(raw: unknown, source = 'profile.json'): Profi
     });
     frames.push({
       frame: asNumber(f.frame ?? f.index, i),
-      ms: asNumber(f.ms ?? f.frameMs ?? f.duration, samples.reduce((a, b) => a + b.ms, 0)),
+      ms: asNumber(
+        f.ms ?? f.frameMs ?? f.duration,
+        samples.reduce((a, b) => a + b.ms, 0),
+      ),
       samples,
     });
   }
@@ -55,15 +58,17 @@ export function analyzeProfileJson(raw: unknown, source = 'profile.json'): Profi
     }
   }
 
-  const systems = [...systemTotals.entries()].map(([name, vals]) => {
-    const totalMs = vals.reduce((a, b) => a + b, 0);
-    return {
-      name,
-      totalMs,
-      avgMs: vals.length ? totalMs / vals.length : 0,
-      maxMs: vals.length ? Math.max(...vals) : 0,
-    };
-  }).sort((a, b) => b.totalMs - a.totalMs);
+  const systems = [...systemTotals.entries()]
+    .map(([name, vals]) => {
+      const totalMs = vals.reduce((a, b) => a + b, 0);
+      return {
+        name,
+        totalMs,
+        avgMs: vals.length ? totalMs / vals.length : 0,
+        maxMs: vals.length ? Math.max(...vals) : 0,
+      };
+    })
+    .sort((a, b) => b.totalMs - a.totalMs);
 
   const frameMs = frames.map((f) => f.ms);
   const sorted = [...frameMs].sort((a, b) => a - b);

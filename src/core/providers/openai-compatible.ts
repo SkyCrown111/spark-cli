@@ -1,12 +1,7 @@
 import { request } from 'undici';
 import { SparkCLIError } from '../../utils/errors.js';
 import { normalizeBaseUrl } from './endpoints.js';
-import type {
-  ProviderResponse,
-  ProviderStopReason,
-  ToolCall,
-  ToolDefinition,
-} from './types.js';
+import type { ProviderResponse, ProviderStopReason, ToolCall, ToolDefinition } from './types.js';
 import { demoteTools, isToolRelated4xx } from './capabilities.js';
 
 export type ChatContentPart =
@@ -40,6 +35,20 @@ export interface ToolMessage {
   tool_call_id: string;
 }
 export type ChatMessage = SystemMessage | UserMessage | AssistantMessage | ToolMessage;
+
+function serializeAssistantContent(
+  content: string | ChatContentPart[],
+): string | ChatContentPart[] {
+  if (!Array.isArray(content)) return content;
+
+  let text = '';
+  for (const part of content) {
+    if (part.type === 'text') {
+      text += part.text;
+    }
+  }
+  return text;
+}
 
 export interface ChatCompletionOptions {
   baseUrl: string;
@@ -89,7 +98,10 @@ function buildMessagesPayload(messages: ChatMessage[]): unknown[] {
       return { role: 'tool', content: m.content, tool_call_id: m.tool_call_id };
     }
     if (m.role === 'assistant') {
-      const out: Record<string, unknown> = { role: 'assistant', content: m.content ?? '' };
+      const out: Record<string, unknown> = {
+        role: 'assistant',
+        content: serializeAssistantContent(m.content ?? ''),
+      };
       if (m.tool_calls && m.tool_calls.length > 0) {
         out.tool_calls = m.tool_calls;
       }
@@ -99,9 +111,7 @@ function buildMessagesPayload(messages: ChatMessage[]): unknown[] {
   });
 }
 
-export async function chatCompletion(
-  opts: ChatCompletionOptions,
-): Promise<ProviderResponse> {
+export async function chatCompletion(opts: ChatCompletionOptions): Promise<ProviderResponse> {
   if (opts.onDelta) {
     return chatCompletionStream(opts);
   }
@@ -173,8 +183,7 @@ export async function chatCompletion(
   const choice = json.choices?.[0];
   const message = choice?.message;
   const toolCalls = message?.tool_calls;
-  const rawContent =
-    (typeof message?.content === 'string' ? message.content : '').trim();
+  const rawContent = (typeof message?.content === 'string' ? message.content : '').trim();
   const thinking = (message?.reasoning_content ?? '').trim() || undefined;
 
   // Empty content is valid when the model only emits tool_calls.
@@ -212,9 +221,7 @@ export async function pingModel(opts: {
  * Tool-call streaming follows OpenAI's `delta.tool_calls[].function.arguments`
  * pattern: each frame appends to the call at the matching `index`.
  */
-async function chatCompletionStream(
-  opts: ChatCompletionOptions,
-): Promise<ProviderResponse> {
+async function chatCompletionStream(opts: ChatCompletionOptions): Promise<ProviderResponse> {
   const url = `${normalizeBaseUrl(opts.baseUrl)}/chat/completions`;
   const body: Record<string, unknown> = {
     model: opts.model,

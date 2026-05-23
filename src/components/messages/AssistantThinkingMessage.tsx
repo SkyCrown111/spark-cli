@@ -31,7 +31,9 @@ export const AssistantThinkingMessage: React.FC<AssistantThinkingMessageProps> =
   return (
     <Box flexDirection="column" marginY={0}>
       <Box>
-        <Text dimColor italic>{'⏺ Thinking...'}</Text>
+        <Text dimColor italic>
+          {'⏺ Thinking...'}
+        </Text>
       </Box>
       {visibleLines.map((line, i) => (
         <Box key={i} paddingLeft={2}>

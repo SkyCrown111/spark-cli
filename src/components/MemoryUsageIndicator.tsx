@@ -28,9 +28,7 @@ function getMemoryMb(): number {
   return Math.round(usage.rss / 1024 / 1024);
 }
 
-export const MemoryUsageIndicator: React.FC<MemoryUsageIndicatorProps> = ({
-  limitMb = 512,
-}) => {
+export const MemoryUsageIndicator: React.FC<MemoryUsageIndicatorProps> = ({ limitMb = 512 }) => {
   const usedMb = getMemoryMb();
   const ratio = usedMb / limitMb;
 

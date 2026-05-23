@@ -1,17 +1,17 @@
 /**
  * Bug Condition Exploration Test for Terminal Resize Duplicate Rendering
- * 
+ *
  * **Validates: Requirements 1.1, 1.2, 1.3, 1.4**
- * 
+ *
  * **NOTE**: This test validates the FIXED implementation
  * After implementing tasks 3-6, this test should PASS, confirming:
  * - Atomic check-and-set prevents race conditions (Task 4.1)
  * - Async-aware handleTerminalResize properly awaits (Task 6.1)
  * - Debouncing and deduplication work correctly (Tasks 3.1-3.4)
  * - Single clean redraw with no duplicate content
- * 
+ *
  * **GOAL**: Verify that the fix eliminates duplicate rendering on terminal resize
- * 
+ *
  * This test validates the fixed behavior where:
  * 1. rerenderLayout uses atomic check-and-set to prevent concurrent execution
  * 2. handleTerminalResize properly awaits rerenderLayout completion
@@ -109,7 +109,7 @@ describe('Bug Condition Exploration: Terminal Resize Duplicate Rendering', () =>
     originalStdin = process.stdin;
     mockStdout = new MockStdout();
     mockStdin = new MockStdin();
-    
+
     // Replace process.stdout and process.stdin
     Object.defineProperty(process, 'stdout', {
       value: mockStdout,
@@ -139,12 +139,12 @@ describe('Bug Condition Exploration: Terminal Resize Duplicate Rendering', () =>
 
   /**
    * Property 1: Expected Behavior - Single Clean Redraw on Resize (FIXED CODE)
-   * 
+   *
    * This test validates the FIXED implementation where:
    * 1. rerenderLayout uses atomic check-and-set (Task 4.1)
    * 2. handleTerminalResize properly awaits rerenderLayout (Task 6.1)
    * 3. watchTtyResize handles async callbacks with resizePending flag (Task 3.1, 3.3)
-   * 
+   *
    * **EXPECTED OUTCOME ON FIXED CODE**: Test PASSES
    * - Only 1 rerender executes despite multiple rapid calls
    * - Welcome banner appears exactly once
@@ -152,13 +152,13 @@ describe('Bug Condition Exploration: Terminal Resize Duplicate Rendering', () =>
    */
   it('Property 1: Async rerenderLayout race condition causes duplicate rendering', async () => {
     const { clearTtyViewport, writeReplBlock } = await import('../core/repl/viewport.js');
-    
+
     let layoutRerendering = false;
     let rerenderStartCount = 0;
     let rerenderCompleteCount = 0;
     const welcomeBanner = '=== SparkCLI Welcome ===';
     const inputPrompt = '> ';
-    
+
     // Simulate the FIXED rerenderLayout function from shell.ts
     // This implements the atomic check-and-set pattern (Task 4.1)
     const rerenderLayout = async (): Promise<void> => {
@@ -166,16 +166,16 @@ describe('Bug Condition Exploration: Terminal Resize Duplicate Rendering', () =>
       if (layoutRerendering) return;
       layoutRerendering = true;
       rerenderStartCount++;
-      
+
       try {
         // Simulate async operations (buildWelcomeText, etc.)
-        await new Promise(resolve => setTimeout(resolve, 10));
-        
+        await new Promise((resolve) => setTimeout(resolve, 10));
+
         clearTtyViewport(asWriteStream(mockStdout));
         writeReplBlock(welcomeBanner, asWriteStream(mockStdout));
         mockStdout.write(inputPrompt);
-        
-        await new Promise(resolve => setTimeout(resolve, 10));
+
+        await new Promise((resolve) => setTimeout(resolve, 10));
       } finally {
         layoutRerendering = false;
         rerenderCompleteCount++;
@@ -207,7 +207,7 @@ describe('Bug Condition Exploration: Terminal Resize Duplicate Rendering', () =>
     await Promise.all([promise1, promise2, promise3]);
 
     // Wait for any remaining async operations
-    await new Promise(resolve => setTimeout(resolve, 100));
+    await new Promise((resolve) => setTimeout(resolve, 100));
 
     const resizeOutput = mockStdout.getAllOutput();
     const visibleText = stripAnsi(resizeOutput);
@@ -215,7 +215,7 @@ describe('Bug Condition Exploration: Terminal Resize Duplicate Rendering', () =>
     // **CRITICAL ASSERTIONS**: These should PASS on fixed code
     // Expected: only 1 rerender should start (fixed code prevents concurrent calls)
     expect(rerenderStartCount).toBe(1);
-    
+
     // Expected: welcome banner appears exactly once
     const bannerCount = countOccurrences(visibleText, welcomeBanner);
     expect(bannerCount).toBe(1);
@@ -227,22 +227,23 @@ describe('Bug Condition Exploration: Terminal Resize Duplicate Rendering', () =>
 
   /**
    * Property 1b: Rapid resize sequence should trigger only one rerender
-   * 
+   *
    * Tests that multiple resize events in quick succession (within 100ms)
    * are debounced to a single rerender operation.
-   * 
+   *
    * **EXPECTED OUTCOME ON UNFIXED CODE**: Test FAILS
    * - Multiple rerender calls (5+ instead of 1)
    * - Duplicate content from concurrent rerenders
    */
   it('Property 1b: Rapid resize sequence (5 events within 100ms) should debounce to single rerender', async () => {
-    const { watchTtyResize, clearTtyViewport, writeReplBlock } = await import('../core/repl/viewport.js');
-    
+    const { watchTtyResize, clearTtyViewport, writeReplBlock } =
+      await import('../core/repl/viewport.js');
+
     let rerenderCount = 0;
     const welcomeBanner = '=== SparkCLI Welcome ===';
     const historyEntry = 'User: test prompt\nAssistant: test response';
     const inputPrompt = '> ';
-    
+
     const handleResize = (): void => {
       rerenderCount++;
       clearTtyViewport(asWriteStream(mockStdout));
@@ -275,11 +276,11 @@ describe('Bug Condition Exploration: Terminal Resize Duplicate Rendering', () =>
 
       for (const size of sizes) {
         simulateResize(mockStdout, size.cols, size.rows);
-        await new Promise(resolve => setTimeout(resolve, 20)); // 20ms between events
+        await new Promise((resolve) => setTimeout(resolve, 20)); // 20ms between events
       }
 
       // Wait for debounce to settle
-      await new Promise(resolve => setTimeout(resolve, 200));
+      await new Promise((resolve) => setTimeout(resolve, 200));
 
       const resizeOutput = mockStdout.getAllOutput();
       const visibleText = stripAnsi(resizeOutput);
@@ -299,7 +300,6 @@ describe('Bug Condition Exploration: Terminal Resize Duplicate Rendering', () =>
       // Expected: input prompt appears exactly once
       const promptCount = countOccurrences(visibleText, inputPrompt);
       expect(promptCount).toBe(1);
-
     } finally {
       unwatch();
     }
@@ -307,10 +307,10 @@ describe('Bug Condition Exploration: Terminal Resize Duplicate Rendering', () =>
 
   /**
    * Property 1c: Windows dual-trigger scenario
-   * 
+   *
    * On Windows, both polling and resize event can fire for the same size change,
    * potentially triggering duplicate rerenders.
-   * 
+   *
    * **EXPECTED OUTCOME ON UNFIXED CODE**: Test FAILS on Windows
    * - Two rerender calls for same size change
    * - Duplicate content
@@ -325,12 +325,13 @@ describe('Bug Condition Exploration: Terminal Resize Duplicate Rendering', () =>
     });
 
     try {
-      const { watchTtyResize, clearTtyViewport, writeReplBlock } = await import('../core/repl/viewport.js');
-      
+      const { watchTtyResize, clearTtyViewport, writeReplBlock } =
+        await import('../core/repl/viewport.js');
+
       let rerenderCount = 0;
       const welcomeBanner = '=== SparkCLI Welcome ===';
       const inputPrompt = '> ';
-      
+
       const handleResize = (): void => {
         rerenderCount++;
         clearTtyViewport(asWriteStream(mockStdout));
@@ -355,7 +356,7 @@ describe('Bug Condition Exploration: Terminal Resize Duplicate Rendering', () =>
         simulateResize(mockStdout, 100, 30);
 
         // Wait for both event and poll cycle
-        await new Promise(resolve => setTimeout(resolve, 400));
+        await new Promise((resolve) => setTimeout(resolve, 400));
 
         const resizeOutput = mockStdout.getAllOutput();
         const visibleText = stripAnsi(resizeOutput);
@@ -371,7 +372,6 @@ describe('Bug Condition Exploration: Terminal Resize Duplicate Rendering', () =>
         // Expected: input prompt appears exactly once
         const promptCount = countOccurrences(visibleText, inputPrompt);
         expect(promptCount).toBe(1);
-
       } finally {
         unwatch();
       }
@@ -387,12 +387,13 @@ describe('Bug Condition Exploration: Terminal Resize Duplicate Rendering', () =>
 
   /**
    * Property-Based Test: Random resize sequences should never produce duplicates
-   * 
+   *
    * Uses fast-check to generate random resize sequences and verify
    * that no duplicate content appears.
    */
   it('Property-Based: Random resize sequences should produce single clean redraw', async () => {
-    const { watchTtyResize, clearTtyViewport, writeReplBlock } = await import('../core/repl/viewport.js');
+    const { watchTtyResize, clearTtyViewport, writeReplBlock } =
+      await import('../core/repl/viewport.js');
 
     await fc.assert(
       fc.asyncProperty(
@@ -403,13 +404,13 @@ describe('Bug Condition Exploration: Terminal Resize Duplicate Rendering', () =>
             rows: fc.integer({ min: 10, max: 60 }),
             delayMs: fc.integer({ min: 10, max: 100 }),
           }),
-          { minLength: 1, maxLength: 10 }
+          { minLength: 1, maxLength: 10 },
         ),
         async (resizeSequence) => {
           let rerenderCount = 0;
           const welcomeBanner = '=== SparkCLI Welcome ===';
           const inputPrompt = '> ';
-          
+
           const handleResize = (): void => {
             rerenderCount++;
             clearTtyViewport(asWriteStream(mockStdout));
@@ -432,11 +433,11 @@ describe('Bug Condition Exploration: Terminal Resize Duplicate Rendering', () =>
             // Execute resize sequence
             for (const resize of resizeSequence) {
               simulateResize(mockStdout, resize.cols, resize.rows);
-              await new Promise(resolve => setTimeout(resolve, resize.delayMs));
+              await new Promise((resolve) => setTimeout(resolve, resize.delayMs));
             }
 
             // Wait for debounce to settle
-            await new Promise(resolve => setTimeout(resolve, 200));
+            await new Promise((resolve) => setTimeout(resolve, 200));
 
             const resizeOutput = mockStdout.getAllOutput();
             const visibleText = stripAnsi(resizeOutput);
@@ -454,13 +455,12 @@ describe('Bug Condition Exploration: Terminal Resize Duplicate Rendering', () =>
 
             // Expected: input prompt appears at most once
             expect(promptCount).toBeLessThanOrEqual(1);
-
           } finally {
             unwatch();
           }
-        }
+        },
       ),
-      { numRuns: 5, timeout: 10000 } // Run 5 random test cases with 10s timeout
+      { numRuns: 5, timeout: 10000 }, // Run 5 random test cases with 10s timeout
     );
   }, 15000); // 15 second test timeout
 });

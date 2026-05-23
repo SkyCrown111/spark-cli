@@ -22,21 +22,15 @@ export interface GitSuggestion {
  * Returns the last N commit messages that can be used as
  * prompt suggestions or inspiration.
  */
-export function getGitCommitSuggestions(
-  projectRoot: string,
-  maxResults = 5,
-): GitSuggestion[] {
+export function getGitCommitSuggestions(projectRoot: string, maxResults = 5): GitSuggestion[] {
   try {
     // Get recent commit messages (one line each)
-    const output = execSync(
-      `git log --oneline -${maxResults} --format="%s"`,
-      {
-        cwd: projectRoot,
-        encoding: 'utf8',
-        timeout: 5000,
-        stdio: ['pipe', 'pipe', 'pipe'],
-      },
-    );
+    const output = execSync(`git log --oneline -${maxResults} --format="%s"`, {
+      cwd: projectRoot,
+      encoding: 'utf8',
+      timeout: 5000,
+      stdio: ['pipe', 'pipe', 'pipe'],
+    });
 
     const messages = output
       .trim()
@@ -73,10 +67,7 @@ export function getGitBranchContext(projectRoot: string): string | undefined {
 /**
  * Get modified files as context for suggestions.
  */
-export function getGitModifiedFiles(
-  projectRoot: string,
-  maxResults = 5,
-): string[] {
+export function getGitModifiedFiles(projectRoot: string, maxResults = 5): string[] {
   try {
     const output = execSync('git diff --name-only', {
       cwd: projectRoot,
@@ -101,10 +92,7 @@ export function getGitModifiedFiles(
  * Combines commit history, branch name, and modified files
  * to create relevant prompt suggestions.
  */
-export function generateGitSuggestions(
-  projectRoot: string,
-  currentInput: string,
-): GitSuggestion[] {
+export function generateGitSuggestions(projectRoot: string, currentInput: string): GitSuggestion[] {
   const suggestions: GitSuggestion[] = [];
   const inputLower = currentInput.toLowerCase();
 
@@ -113,9 +101,10 @@ export function generateGitSuggestions(
 
   // Filter commits that relate to current input
   if (currentInput.length > 2) {
-    const relevant = commits.filter((c) =>
-      c.value.toLowerCase().includes(inputLower) ||
-      inputLower.includes(c.value.toLowerCase().slice(0, 20))
+    const relevant = commits.filter(
+      (c) =>
+        c.value.toLowerCase().includes(inputLower) ||
+        inputLower.includes(c.value.toLowerCase().slice(0, 20)),
     );
     suggestions.push(...relevant.slice(0, 3));
   }

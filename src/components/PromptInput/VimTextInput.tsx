@@ -137,7 +137,11 @@ function getWORDBoundaries(text: string, pos: number): { start: number; end: num
 }
 
 /** Get quoted string boundaries around position. */
-function getQuotedBoundaries(text: string, pos: number, quote: string): { start: number; end: number } | null {
+function getQuotedBoundaries(
+  text: string,
+  pos: number,
+  quote: string,
+): { start: number; end: number } | null {
   // Find the quote character at or before position
   let qPos = text.indexOf(quote, pos);
   if (qPos < 0) qPos = text.lastIndexOf(quote, pos);
@@ -151,7 +155,12 @@ function getQuotedBoundaries(text: string, pos: number, quote: string): { start:
 }
 
 /** Get parenthesized boundaries around position. */
-function getBracketBoundaries(text: string, pos: number, open: string, close: string): { start: number; end: number } | null {
+function getBracketBoundaries(
+  text: string,
+  pos: number,
+  open: string,
+  close: string,
+): { start: number; end: number } | null {
   let depth = 0;
   let start = -1;
 
@@ -159,7 +168,10 @@ function getBracketBoundaries(text: string, pos: number, open: string, close: st
   for (let i = pos; i >= 0; i--) {
     if (text[i] === close) depth++;
     if (text[i] === open) {
-      if (depth === 0) { start = i; break; }
+      if (depth === 0) {
+        start = i;
+        break;
+      }
       depth--;
     }
   }
@@ -253,7 +265,8 @@ function deleteSelection(
   const newLines = [...lines];
   if (startLine === endLine) {
     const line = newLines[startLine] ?? '';
-    newLines[startLine] = line.slice(0, startCol) + line.slice(endCol === Infinity ? undefined : endCol);
+    newLines[startLine] =
+      line.slice(0, startCol) + line.slice(endCol === Infinity ? undefined : endCol);
     return newLines;
   }
   // Merge first and last line
@@ -281,14 +294,30 @@ function deleteSelection(
 export function handleVimNormalKey(
   owner: object,
   ch: string,
-  key: { leftArrow?: boolean; rightArrow?: boolean; upArrow?: boolean; downArrow?: boolean; return?: boolean; ctrl?: boolean; meta?: boolean },
+  key: {
+    leftArrow?: boolean;
+    rightArrow?: boolean;
+    upArrow?: boolean;
+    downArrow?: boolean;
+    return?: boolean;
+    ctrl?: boolean;
+    meta?: boolean;
+  },
   state: VimInputState,
   setters: VimInputSetters,
   config: VimInputConfig,
   regState?: VimRegisterState,
 ): boolean {
   const { lines, cursorPosition, currentLine, visualStart, vimMode } = state;
-  const { setInput, setLines, setCursorPosition, setCurrentLine, onVimModeChange, onSubmit, setVisualStart } = setters;
+  const {
+    setInput,
+    setLines,
+    setCursorPosition,
+    setCurrentLine,
+    onVimModeChange,
+    onSubmit,
+    setVisualStart,
+  } = setters;
   const { multiline, maxLines } = config;
   const isVisual = vimMode === 'VISUAL' || vimMode === 'VISUAL LINE';
 
@@ -390,7 +419,11 @@ export function handleVimNormalKey(
       case 'd':
       case 'x': {
         // Delete selected text
-        const { startLine, startCol, endLine, endCol } = normalizeSelection(selStart, { line: currentLine, col: cursorPosition }, vimMode === 'VISUAL LINE');
+        const { startLine, startCol, endLine, endCol } = normalizeSelection(
+          selStart,
+          { line: currentLine, col: cursorPosition },
+          vimMode === 'VISUAL LINE',
+        );
         const deleted = extractSelection(lines, startLine, startCol, endLine, endCol);
         saveToRegister(deleted);
         const newLines = deleteSelection(lines, startLine, startCol, endLine, endCol);
@@ -406,7 +439,11 @@ export function handleVimNormalKey(
       }
       case 'y': {
         // Yank selected text
-        const { startLine, startCol, endLine, endCol } = normalizeSelection(selStart, { line: currentLine, col: cursorPosition }, vimMode === 'VISUAL LINE');
+        const { startLine, startCol, endLine, endCol } = normalizeSelection(
+          selStart,
+          { line: currentLine, col: cursorPosition },
+          vimMode === 'VISUAL LINE',
+        );
         const yanked = extractSelection(lines, startLine, startCol, endLine, endCol);
         saveToRegister(yanked);
         setVisualStart?.(undefined);
@@ -415,7 +452,11 @@ export function handleVimNormalKey(
       }
       case 'c': {
         // Change selected text (delete + enter INSERT)
-        const { startLine, startCol, endLine, endCol } = normalizeSelection(selStart, { line: currentLine, col: cursorPosition }, vimMode === 'VISUAL LINE');
+        const { startLine, startCol, endLine, endCol } = normalizeSelection(
+          selStart,
+          { line: currentLine, col: cursorPosition },
+          vimMode === 'VISUAL LINE',
+        );
         const deleted = extractSelection(lines, startLine, startCol, endLine, endCol);
         saveToRegister(deleted);
         const newLines = deleteSelection(lines, startLine, startCol, endLine, endCol);
@@ -473,7 +514,9 @@ export function handleVimNormalKey(
 
     switch (ch) {
       case 'w':
-        boundaries = isInner ? getWordBoundaries(lineText, cursorPosition) : getWORDBoundaries(lineText, cursorPosition);
+        boundaries = isInner
+          ? getWordBoundaries(lineText, cursorPosition)
+          : getWORDBoundaries(lineText, cursorPosition);
         break;
       case '"':
         boundaries = getQuotedBoundaries(lineText, cursorPosition, '"');
@@ -674,7 +717,8 @@ export function handleVimNormalKey(
         if (type === 'change') {
           const lineText = lines[currentLine] ?? '';
           const newLines = [...lines];
-          newLines[currentLine] = lineText.slice(0, cursorPosition) + text + lineText.slice(cursorPosition);
+          newLines[currentLine] =
+            lineText.slice(0, cursorPosition) + text + lineText.slice(cursorPosition);
           setLines(newLines);
           setInput(newLines.join('\n'));
           setCursorPosition(cursorPosition + text.length);
@@ -688,7 +732,8 @@ export function handleVimNormalKey(
       const lineText = lines[currentLine] ?? '';
       if (cursorPosition < lineText.length) {
         const newLines = [...lines];
-        newLines[currentLine] = lineText.slice(0, cursorPosition) + lineText.slice(cursorPosition + 1);
+        newLines[currentLine] =
+          lineText.slice(0, cursorPosition) + lineText.slice(cursorPosition + 1);
         setLines(newLines);
         setInput(newLines.join('\n'));
         if (cursorPosition >= newLines[currentLine].length) {
@@ -729,7 +774,8 @@ export function handleVimNormalKey(
       const lineText = lines[currentLine] ?? '';
       const newLines = [...lines];
       // Paste after cursor
-      newLines[currentLine] = lineText.slice(0, cursorPosition) + text + lineText.slice(cursorPosition);
+      newLines[currentLine] =
+        lineText.slice(0, cursorPosition) + text + lineText.slice(cursorPosition);
       setLines(newLines);
       setInput(newLines.join('\n'));
       setCursorPosition(cursorPosition + text.length);
@@ -774,16 +820,18 @@ export interface VimModeIndicatorProps {
  */
 export const VimModeIndicator: React.FC<VimModeIndicatorProps> = ({ vimMode }) => {
   const modeMap: Record<VimMode, { label: string; color: string }> = {
-    'INSERT': { label: '-- INSERT --', color: 'green' },
-    'NORMAL': { label: '-- NORMAL --', color: 'blue' },
-    'VISUAL': { label: '-- VISUAL --', color: 'magenta' },
+    INSERT: { label: '-- INSERT --', color: 'green' },
+    NORMAL: { label: '-- NORMAL --', color: 'blue' },
+    VISUAL: { label: '-- VISUAL --', color: 'magenta' },
     'VISUAL LINE': { label: '-- VISUAL LINE --', color: 'magenta' },
   };
   const { label, color } = modeMap[vimMode] ?? { label: '-- NORMAL --', color: 'blue' };
 
   return (
     <Box paddingLeft={1}>
-      <Text color={color as 'green' | 'blue' | 'magenta'} bold>{label}</Text>
+      <Text color={color as 'green' | 'blue' | 'magenta'} bold>
+        {label}
+      </Text>
     </Box>
   );
 };

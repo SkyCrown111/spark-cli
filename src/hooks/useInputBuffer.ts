@@ -74,19 +74,22 @@ export function useInputBuffer(options: UseInputBufferOptions = {}): UseInputBuf
     onFlushRef.current?.(items);
   }, []);
 
-  const push = useCallback((char: string, key: Record<string, boolean>) => {
-    bufferRef.current.push({
-      char,
-      key,
-      timestamp: Date.now(),
-    });
-    sizeRef.current = bufferRef.current.length;
+  const push = useCallback(
+    (char: string, key: Record<string, boolean>) => {
+      bufferRef.current.push({
+        char,
+        key,
+        timestamp: Date.now(),
+      });
+      sizeRef.current = bufferRef.current.length;
 
-    // Force flush if buffer is full
-    if (bufferRef.current.length >= maxBufferSize) {
-      flush();
-    }
-  }, [maxBufferSize, flush]);
+      // Force flush if buffer is full
+      if (bufferRef.current.length >= maxBufferSize) {
+        flush();
+      }
+    },
+    [maxBufferSize, flush],
+  );
 
   const clear = useCallback(() => {
     bufferRef.current = [];

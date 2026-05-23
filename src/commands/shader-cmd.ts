@@ -3,6 +3,7 @@ import { join } from 'node:path';
 import chalk from 'chalk';
 import { lintShadersInProject } from '../core/shader/lint.js';
 import { translateShader, type ShaderTarget } from '../core/shader/translate.js';
+import { logger } from '../utils/logger.js';
 import type { GlobalOptions } from '../utils/output.js';
 import { printJson, resolveProjectRoot } from '../utils/output.js';
 
@@ -13,9 +14,9 @@ export async function runShaderLint(opts: GlobalOptions): Promise<number> {
     printJson({ findings });
     return 0;
   }
-  console.log(chalk.bold('\nShader lint\n'));
+  logger.info(chalk.bold('\nShader lint\n'));
   for (const f of findings) {
-    console.log(`  [${f.rule}] ${f.path}: ${f.message}`);
+    logger.info(`  [${f.rule}] ${f.path}: ${f.message}`);
   }
   return 0;
 }
@@ -28,7 +29,7 @@ export async function runShaderTranslate(
   const root = resolveProjectRoot(opts);
   const abs = join(root, file);
   if (!existsSync(abs)) {
-    console.error(chalk.red('File not found'));
+    logger.error(chalk.red('File not found'));
     return 1;
   }
   const result = translateShader(readFileSync(abs, 'utf8'), target, file);
@@ -36,7 +37,7 @@ export async function runShaderTranslate(
     printJson(result);
     return 0;
   }
-  console.log(result.output);
-  if (result.unsafe) console.log(chalk.yellow('\n⚠ Unsafe / best-effort translation'));
+  logger.info(result.output);
+  if (result.unsafe) logger.info(chalk.yellow('\n⚠ Unsafe / best-effort translation'));
   return 0;
 }

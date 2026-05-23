@@ -10,6 +10,7 @@ import { join } from 'node:path';
 import type { RegisteredTool, ToolContext, ToolResult } from '../tool-registry.js';
 import { resolveProjectPath } from './read-file.js';
 import { __glob } from './glob.js';
+import { getErrorMessage } from '../../../utils/errors.js';
 
 const MAX_RECURSIVE_ENTRIES = 2000;
 const MAX_RECURSIVE_DEPTH = 6;
@@ -21,13 +22,7 @@ interface ListedEntry {
   size?: number;
 }
 
-function walkDir(
-  base: string,
-  rel: string,
-  depth: number,
-  out: ListedEntry[],
-  cap: number,
-): void {
+function walkDir(base: string, rel: string, depth: number, out: ListedEntry[], cap: number): void {
   if (out.length >= cap) return;
   if (depth > MAX_RECURSIVE_DEPTH) return;
   let entries;
@@ -58,10 +53,7 @@ function walkDir(
   }
 }
 
-async function handler(
-  args: Record<string, unknown>,
-  ctx: ToolContext,
-): Promise<ToolResult> {
+async function handler(args: Record<string, unknown>, ctx: ToolContext): Promise<ToolResult> {
   const path = typeof args.path === 'string' ? args.path : '.';
   const recursive = args.recursive === true;
   const r = resolveProjectPath(ctx, path);
@@ -83,9 +75,7 @@ async function handler(
             : `${e.rel}  (other)`,
       );
     const truncated = collected.length >= MAX_RECURSIVE_ENTRIES;
-    const trailer = truncated
-      ? `\n… (truncated at ${MAX_RECURSIVE_ENTRIES} entries)`
-      : '';
+    const trailer = truncated ? `\n… (truncated at ${MAX_RECURSIVE_ENTRIES} entries)` : '';
     return {
       content: lines.join('\n') + trailer,
       structured: { path: r.rel || '.', count: collected.length, recursive: true, truncated },
@@ -97,7 +87,7 @@ async function handler(
     entries = readdirSync(r.abs, { withFileTypes: true });
   } catch (e) {
     return {
-      content: `list_dir: could not read ${r.rel || '.'}: ${(e as Error).message}`,
+      content: `list_dir: could not read ${r.rel || '.'}: ${getErrorMessage(e)}`,
       isError: true,
     };
   }
@@ -130,7 +120,7 @@ async function handler(
 export const listDirTool: RegisteredTool = {
   name: 'list_dir',
   description:
-    'List entries in a directory inside the project. Filters out .git/.spark-cli/node_modules/dist/build/Library. Set `recursive: true` for a depth-bounded tree walk.',
+    'List entries in a directory inside the project. Filters out .git/.spark/.spark-cli/node_modules/dist/build/Library. Set `recursive: true` for a depth-bounded tree walk.',
   planModeAllowed: true,
   mutates: false,
   parameters: {

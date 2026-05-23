@@ -49,7 +49,9 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
 
       return (
         <Box flexDirection="column" paddingX={1}>
-          <Text bold color="red">! Component Error</Text>
+          <Text bold color="red">
+            ! Component Error
+          </Text>
           <Text color="red">{message}</Text>
           <Box marginTop={1}>
             <Text dimColor>The component crashed. Press Ctrl+L to clear and try again.</Text>

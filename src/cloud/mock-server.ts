@@ -1,12 +1,5 @@
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
-import {
-  existsSync,
-  mkdirSync,
-  readFileSync,
-  writeFileSync,
-  readdirSync,
-  statSync,
-} from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync, readdirSync, statSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { request } from 'undici';
 import { getCloudDataDir } from './paths.js';

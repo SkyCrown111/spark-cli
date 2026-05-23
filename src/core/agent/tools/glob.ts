@@ -2,7 +2,7 @@
  * glob: list project files matching a glob pattern.
  *
  * Implementation:
- * - Recursive `fs.readdir` traversal with built-in ignore set (.spark-cli, .git,
+ * - Recursive `fs.readdir` traversal with built-in ignore set (.spark, .spark-cli, .git,
  *   node_modules, dist, build, .vscode, Library/Temp/Logs for Unity).
  * - Lightweight glob → regex conversion supporting `*`, `**`, `?`, `[abc]`.
  * - Caps at 500 results to keep responses bounded; the model gets a marker
@@ -15,9 +15,11 @@
 import { readdirSync } from 'node:fs';
 import { join, relative, sep } from 'node:path';
 import type { RegisteredTool, ToolContext, ToolResult } from '../tool-registry.js';
+import { getErrorMessage } from '../../../utils/errors.js';
 
 const DEFAULT_IGNORE = new Set([
   '.git',
+  '.spark',
   '.spark-cli',
   'node_modules',
   'dist',
@@ -75,12 +77,7 @@ interface WalkResult {
   truncated: boolean;
 }
 
-function walk(
-  root: string,
-  matcher: RegExp,
-  ignore: Set<string>,
-  maxResults: number,
-): WalkResult {
+function walk(root: string, matcher: RegExp, ignore: Set<string>, maxResults: number): WalkResult {
   const out: string[] = [];
   let truncated = false;
   const stack: string[] = [root];
@@ -112,10 +109,7 @@ function walk(
   return { matches: out.sort(), truncated };
 }
 
-async function handler(
-  args: Record<string, unknown>,
-  ctx: ToolContext,
-): Promise<ToolResult> {
+async function handler(args: Record<string, unknown>, ctx: ToolContext): Promise<ToolResult> {
   const pattern = args.pattern;
   const limitArg = typeof args.limit === 'number' ? args.limit : MAX_RESULTS;
   const limit = Math.min(Math.max(1, Math.floor(limitArg)), MAX_RESULTS);
@@ -129,7 +123,7 @@ async function handler(
     regex = globToRegExp(pattern);
   } catch (e) {
     return {
-      content: `glob: invalid pattern: ${(e as Error).message}`,
+      content: `glob: invalid pattern: ${getErrorMessage(e)}`,
       isError: true,
     };
   }
@@ -150,7 +144,7 @@ async function handler(
 export const globTool: RegisteredTool = {
   name: 'glob',
   description:
-    'Find files matching a glob pattern (e.g. "src/**/*.ts", "assets/**/*.png"). Skips .git/.spark-cli/node_modules/dist/build/Library by default.',
+    'Find files matching a glob pattern (e.g. "src/**/*.ts", "assets/**/*.png"). Skips .git/.spark/.spark-cli/node_modules/dist/build/Library by default.',
   planModeAllowed: true,
   mutates: false,
   parameters: {

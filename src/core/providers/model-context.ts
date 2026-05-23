@@ -40,10 +40,7 @@ function inferKnownContextWindow(resolved: ResolvedModel): number | undefined {
   return undefined;
 }
 
-export function resolveContextBudget(
-  config: SparkCLIConfig,
-  resolved: ResolvedModel,
-): number {
+export function resolveContextBudget(config: SparkCLIConfig, resolved: ResolvedModel): number {
   const configured = config.context?.maxTokens;
   if (typeof configured === 'number' && configured > 0 && configured !== DEFAULT_CONTEXT_BUDGET) {
     return configured;

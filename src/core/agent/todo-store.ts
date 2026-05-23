@@ -83,7 +83,9 @@ export class TodoStore {
 
   get(id: string): Todo | null {
     const t = this.items.get(id);
-    return t ? { ...t, blocks: [...t.blocks], blockedBy: [...t.blockedBy], metadata: { ...t.metadata } } : null;
+    return t
+      ? { ...t, blocks: [...t.blocks], blockedBy: [...t.blockedBy], metadata: { ...t.metadata } }
+      : null;
   }
 
   update(
@@ -124,7 +126,12 @@ export class TodoStore {
     }
     t.updatedAt = Date.now();
     this.notify();
-    return { ...t, blocks: [...t.blocks], blockedBy: [...t.blockedBy], metadata: { ...t.metadata } };
+    return {
+      ...t,
+      blocks: [...t.blocks],
+      blockedBy: [...t.blockedBy],
+      metadata: { ...t.metadata },
+    };
   }
 
   delete(id: string): boolean {

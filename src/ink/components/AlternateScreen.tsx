@@ -33,7 +33,7 @@ import {
   EFE,
   DFE,
 } from '../termio/dec.js';
-import { isFullscreenEnvEnabled, isMouseTrackingEnabled } from '../../utils/fullscreen.js';
+import { isMouseTrackingEnabled } from '../../utils/fullscreen.js';
 import { useTerminalSize } from '../../hooks/useTerminalSize.js';
 
 type Props = PropsWithChildren<{
@@ -69,7 +69,6 @@ export const AlternateScreen: React.FC<Props> = ({
 }) => {
   const { height } = useTerminalSize();
   const shouldEnableMouse = mouseTracking && isMouseTrackingEnabled();
-  const isFullscreen = isFullscreenEnvEnabled();
 
   // ── Focus state tracking ──
   // ── Focus state tracking (for future: dim when unfocused) ──
@@ -85,7 +84,7 @@ export const AlternateScreen: React.FC<Props> = ({
 
   // ── Focus event parsing ──
   useEffect(() => {
-    if (!isFullscreen || !focusEvents) return;
+    if (!focusEvents) return;
 
     // Parse focus events from stdin
     // Focus In:  ESC [ I
@@ -127,45 +126,30 @@ export const AlternateScreen: React.FC<Props> = ({
         process.stdin.off('data', onData);
       }
     };
-  }, [isFullscreen, focusEvents, handleFocusIn, handleFocusOut]);
+  }, [focusEvents, handleFocusIn, handleFocusOut]);
 
-  // ── Terminal mode setup/teardown ──
   useEffect(() => {
-    if (!isFullscreen) return;
-
-    // Enter alternate screen + clear + optional modes
+    // Fullscreen renderer always uses alternate screen (Ink-only path).
     writeRaw(
       ENTER_ALT_SCREEN +
-      '\x1b[2J\x1b[H' +
-      (shouldEnableMouse ? ENABLE_MOUSE_TRACKING : '') +
-      (bracketedPaste ? EBP : '') +
-      (focusEvents ? EFE : '')
+        '\x1b[2J\x1b[H' +
+        (shouldEnableMouse ? ENABLE_MOUSE_TRACKING : '') +
+        (bracketedPaste ? EBP : '') +
+        (focusEvents ? EFE : ''),
     );
 
     return () => {
-      // Cleanup: disable all modes and exit alternate screen
       writeRaw(
         (focusEvents ? DFE : '') +
-        (bracketedPaste ? DBP : '') +
-        (shouldEnableMouse ? DISABLE_MOUSE_TRACKING : '') +
-        EXIT_ALT_SCREEN
+          (bracketedPaste ? DBP : '') +
+          (shouldEnableMouse ? DISABLE_MOUSE_TRACKING : '') +
+          EXIT_ALT_SCREEN,
       );
     };
-  }, [isFullscreen, shouldEnableMouse, bracketedPaste, focusEvents]);
+  }, [shouldEnableMouse, bracketedPaste, focusEvents]);
 
-  if (!isFullscreen) {
-    // Non-fullscreen mode: render children without alt screen constraint
-    return <>{children}</>;
-  }
-
-  // Fullscreen mode: constrain to terminal height
   return (
-    <Box
-      flexDirection="column"
-      height={height}
-      width="100%"
-      flexShrink={0}
-    >
+    <Box flexDirection="column" height={height} width="100%" flexShrink={0}>
       {children}
     </Box>
   );

@@ -60,8 +60,7 @@ function getParser(): TsParser | null {
     return null;
   }
   const tsMod = tsHit.module as { default?: new () => TsParser } | (new () => TsParser);
-  const ParserCtor =
-    typeof tsMod === 'function' ? tsMod : tsMod.default;
+  const ParserCtor = typeof tsMod === 'function' ? tsMod : tsMod.default;
   if (!ParserCtor) {
     parserCache = null;
     return null;
@@ -110,7 +109,8 @@ function parseCppOutlineAstWithParser(
     if (node.type === 'function_definition' || node.type === 'declaration') {
       const spec = macroSpecBefore(text, node.startIndex, 'UFUNCTION');
       if (spec) {
-        const name = extractFunctionName(node) ?? extractNameNear(text, node.startIndex, node.endIndex);
+        const name =
+          extractFunctionName(node) ?? extractNameNear(text, node.startIndex, node.endIndex);
         if (name) {
           pushUniqueByName(ufunctions, {
             name,
@@ -124,7 +124,8 @@ function parseCppOutlineAstWithParser(
     if (node.type === 'field_declaration' || node.type === 'declaration') {
       const spec = macroSpecBefore(text, node.startIndex, 'UPROPERTY');
       if (spec) {
-        const name = extractFieldName(node) ?? extractNameNear(text, node.startIndex, node.endIndex);
+        const name =
+          extractFieldName(node) ?? extractNameNear(text, node.startIndex, node.endIndex);
         if (name) {
           pushUniqueByName(uproperties, {
             name,

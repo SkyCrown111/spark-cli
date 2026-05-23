@@ -56,7 +56,9 @@ export const SpinnerWithVerb: React.FC<SpinnerWithVerbProps> = ({
   return (
     <Box flexDirection="row" gap={1}>
       <Text color={color}>{'⏺'}</Text>
-      <Text color={color}>{label}...{timeStr}</Text>
+      <Text color={color}>
+        {label}...{timeStr}
+      </Text>
     </Box>
   );
 };

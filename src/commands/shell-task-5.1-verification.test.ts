@@ -1,9 +1,9 @@
 /**
  * Task 5.1 Verification Test
- * 
+ *
  * Verifies that suspendForRerender is called BEFORE clearTtyViewport
  * in the rerenderLayout function.
- * 
+ *
  * This test confirms the proper sequencing: suspend → clear → redraw → resume
  */
 
@@ -16,7 +16,7 @@ describe('Task 5.1 Verification: suspendForRerender called BEFORE clearTtyViewpo
 
   beforeEach(() => {
     callSequence = [];
-    
+
     mockInputBox = {
       isVisible: true,
       suspendForRerender: vi.fn(() => {
@@ -43,14 +43,14 @@ describe('Task 5.1 Verification: suspendForRerender called BEFORE clearTtyViewpo
     const rerenderLayout = async (): Promise<void> => {
       // Task 5.1: Suspend InputBox BEFORE clearing viewport
       const inputDraft = mockInputBox.isVisible ? mockInputBox.suspendForRerender() : undefined;
-      
+
       // Task 5.2: Complete viewport clear
       mockStdout.write('\x1b[H\x1b[2J');
-      
+
       // Simulate redrawing content
       callSequence.push('redraw-welcome');
       callSequence.push('redraw-history');
-      
+
       // Task 5.3: Resume InputBox AFTER all content is redrawn
       if (inputDraft) {
         mockInputBox.resumeAfterRerender(inputDraft);
@@ -61,16 +61,16 @@ describe('Task 5.1 Verification: suspendForRerender called BEFORE clearTtyViewpo
 
     // Verify the call sequence
     expect(callSequence).toEqual([
-      'suspend',      // Task 5.1: suspend FIRST
-      'clear',        // Task 5.2: clear SECOND
+      'suspend', // Task 5.1: suspend FIRST
+      'clear', // Task 5.2: clear SECOND
       'redraw-welcome',
       'redraw-history',
-      'resume',       // Task 5.3: resume LAST
+      'resume', // Task 5.3: resume LAST
     ]);
 
     // Verify suspendForRerender was called
     expect(mockInputBox.suspendForRerender).toHaveBeenCalledTimes(1);
-    
+
     // Verify resumeAfterRerender was called with the draft
     expect(mockInputBox.resumeAfterRerender).toHaveBeenCalledTimes(1);
     expect(mockInputBox.resumeAfterRerender).toHaveBeenCalledWith({
@@ -96,11 +96,7 @@ describe('Task 5.1 Verification: suspendForRerender called BEFORE clearTtyViewpo
     await rerenderLayout();
 
     // When InputBox is not visible, suspend and resume should not be called
-    expect(callSequence).toEqual([
-      'clear',
-      'redraw-welcome',
-      'redraw-history',
-    ]);
+    expect(callSequence).toEqual(['clear', 'redraw-welcome', 'redraw-history']);
 
     expect(mockInputBox.suspendForRerender).not.toHaveBeenCalled();
     expect(mockInputBox.resumeAfterRerender).not.toHaveBeenCalled();
@@ -109,7 +105,7 @@ describe('Task 5.1 Verification: suspendForRerender called BEFORE clearTtyViewpo
   it('should ensure InputBox chrome is erased before redraw', async () => {
     // This test verifies that the InputBox is suspended (hidden) before clearing
     // which ensures its chrome (mode line, footer) is properly erased
-    
+
     let inputBoxVisible = true;
     const mockInputBoxWithVisibility = {
       isVisible: true,
@@ -125,21 +121,21 @@ describe('Task 5.1 Verification: suspendForRerender called BEFORE clearTtyViewpo
     };
 
     const rerenderLayout = async (): Promise<void> => {
-      const inputDraft = mockInputBoxWithVisibility.isVisible 
-        ? mockInputBoxWithVisibility.suspendForRerender() 
+      const inputDraft = mockInputBoxWithVisibility.isVisible
+        ? mockInputBoxWithVisibility.suspendForRerender()
         : undefined;
-      
+
       // At this point, InputBox should be hidden
       expect(inputBoxVisible).toBe(false);
       callSequence.push('clear-viewport');
-      
+
       mockStdout.write('\x1b[H\x1b[2J');
       callSequence.push('redraw-content');
-      
+
       if (inputDraft) {
         mockInputBoxWithVisibility.resumeAfterRerender();
       }
-      
+
       // After resume, InputBox should be visible again
       expect(inputBoxVisible).toBe(true);
     };
@@ -147,17 +143,17 @@ describe('Task 5.1 Verification: suspendForRerender called BEFORE clearTtyViewpo
     await rerenderLayout();
 
     expect(callSequence).toEqual([
-      'suspend-hide',      // InputBox hidden first
-      'clear-viewport',    // Viewport cleared while InputBox is hidden
+      'suspend-hide', // InputBox hidden first
+      'clear-viewport', // Viewport cleared while InputBox is hidden
       'clear',
       'redraw-content',
-      'resume-show',       // InputBox shown after content is redrawn
+      'resume-show', // InputBox shown after content is redrawn
     ]);
   });
 
   it('should preserve InputBox draft content across suspend/resume', async () => {
     const draftContent = { text: 'user was typing this', cursorPos: 15 };
-    
+
     mockInputBox.suspendForRerender = vi.fn(() => {
       callSequence.push('suspend');
       return draftContent;

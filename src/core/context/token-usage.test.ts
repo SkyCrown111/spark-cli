@@ -1,17 +1,13 @@
 import { describe, it, expect } from 'vitest';
-import {
-  buildTokenUsageSnapshot,
-  resolveContextUsageSnapshot,
-} from './token-usage.js';
+import { buildTokenUsageSnapshot, resolveContextUsageSnapshot } from './token-usage.js';
 import { DEEPSEEK_V4_CONTEXT_BUDGET } from '../providers/model-context.js';
 
 describe('token-usage', () => {
   it('uses last API prompt_tokens for context fill', () => {
-    const snap = resolveContextUsageSnapshot(
-      [{ role: 'user', content: 'hello' }],
-      1_000_000,
-      { prompt_tokens: 42_000, completion_tokens: 800 },
-    );
+    const snap = resolveContextUsageSnapshot([{ role: 'user', content: 'hello' }], 1_000_000, {
+      prompt_tokens: 42_000,
+      completion_tokens: 800,
+    });
     expect(snap.used).toBe(42_000);
     expect(snap.budget).toBe(1_000_000);
   });

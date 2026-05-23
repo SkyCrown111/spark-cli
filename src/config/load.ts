@@ -2,12 +2,8 @@ import { cosmiconfig } from 'cosmiconfig';
 import { readFileSync, existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import yaml from 'js-yaml';
 import { join } from 'node:path';
-import {
-  DEFAULT_CONFIG,
-  SparkCLIConfig,
-  SparkCLIConfigSchema,
-} from './schema.js';
-import { getGlobalConfigDir, getGlobalConfigPath } from './paths.js';
+import { DEFAULT_CONFIG, SparkCLIConfig, SparkCLIConfigSchema } from './schema.js';
+import { getGlobalConfigDir, getGlobalConfigPath, getLegacyGlobalConfigPath } from './paths.js';
 
 const MODULE_NAME = 'spark-cli';
 
@@ -25,6 +21,17 @@ function mergeModelConfig(
 export async function loadProjectConfig(
   projectRoot: string,
 ): Promise<{ config: SparkCLIConfig; filepath?: string }> {
+  const settingsJsonPath = join(projectRoot, '.spark', 'settings.json');
+  if (existsSync(settingsJsonPath)) {
+    const raw = readFileSync(settingsJsonPath, 'utf8');
+    const parsed = JSON.parse(raw);
+    const config = SparkCLIConfigSchema.parse({
+      ...DEFAULT_CONFIG,
+      ...(parsed as object),
+    });
+    return { config, filepath: settingsJsonPath };
+  }
+
   const explorer = cosmiconfig(MODULE_NAME, {
     searchPlaces: [
       'spark-cli.config.yaml',
@@ -44,18 +51,26 @@ export async function loadProjectConfig(
     });
     return { config, filepath: result.filepath };
   }
-  // No project file: return empty overlay so global ~/.spark-cli/config.yaml wins.
+  // No project file: return empty overlay so global config fallback still applies.
   return { config: {}, filepath: undefined };
 }
 
 export function loadGlobalConfig(): SparkCLIConfig {
-  const path = getGlobalConfigPath();
-  if (!existsSync(path)) {
-    return { ...DEFAULT_CONFIG };
+  const primaryPath = getGlobalConfigPath();
+  if (existsSync(primaryPath)) {
+    const raw = readFileSync(primaryPath, 'utf8');
+    const parsed = JSON.parse(raw);
+    return SparkCLIConfigSchema.parse({ ...DEFAULT_CONFIG, ...(parsed as object) });
   }
-  const raw = readFileSync(path, 'utf8');
-  const parsed = yaml.load(raw);
-  return SparkCLIConfigSchema.parse({ ...DEFAULT_CONFIG, ...(parsed as object) });
+
+  const legacyPath = getLegacyGlobalConfigPath();
+  if (existsSync(legacyPath)) {
+    const raw = readFileSync(legacyPath, 'utf8');
+    const parsed = yaml.load(raw);
+    return SparkCLIConfigSchema.parse({ ...DEFAULT_CONFIG, ...(parsed as object) });
+  }
+
+  return { ...DEFAULT_CONFIG };
 }
 
 export function saveGlobalConfig(config: SparkCLIConfig): void {
@@ -64,13 +79,10 @@ export function saveGlobalConfig(config: SparkCLIConfig): void {
     mkdirSync(dir, { recursive: true });
   }
   const path = getGlobalConfigPath();
-  writeFileSync(path, yaml.dump(config, { lineWidth: 120 }), 'utf8');
+  writeFileSync(path, JSON.stringify(config, null, 2) + '\n', 'utf8');
 }
 
-export function mergeConfig(
-  global: SparkCLIConfig,
-  project: SparkCLIConfig,
-): SparkCLIConfig {
+export function mergeConfig(global: SparkCLIConfig, project: SparkCLIConfig): SparkCLIConfig {
   return SparkCLIConfigSchema.parse({
     ...global,
     ...project,
@@ -84,18 +96,15 @@ export function mergeConfig(
         ...(project.providers?.custom_providers ?? []),
       ],
       fallback_providers:
-        project.providers?.fallback_providers ??
-        global.providers?.fallback_providers,
+        project.providers?.fallback_providers ?? global.providers?.fallback_providers,
     },
     tasks: { ...global.tasks, ...project.tasks },
+    ui: { ...global.ui, ...project.ui },
     security: { ...global.security, ...project.security },
     mcp: {
       ...global.mcp,
       ...project.mcp,
-      servers: [
-        ...(global.mcp?.servers ?? []),
-        ...(project.mcp?.servers ?? []),
-      ],
+      servers: [...(global.mcp?.servers ?? []), ...(project.mcp?.servers ?? [])],
     },
     wechat: { ...global.wechat, ...project.wechat },
     douyin: { ...global.douyin, ...project.douyin },
@@ -114,11 +123,12 @@ export async function loadMergedConfig(projectRoot: string): Promise<SparkCLICon
   return mergeConfig(global, project);
 }
 
-export function writeProjectConfigYaml(
-  projectRoot: string,
-  config: SparkCLIConfig,
-): string {
-  const filepath = join(projectRoot, 'spark-cli.config.yaml');
-  writeFileSync(filepath, yaml.dump(config, { lineWidth: 120 }), 'utf8');
+export function writeProjectConfigYaml(projectRoot: string, config: SparkCLIConfig): string {
+  const sparkDir = join(projectRoot, '.spark');
+  if (!existsSync(sparkDir)) {
+    mkdirSync(sparkDir, { recursive: true });
+  }
+  const filepath = join(sparkDir, 'settings.json');
+  writeFileSync(filepath, JSON.stringify(config, null, 2) + '\n', 'utf8');
   return filepath;
 }

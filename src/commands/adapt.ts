@@ -1,13 +1,11 @@
 import chalk from 'chalk';
-import {
-  applyPlatformAdaptFixes,
-  runPlatformAdapt,
-} from '../engines/platform/adapt.js';
+import { applyPlatformAdaptFixes, runPlatformAdapt } from '../engines/platform/adapt.js';
 import { loadMergedConfig } from '../config/load.js';
 import type { PlatformId } from '../core/validate/platform-rules.js';
 import { getPlatform } from '../platforms/registry.js';
 import type { GlobalOptions } from '../utils/output.js';
 import { printJson, resolveProjectRoot } from '../utils/output.js';
+import { logger } from '../utils/logger.js';
 
 export async function runAdaptPlatform(
   platform: PlatformId,
@@ -33,7 +31,7 @@ export async function runAdaptPlatform(
   }
 
   const label = getPlatform(platform)?.label ?? platform;
-  console.log(chalk.bold(`\nAdapt ${label}\n`));
+  logger.info(chalk.bold(`\nAdapt ${label}\n`));
 
   for (const issue of report.issues) {
     const icon =
@@ -42,11 +40,11 @@ export async function runAdaptPlatform(
         : issue.severity === 'warn'
           ? chalk.yellow('⚠')
           : chalk.blue('i');
-    console.log(`  ${icon} [${issue.category}] ${issue.message}`);
+    logger.info(`  ${icon} [${issue.category}] ${issue.message}`);
   }
 
   if (opts.fix) {
-    console.log(chalk.green('\n✓ Report written under .spark-cli/'));
+    logger.info(chalk.green('\n✓ Report written under .spark/'));
   }
 
   return report.ok ? 0 : 1;

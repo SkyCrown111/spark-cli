@@ -2,10 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { join } from 'node:path';
 import { parseCocosScene } from './scene-parser.js';
 
-const fixtureScene = join(
-  process.cwd(),
-  'fixtures/cocos-3.8-mini/assets/scenes/main.scene',
-);
+const fixtureScene = join(process.cwd(), 'fixtures/cocos-3.8-mini/assets/scenes/main.scene');
 
 describe('parseCocosScene', () => {
   it('parses fixture scene tree', () => {

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { mkdtempSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, writeFileSync, mkdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { mergeConfig, loadProjectConfig } from './load.js';
@@ -36,7 +36,20 @@ describe('loadProjectConfig', () => {
     expect(config.model).toBeUndefined();
   });
 
-  it('loads spark-cli.config.yaml when present', async () => {
+  it('loads .spark/settings.json when present', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'spark-cli-load-'));
+    mkdirSync(join(dir, '.spark'), { recursive: true });
+    writeFileSync(
+      join(dir, '.spark', 'settings.json'),
+      JSON.stringify({ model: { provider: 'openai', default: 'gpt-5' } }),
+      'utf8',
+    );
+    const { config, filepath } = await loadProjectConfig(dir);
+    expect(filepath).toBe(join(dir, '.spark', 'settings.json'));
+    expect(config.model?.provider).toBe('openai');
+  });
+
+  it('falls back to spark-cli.config.yaml when present', async () => {
     const dir = mkdtempSync(join(tmpdir(), 'spark-cli-load-'));
     writeFileSync(
       join(dir, 'spark-cli.config.yaml'),

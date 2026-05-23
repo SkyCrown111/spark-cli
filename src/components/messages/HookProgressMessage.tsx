@@ -25,17 +25,9 @@ export const HookProgressMessage: React.FC<HookProgressMessageProps> = ({
   running = true,
   exitCode,
 }) => {
-  const statusIcon = running
-    ? '⏺'
-    : exitCode === 0
-      ? '✓'
-      : '✗';
+  const statusIcon = running ? '⏺' : exitCode === 0 ? '✓' : '✗';
 
-  const statusColor = running
-    ? 'yellow'
-    : exitCode === 0
-      ? 'green'
-      : 'red';
+  const statusColor = running ? 'yellow' : exitCode === 0 ? 'green' : 'red';
 
   return (
     <Box flexDirection="row" gap={1} paddingX={1}>
@@ -43,9 +35,7 @@ export const HookProgressMessage: React.FC<HookProgressMessageProps> = ({
       <Text bold>{hookName}</Text>
       {hookType && <Text dimColor>({hookType})</Text>}
       {exitCode !== undefined && !running && (
-        <Text color={statusColor}>
-          {exitCode === 0 ? 'passed' : `failed (exit ${exitCode})`}
-        </Text>
+        <Text color={statusColor}>{exitCode === 0 ? 'passed' : `failed (exit ${exitCode})`}</Text>
       )}
     </Box>
   );

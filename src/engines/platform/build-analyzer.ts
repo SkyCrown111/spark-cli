@@ -4,7 +4,10 @@ import type { PackageSizeReport } from '../../core/validate/platform-rules.js';
 import { getPlatform } from '../../platforms/registry.js';
 import type { PlatformId } from '../../core/validate/platform-rules.js';
 
-function dirSize(dir: string, excludePrefixes: string[] = []): { bytes: number; fileCount: number } {
+function dirSize(
+  dir: string,
+  excludePrefixes: string[] = [],
+): { bytes: number; fileCount: number } {
   let bytes = 0;
   let fileCount = 0;
 
@@ -42,10 +45,7 @@ interface GameJson {
   subpackages?: { name: string; root: string }[];
 }
 
-export function analyzePlatformBuild(
-  projectRoot: string,
-  platform: PlatformId,
-): PackageSizeReport {
+export function analyzePlatformBuild(projectRoot: string, platform: PlatformId): PackageSizeReport {
   const buildDir = findPlatformBuildDir(projectRoot, platform);
   if (!buildDir) {
     const def = getPlatform(platform)!;

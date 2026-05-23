@@ -11,7 +11,12 @@ export interface DetectedEngine {
 }
 
 export function detectEngine(root: string, configEngine?: string): DetectedEngine {
-  if (configEngine === 'unreal' || configEngine === 'godot' || configEngine === 'unity' || configEngine === 'cocos-creator') {
+  if (
+    configEngine === 'unreal' ||
+    configEngine === 'godot' ||
+    configEngine === 'unity' ||
+    configEngine === 'cocos-creator'
+  ) {
     const verified = verifyEngine(root, configEngine);
     if (verified) return verified;
   }

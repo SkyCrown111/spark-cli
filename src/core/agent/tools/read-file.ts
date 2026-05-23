@@ -12,16 +12,14 @@
 import { existsSync, readFileSync, realpathSync, statSync } from 'node:fs';
 import { isAbsolute, normalize, relative, resolve, sep } from 'node:path';
 import type { RegisteredTool, ToolContext, ToolResult } from '../tool-registry.js';
+import { getErrorMessage } from '../../../utils/errors.js';
 
 const DEFAULT_MAX_BYTES = 256 * 1024;
 
 /** Normalize model-supplied paths before resolveProjectPath. */
 export function normalizeRawToolPath(rawPath: string): string {
   let p = rawPath.trim();
-  if (
-    (p.startsWith('"') && p.endsWith('"')) ||
-    (p.startsWith("'") && p.endsWith("'"))
-  ) {
+  if ((p.startsWith('"') && p.endsWith('"')) || (p.startsWith("'") && p.endsWith("'"))) {
     p = p.slice(1, -1).trim();
   }
   p = p.replace(/\\/g, '/');
@@ -68,7 +66,8 @@ export function resolveProjectPath(
   }
   const allowAbsolute =
     opts.allowAbsolute ??
-    ((ctx.config as { tools?: { allowAbsolute?: boolean } }).tools?.allowAbsolute ?? false);
+    (ctx.config as { tools?: { allowAbsolute?: boolean } }).tools?.allowAbsolute ??
+    false;
 
   let projectAbs = ctx.projectRoot;
   try {
@@ -106,32 +105,29 @@ export function resolveProjectPath(
   }
 
   const rel = relative(projectAbs, abs);
-  if (
-    rel === '..' ||
-    rel.startsWith(`..${sep}`) ||
-    (isAbsolute(rel) && !allowAbsolute)
-  ) {
+  if (rel === '..' || rel.startsWith(`..${sep}`) || (isAbsolute(rel) && !allowAbsolute)) {
     return {
       ok: false,
       reason: `Path escapes the project root: ${rawPath}`,
     };
   }
-  // Block writes/reads under .spark-cli/ to keep tool history out of the
+  // Block writes/reads under .spark/ to keep tool history out of the
   // project's mutable state. Staging is reachable via dedicated paths only.
-  const guardPrefix = `.spark-cli${sep}`;
-  if (rel === '.spark-cli' || rel.startsWith(guardPrefix)) {
+  const guardPrefixes = [`.spark${sep}`, `.spark-cli${sep}`];
+  if (
+    rel === '.spark' ||
+    rel === '.spark-cli' ||
+    guardPrefixes.some((prefix) => rel.startsWith(prefix))
+  ) {
     return {
       ok: false,
-      reason: `Path is inside .spark-cli/ (spark-cli internal state). Use staging tools instead.`,
+      reason: `Path is inside .spark/ (Spark internal state). Use staging tools instead.`,
     };
   }
   return { ok: true, abs, rel };
 }
 
-async function handler(
-  args: Record<string, unknown>,
-  ctx: ToolContext,
-): Promise<ToolResult> {
+async function handler(args: Record<string, unknown>, ctx: ToolContext): Promise<ToolResult> {
   const path = args.path;
   const offset = typeof args.offset === 'number' ? Math.max(0, Math.floor(args.offset)) : 0;
   const limit = typeof args.limit === 'number' ? Math.max(1, Math.floor(args.limit)) : undefined;
@@ -156,7 +152,7 @@ async function handler(
     raw = readFileSync(r.abs, 'utf8');
   } catch (e) {
     return {
-      content: `read_file: could not read ${r.rel}: ${(e as Error).message}`,
+      content: `read_file: could not read ${r.rel}: ${getErrorMessage(e)}`,
       isError: true,
     };
   }
@@ -183,9 +179,7 @@ async function handler(
   const trailer: string[] = [];
   if (truncated) trailer.push(`… (truncated to ${Math.round(maxBytes / 1024)} KB)`);
   if (end < allLines.length) {
-    trailer.push(
-      `… ${allLines.length - end} more line(s); call again with offset=${end}`,
-    );
+    trailer.push(`… ${allLines.length - end} more line(s); call again with offset=${end}`);
   }
   if (trailer.length > 0) body += `\n${trailer.join('\n')}`;
 

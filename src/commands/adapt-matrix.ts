@@ -2,6 +2,7 @@ import chalk from 'chalk';
 import { runPlatformMatrix } from '../core/validate/platform-matrix.js';
 import type { GlobalOptions } from '../utils/output.js';
 import { printJson, resolveProjectRoot } from '../utils/output.js';
+import { logger } from '../utils/logger.js';
 
 export async function runAdaptMatrix(opts: GlobalOptions): Promise<number> {
   const root = resolveProjectRoot(opts);
@@ -13,9 +14,9 @@ export async function runAdaptMatrix(opts: GlobalOptions): Promise<number> {
     return rows.some((r) => r.status === 'fail') ? 1 : 0;
   }
 
-  console.log(chalk.bold('\nPlatform matrix\n'));
+  logger.info(chalk.bold('\nPlatform matrix\n'));
   for (const p of platforms) {
-    console.log(chalk.cyan(`\n  ${p}`));
+    logger.info(chalk.cyan(`\n  ${p}`));
     for (const r of rows.filter((x) => x.platform === p)) {
       const icon =
         r.status === 'pass'
@@ -25,7 +26,7 @@ export async function runAdaptMatrix(opts: GlobalOptions): Promise<number> {
             : r.status === 'warn'
               ? chalk.yellow('⚠')
               : chalk.dim('–');
-      console.log(`    ${icon} ${r.rule}: ${r.message}`);
+      logger.info(`    ${icon} ${r.rule}: ${r.message}`);
     }
   }
   return rows.some((r) => r.status === 'fail') ? 1 : 0;

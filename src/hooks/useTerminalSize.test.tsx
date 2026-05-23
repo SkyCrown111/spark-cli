@@ -21,7 +21,12 @@ describe('useTerminalSize logic', () => {
   });
 
   it('falls back to 80x24 when columns/rows are undefined', () => {
-    const stdout = { columns: undefined as number | undefined, rows: undefined as number | undefined, on: vi.fn(), off: vi.fn() };
+    const stdout = {
+      columns: undefined as number | undefined,
+      rows: undefined as number | undefined,
+      on: vi.fn(),
+      off: vi.fn(),
+    };
     const getSize = () => ({
       width: stdout.columns || 80,
       height: stdout.rows || 24,

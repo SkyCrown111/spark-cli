@@ -56,10 +56,7 @@ export interface ToolResultRoute {
  * 5. is_error flag → error
  * 6. Otherwise → success
  */
-export function routeToolResult(
-  content: string,
-  isError?: boolean,
-): ToolResultRoute {
+export function routeToolResult(content: string, isError?: boolean): ToolResultRoute {
   if (content.startsWith(CANCEL_PREFIX)) {
     return {
       state: 'canceled',

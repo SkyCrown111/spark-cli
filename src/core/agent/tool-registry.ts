@@ -25,6 +25,7 @@ import {
   type ToolConfirmFn,
   type ToolPermissionSession,
 } from './tool-permissions.js';
+import { getErrorMessage } from '../../utils/errors.js';
 
 export type ToolWriteMode = 'staging' | 'direct';
 export type ToolRunMode = 'normal' | 'plan' | 'auto';
@@ -104,10 +105,7 @@ export interface RegisteredTool {
   source?: 'builtin' | 'mcp-client';
   /** When source is 'mcp-client', the name of the MCP server providing it. */
   mcpServerName?: string;
-  handler: (
-    args: Record<string, unknown>,
-    ctx: ToolContext,
-  ) => Promise<ToolResult>;
+  handler: (args: Record<string, unknown>, ctx: ToolContext) => Promise<ToolResult>;
 }
 
 export interface ToolRegistry {
@@ -124,11 +122,7 @@ export interface ToolRegistry {
    * Run a tool by name. Errors are converted to `{content, isError:true}` so
    * the model can self-correct instead of blowing up the turn.
    */
-  dispatch(
-    name: string,
-    rawArgs: string,
-    ctx: ToolContext,
-  ): Promise<ToolResult>;
+  dispatch(name: string, rawArgs: string, ctx: ToolContext): Promise<ToolResult>;
 }
 
 export function createToolRegistry(): ToolRegistry {
@@ -186,7 +180,7 @@ export function createToolRegistry(): ToolRegistry {
           }
         } catch (e) {
           return {
-            content: `Tool "${name}": invalid JSON arguments: ${(e as Error).message}`,
+            content: `Tool "${name}": invalid JSON arguments: ${getErrorMessage(e)}`,
             isError: true,
           };
         }
@@ -218,9 +212,9 @@ export function createToolRegistry(): ToolRegistry {
       const needsConfirm =
         !hookAllows &&
         (perm.askOverride ||
-        (ctx.confirmTool &&
-          isSensitiveTool(name) &&
-          !ctx.toolPermissionSession?.isAlwaysAllowed(name)));
+          (ctx.confirmTool &&
+            isSensitiveTool(name) &&
+            !ctx.toolPermissionSession?.isAlwaysAllowed(name)));
 
       if (needsConfirm && ctx.confirmTool) {
         const allowed = await ctx.confirmTool({
@@ -238,7 +232,7 @@ export function createToolRegistry(): ToolRegistry {
         return await tool.handler(args, ctx);
       } catch (e) {
         return {
-          content: `Tool "${name}" threw: ${(e as Error).message}`,
+          content: `Tool "${name}" threw: ${getErrorMessage(e)}`,
           isError: true,
         };
       }

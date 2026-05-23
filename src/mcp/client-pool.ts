@@ -16,6 +16,8 @@ import {
   type DiscoveredMcpTool,
 } from './client.js';
 import { loadMcpJson, mergeMcpServers } from './mcp-json.js';
+import { logger } from '../utils/logger.js';
+import { getErrorMessage } from '../utils/errors.js';
 
 const MAX_RECONNECT_ATTEMPTS = 3;
 const BASE_RECONNECT_DELAY_MS = 1000;
@@ -39,7 +41,10 @@ export interface McpClientPool {
  * Servers that fail to connect are logged to stderr but don't block others.
  * Also loads servers from `.mcp.json` in the project root (if present).
  */
-export async function connectAll(config: SparkCLIConfig, projectRoot?: string): Promise<McpClientPool> {
+export async function connectAll(
+  config: SparkCLIConfig,
+  projectRoot?: string,
+): Promise<McpClientPool> {
   const configServers = config.mcp?.servers ?? [];
   const mcpJsonServers = projectRoot ? loadMcpJson(projectRoot) : [];
   const allServers = mergeMcpServers(configServers, mcpJsonServers);
@@ -47,7 +52,7 @@ export async function connectAll(config: SparkCLIConfig, projectRoot?: string): 
 
   const connections: McpClientConnection[] = [];
   const allTools: DiscoveredMcpTool[] = [];
-  const serverConfigs = new Map<string, typeof enabled[0]>();
+  const serverConfigs = new Map<string, (typeof enabled)[0]>();
 
   for (const serverConfig of enabled) {
     serverConfigs.set(serverConfig.name, serverConfig);
@@ -57,8 +62,8 @@ export async function connectAll(config: SparkCLIConfig, projectRoot?: string): 
       allTools.push(...conn.tools);
     } catch (e) {
       // Log but don't block other servers
-      console.error(
-        `[spark-cli] Failed to connect to MCP server "${serverConfig.name}": ${(e as Error).message}`,
+      logger.error(
+        `[spark-cli] Failed to connect to MCP server "${serverConfig.name}": ${getErrorMessage(e)}`,
       );
     }
   }

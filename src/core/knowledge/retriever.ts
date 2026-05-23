@@ -6,11 +6,7 @@ export interface SearchHit {
 }
 
 /** Simple BM25-ish keyword scoring (no external deps). */
-export function searchKnowledge(
-  index: KnowledgeIndex,
-  query: string,
-  limit = 5,
-): SearchHit[] {
+export function searchKnowledge(index: KnowledgeIndex, query: string, limit = 5): SearchHit[] {
   const terms = tokenize(query);
   if (!terms.length) return [];
 

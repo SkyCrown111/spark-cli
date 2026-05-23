@@ -1,11 +1,10 @@
 /**
  * Theme system for SparkCLI
  * Supports light/dark modes and custom color schemes.
- * Theme preference is persisted to ~/.spark-cli/config.yaml.
+ * Theme preference is persisted to ~/.spark/settings.json.
  */
 
-import { readFileSync, writeFileSync, existsSync } from 'node:fs';
-import { getGlobalConfigPath } from '../config/paths.js';
+import { loadGlobalConfig, saveGlobalConfig } from '../config/load.js';
 
 export type ThemeMode = 'dark' | 'light';
 
@@ -99,46 +98,30 @@ export function setTheme(name: string): boolean {
 }
 
 /**
- * Persist the theme name to ~/.spark-cli/config.yaml under the `ui.theme` key.
- * This is a simple YAML append — it doesn't restructure the entire config.
+ * Persist the theme name to ~/.spark/settings.json under the `ui.theme` key.
  */
 function persistThemePreference(themeName: string): void {
   try {
-    const configPath = getGlobalConfigPath();
-    if (!existsSync(configPath)) return;
-
-    let content = readFileSync(configPath, 'utf8');
-
-    // If ui.theme already exists, replace it; otherwise append it
-    if (content.includes('ui:')) {
-      // Replace existing theme line under ui block
-      content = content.replace(
-        /(\bui:\s*\n\s*theme:\s*)(\S+)/,
-        `$1${themeName}`,
-      );
-    } else {
-      // Append ui block at the end
-      content = content.trimEnd() + `\n\nui:\n  theme: ${themeName}\n`;
-    }
-
-    writeFileSync(configPath, content, 'utf8');
+    const config = loadGlobalConfig();
+    saveGlobalConfig({
+      ...config,
+      ui: {
+        ...config.ui,
+        theme: themeName,
+      },
+    });
   } catch {
-    // Silently fail — persistence shouldn't crash the app
+    // Silently fail — persistence shouldn't crash the app.
   }
 }
 
 /**
- * Load the saved theme preference from ~/.spark-cli/config.yaml.
+ * Load the saved theme preference from ~/.spark/settings.json.
  * Returns undefined if no preference is stored.
  */
 export function loadThemePreference(): string | undefined {
   try {
-    const configPath = getGlobalConfigPath();
-    if (!existsSync(configPath)) return undefined;
-
-    const content = readFileSync(configPath, 'utf8');
-    const match = content.match(/theme:\s*(\S+)/);
-    return match?.[1];
+    return loadGlobalConfig().ui?.theme;
   } catch {
     return undefined;
   }

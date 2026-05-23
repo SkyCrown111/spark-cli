@@ -123,19 +123,16 @@ export function useTypeahead() {
   /**
    * Update suggestions for @file references.
    */
-  const updateFileSuggestions = useCallback(
-    (query: string, fileSuggestions: SuggestionItem[]) => {
-      const filtered = fuzzyFilter(fileSuggestions, query);
-      setState({
-        visible: filtered.length > 0,
-        suggestions: filtered,
-        focusIndex: 0,
-        query,
-        kind: 'file',
-      });
-    },
-    [],
-  );
+  const updateFileSuggestions = useCallback((query: string, fileSuggestions: SuggestionItem[]) => {
+    const filtered = fuzzyFilter(fileSuggestions, query);
+    setState({
+      visible: filtered.length > 0,
+      suggestions: filtered,
+      focusIndex: 0,
+      query,
+      kind: 'file',
+    });
+  }, []);
 
   /**
    * Legacy: update suggestions based on current input.
@@ -174,10 +171,7 @@ export function useTypeahead() {
   const focusPrev = useCallback(() => {
     setState((prev) => ({
       ...prev,
-      focusIndex:
-        prev.focusIndex > 0
-          ? prev.focusIndex - 1
-          : prev.suggestions.length - 1,
+      focusIndex: prev.focusIndex > 0 ? prev.focusIndex - 1 : prev.suggestions.length - 1,
     }));
   }, []);
 

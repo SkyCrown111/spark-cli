@@ -61,7 +61,13 @@ export function collectPluginHooks(projectRoot: string): Array<{
   blocking?: boolean;
 }> {
   const plugins = listPlugins(projectRoot);
-  const out: Array<{ plugin: string; event: string; command?: string; script?: string; blocking?: boolean }> = [];
+  const out: Array<{
+    plugin: string;
+    event: string;
+    command?: string;
+    script?: string;
+    blocking?: boolean;
+  }> = [];
   for (const p of plugins) {
     if (!p.hooks) continue;
     for (const h of p.hooks) {
@@ -88,7 +94,13 @@ export function collectPluginMcpServers(projectRoot: string): Array<{
   env?: Record<string, string>;
 }> {
   const plugins = listPlugins(projectRoot);
-  const out: Array<{ name: string; transport: 'stdio'; command: string; args?: string[]; env?: Record<string, string> }> = [];
+  const out: Array<{
+    name: string;
+    transport: 'stdio';
+    command: string;
+    args?: string[];
+    env?: Record<string, string>;
+  }> = [];
   for (const p of plugins) {
     if (!p.mcpServers) continue;
     for (const s of p.mcpServers) {
@@ -115,7 +127,7 @@ export function installPlugin(projectRoot: string, sourcePath: string): Installe
   if (existsSync(dest)) rmSync(dest, { recursive: true, force: true });
   cpSync(sourcePath, dest, { recursive: true });
   writeFileSync(
-    join(dest, '.spark-cli-installed.json'),
+    join(dest, '.spark-installed.json'),
     JSON.stringify({ installedAt: new Date().toISOString(), source: sourcePath }, null, 2),
     'utf8',
   );

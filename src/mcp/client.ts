@@ -11,6 +11,7 @@ import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js'
 import { SSEClientTransport } from '@modelcontextprotocol/sdk/client/sse.js';
 import type { McpServerConfig } from '../config/schema.js';
 import type { ToolResult } from '../core/agent/tool-registry.js';
+import { getErrorMessage } from '../utils/errors.js';
 
 /**
  * Expand environment variable references in a string.
@@ -51,7 +52,12 @@ export interface McpClientConnection {
   /** Tools discovered from this server. */
   tools: DiscoveredMcpTool[];
   /** Prompts discovered from this server. */
-  prompts: Array<{ name: string; prefixedName: string; description?: string; arguments?: Array<{ name: string; required?: boolean }> }>;
+  prompts: Array<{
+    name: string;
+    prefixedName: string;
+    description?: string;
+    arguments?: Array<{ name: string; required?: boolean }>;
+  }>;
 }
 
 /** A tool discovered from an MCP server, ready to be registered. */
@@ -70,9 +76,7 @@ export interface DiscoveredMcpTool {
  * Connect to a single MCP server described by `config`.
  * Returns a `McpClientConnection` with the live client and discovered tools.
  */
-export async function connectToServer(
-  config: McpServerConfig,
-): Promise<McpClientConnection> {
+export async function connectToServer(config: McpServerConfig): Promise<McpClientConnection> {
   const client = new Client(
     { name: `spark-cli-client-${config.name}`, version: '0.1.0' },
     { capabilities: {} },
@@ -186,7 +190,7 @@ export async function callTool(
     return { content: JSON.stringify(result) };
   } catch (e) {
     return {
-      content: `MCP tool "${toolName}" failed: ${(e as Error).message}`,
+      content: `MCP tool "${toolName}" failed: ${getErrorMessage(e)}`,
       isError: true,
     };
   }
@@ -219,7 +223,14 @@ export async function discoverResources(
 export async function discoverPrompts(
   client: Client,
   serverName: string,
-): Promise<Array<{ name: string; prefixedName: string; description?: string; arguments?: Array<{ name: string; required?: boolean }> }>> {
+): Promise<
+  Array<{
+    name: string;
+    prefixedName: string;
+    description?: string;
+    arguments?: Array<{ name: string; required?: boolean }>;
+  }>
+> {
   try {
     const result = await client.listPrompts();
     return result.prompts.map((p) => ({
@@ -249,7 +260,7 @@ export async function getPrompt(
       .map((m) => (m.content as { text: string }).text);
     return parts.join('\n') || JSON.stringify(result);
   } catch (e) {
-    return `MCP prompt "${promptName}" failed: ${(e as Error).message}`;
+    return `MCP prompt "${promptName}" failed: ${getErrorMessage(e)}`;
   }
 }
 

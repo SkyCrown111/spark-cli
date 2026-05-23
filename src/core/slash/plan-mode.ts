@@ -36,11 +36,7 @@ export function forceEnterPlan(): PlanState {
   return { phase: 'plan' };
 }
 
-export function recordPlanTurn(
-  state: PlanState,
-  intent: string,
-  planText: string,
-): PlanState {
+export function recordPlanTurn(state: PlanState, intent: string, planText: string): PlanState {
   if (state.phase !== 'plan') return state;
   return { phase: 'plan', lastUserIntent: intent, lastPlanText: planText };
 }

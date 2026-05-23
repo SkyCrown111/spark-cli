@@ -17,10 +17,7 @@
 import type { RegisteredTool, ToolContext, ToolResult } from '../tool-registry.js';
 import { getBackgroundManager } from '../background-tasks.js';
 
-async function handler(
-  args: Record<string, unknown>,
-  ctx: ToolContext,
-): Promise<ToolResult> {
+async function handler(args: Record<string, unknown>, ctx: ToolContext): Promise<ToolResult> {
   const command = args.command;
   if (typeof command !== 'string' || command.trim().length === 0) {
     return { content: 'bash_background: `command` must be a non-empty string', isError: true };
@@ -29,7 +26,10 @@ async function handler(
   let env: Record<string, string> | undefined;
   if (args.env !== undefined) {
     if (typeof args.env !== 'object' || args.env === null || Array.isArray(args.env)) {
-      return { content: 'bash_background: `env` must be an object of string→string', isError: true };
+      return {
+        content: 'bash_background: `env` must be an object of string→string',
+        isError: true,
+      };
     }
     env = {};
     for (const [k, v] of Object.entries(args.env as Record<string, unknown>)) {

@@ -35,10 +35,7 @@ export function replayPlaytestSession(
   };
 }
 
-export function replayPlaytestFile(
-  json: string,
-  expectedHash?: string,
-): PlaytestReplayResult {
+export function replayPlaytestFile(json: string, expectedHash?: string): PlaytestReplayResult {
   return replayPlaytestSession(parsePlaytestSession(json), expectedHash);
 }
 

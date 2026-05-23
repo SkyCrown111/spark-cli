@@ -1,7 +1,7 @@
 /**
  * memory_*: cross-session, file-based memory tools.
  *
- * Stored under `~/.spark-cli/projects/<slug>/memory/` so memories follow a
+ * Stored under `~/.spark/projects/<slug>/memory/` so memories follow a
  * project across REPL restarts. Each memory is a markdown file with YAML
  * frontmatter (`name`, `description`, `type`); `MEMORY.md` is the index.
  *
@@ -31,7 +31,12 @@ function asString(v: unknown): string | undefined {
   return typeof v === 'string' ? v : undefined;
 }
 
-function formatRecord(r: { id: string; name: string; type: MemoryType; description: string }): string {
+function formatRecord(r: {
+  id: string;
+  name: string;
+  type: MemoryType;
+  description: string;
+}): string {
   return `[${r.type}] ${r.id} — ${r.name}: ${r.description}`;
 }
 
@@ -68,12 +73,17 @@ async function searchHandler(args: Record<string, unknown>, ctx: ToolContext): P
   const query = asString(args.query) ?? '';
   const hits = searchMemories(ctx.projectRoot, query);
   if (hits.length === 0) {
-    return { content: query ? `memory_search: no hits for "${query}"` : '(no memories)', structured: { hits: [] } };
+    return {
+      content: query ? `memory_search: no hits for "${query}"` : '(no memories)',
+      structured: { hits: [] },
+    };
   }
   const lines = hits.map(formatRecord);
   return {
     content: lines.join('\n'),
-    structured: { hits: hits.map((h) => ({ id: h.id, type: h.type, name: h.name, description: h.description })) },
+    structured: {
+      hits: hits.map((h) => ({ id: h.id, type: h.type, name: h.name, description: h.description })),
+    },
   };
 }
 
@@ -82,7 +92,14 @@ async function listHandler(_args: Record<string, unknown>, ctx: ToolContext): Pr
   if (items.length === 0) return { content: '(no memories)', structured: { items: [] } };
   return {
     content: items.map(formatRecord).join('\n'),
-    structured: { items: items.map((m) => ({ id: m.id, type: m.type, name: m.name, description: m.description })) },
+    structured: {
+      items: items.map((m) => ({
+        id: m.id,
+        type: m.type,
+        name: m.name,
+        description: m.description,
+      })),
+    },
   };
 }
 
@@ -97,17 +114,24 @@ async function deleteHandler(args: Record<string, unknown>, ctx: ToolContext): P
 export const memorySaveTool: RegisteredTool = {
   name: 'memory_save',
   description:
-    'Persist a memory under ~/.spark-cli/projects/<slug>/memory/ so it survives REPL restarts. type=user|feedback|project|reference. Pair description (one-line hook) with a focused body.',
+    'Persist a memory under ~/.spark/projects/<slug>/memory/ so it survives REPL restarts. type=user|feedback|project|reference. Pair description (one-line hook) with a focused body.',
   planModeAllowed: false,
   mutates: true,
   parameters: {
     type: 'object',
     properties: {
-      id: { type: 'string', description: 'Optional stable filename slug. Auto-derived from name if omitted.' },
+      id: {
+        type: 'string',
+        description: 'Optional stable filename slug. Auto-derived from name if omitted.',
+      },
       name: { type: 'string', description: 'Display title.' },
       description: { type: 'string', description: 'One-line hook used in the index.' },
       type: { type: 'string', enum: VALID_TYPES as unknown as string[] },
-      body: { type: 'string', description: 'Markdown body. For feedback/project, lead with the rule and include **Why:** + **How to apply:**.' },
+      body: {
+        type: 'string',
+        description:
+          'Markdown body. For feedback/project, lead with the rule and include **Why:** + **How to apply:**.',
+      },
     },
     required: ['name', 'description', 'type', 'body'],
     additionalProperties: false,
@@ -117,7 +141,8 @@ export const memorySaveTool: RegisteredTool = {
 
 export const memorySearchTool: RegisteredTool = {
   name: 'memory_search',
-  description: 'Substring-search saved memories by name/description/body. Returns up to all matches.',
+  description:
+    'Substring-search saved memories by name/description/body. Returns up to all matches.',
   planModeAllowed: true,
   mutates: false,
   parameters: {

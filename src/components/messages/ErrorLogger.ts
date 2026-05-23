@@ -6,11 +6,12 @@
 import { writeFileSync, readFileSync, mkdirSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import type { ErrorInfo } from 'react';
+import { getProjectSparkDir } from '../../config/paths.js';
 
-/** Resolve the error log directory inside .spark-cli/ */
+/** Resolve the error log directory inside .spark/ */
 function getErrorLogDir(projectRoot?: string): string {
   const base = projectRoot ?? process.cwd();
-  const dir = join(base, '.spark-cli', 'logs');
+  const dir = join(getProjectSparkDir(base), 'logs');
   if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
   return dir;
 }

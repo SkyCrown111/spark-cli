@@ -7,6 +7,7 @@ import { writeProjectConfigYaml } from '../config/load.js';
 import { DEFAULT_CONFIG, type SparkCLIConfig } from '../config/schema.js';
 import { getProjectSparkDir } from '../config/paths.js';
 import { detectEngine, type EngineId } from '../engines/registry.js';
+import { logger } from '../utils/logger.js';
 
 const DEFAULT_IGNORE = `library/
 temp/
@@ -14,9 +15,9 @@ local/
 build/
 node_modules/
 .env
-.spark-cli/staging/
-.spark-cli/backups/
-.spark-cli/cache/
+.spark/staging/
+.spark/backups/
+.spark/cache/
 .godot/
 Binaries/
 Intermediate/
@@ -25,13 +26,11 @@ DerivedDataCache/
 
 export type InitEngine = 'cocos-creator' | 'unity' | 'unreal' | 'godot';
 
-export async function runInit(
-  opts: GlobalOptions,
-  engineOverride?: InitEngine,
-): Promise<void> {
+export async function runInit(opts: GlobalOptions, engineOverride?: InitEngine): Promise<void> {
   const root = resolveProjectRoot(opts);
   const detected = detectEngine(root, engineOverride);
-  const engine: EngineId = engineOverride ?? (detected.id !== 'unknown' ? detected.id : 'cocos-creator');
+  const engine: EngineId =
+    engineOverride ?? (detected.id !== 'unknown' ? detected.id : 'cocos-creator');
 
   const config: SparkCLIConfig = {
     ...DEFAULT_CONFIG,
@@ -47,13 +46,13 @@ export async function runInit(
   mkdirSync(sparkDir, { recursive: true });
   mkdirSync(join(sparkDir, 'memory'), { recursive: true });
 
-  const ignorePath = join(root, '.spark-cliignore');
+  const ignorePath = join(root, '.sparkignore');
   if (!existsSync(ignorePath)) {
     writeFileSync(ignorePath, DEFAULT_IGNORE, 'utf8');
   }
 
-  console.log(chalk.green('✓'), 'Created', chalk.cyan(configPath));
-  console.log(chalk.green('✓'), 'Created', chalk.cyan('.spark-cli/'));
+  logger.info(chalk.green('✓'), 'Created', chalk.cyan(configPath));
+  logger.info(chalk.green('✓'), 'Created', chalk.cyan('.spark/'));
   const label =
     engine === 'unreal'
       ? 'Unreal Engine'
@@ -62,14 +61,14 @@ export async function runInit(
         : engine === 'unity'
           ? 'Unity'
           : 'Cocos Creator';
-  console.log(
+  logger.info(
     chalk.dim(
       `  Engine: ${label}${detected.version ? ` (${detected.version})` : ''}${engineOverride ? ' [from --engine]' : ''}`,
     ),
   );
   if (detected.id === 'unknown' && !engineOverride) {
-    console.log(chalk.yellow('  No engine detected — set project.engine in config'));
+    logger.warn(chalk.yellow('  No engine detected — set project.engine in .spark/settings.json'));
   }
-  console.log(chalk.dim('\nNext: spark-cli model use openai/gpt-4o  (or your provider)'));
-  console.log(chalk.dim('       spark-cli doctor'));
+  logger.info(chalk.dim('\nNext: spark-cli model use openai/gpt-4o  (or your provider)'));
+  logger.info(chalk.dim('       spark-cli doctor'));
 }

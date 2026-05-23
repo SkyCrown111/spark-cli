@@ -2,8 +2,8 @@
  * Custom agent definitions registry.
  *
  * Agents are folder-based configuration packs:
- *   `<projectRoot>/.spark-cli/agents/<name>/AGENT.md`
- *   `~/.spark-cli/agents/<name>/AGENT.md`
+ *   `<projectRoot>/.spark/agents/<name>/AGENT.md`
+ *   `~/.spark/agents/<name>/AGENT.md`
  *
  * Each agent has YAML-ish frontmatter (`name`, `description`, `allowedTools`,
  * `contextMode`) plus a markdown body that becomes the system prompt extension.
@@ -50,9 +50,7 @@ export function createAgentRegistry(): AgentRegistry {
       return agents.get(name.toLowerCase());
     },
     list() {
-      return [...agents.values()].sort((a, b) =>
-        a.name.localeCompare(b.name),
-      );
+      return [...agents.values()].sort((a, b) => a.name.localeCompare(b.name));
     },
     has(name) {
       return agents.has(name.toLowerCase());

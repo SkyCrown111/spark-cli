@@ -16,7 +16,10 @@ function ok(json: unknown): {
   };
 }
 
-function err(status: number, body: string): {
+function err(
+  status: number,
+  body: string,
+): {
   statusCode: number;
   body: { text: () => Promise<string> };
 } {
@@ -131,6 +134,32 @@ describe('chatCompletion request body', () => {
       tool_call_id: 'c1',
     });
   });
+
+  it('flattens assistant thinking parts to plain text on the wire', async () => {
+    requestMock.mockResolvedValueOnce(
+      ok({ choices: [{ message: { content: 'done' }, finish_reason: 'stop' }] }),
+    );
+    await chatCompletion({
+      baseUrl: 'https://example.com/v1',
+      apiKey: 'key',
+      model: 'm',
+      messages: [
+        { role: 'user', content: 'q' },
+        {
+          role: 'assistant',
+          content: [
+            { type: 'thinking', text: 'internal reasoning' },
+            { type: 'text', text: 'visible answer' },
+          ],
+        },
+      ],
+    });
+    const body = JSON.parse(requestMock.mock.calls[0][1].body);
+    expect(body.messages[1]).toMatchObject({
+      role: 'assistant',
+      content: 'visible answer',
+    });
+  });
 });
 
 describe('chatCompletion response parsing', () => {
@@ -209,9 +238,7 @@ describe('chatCompletion capability demotion', () => {
         model,
         messages: [{ role: 'user', content: 'q' }],
         providerId: 'mimo',
-        tools: [
-          { type: 'function', function: { name: 'read_file', parameters: {} } },
-        ],
+        tools: [{ type: 'function', function: { name: 'read_file', parameters: {} } }],
       }),
     ).rejects.toThrow();
     const caps = getCapabilities({ providerId: 'mimo', baseUrl, model });
@@ -231,9 +258,7 @@ describe('chatCompletion capability demotion', () => {
         model,
         messages: [{ role: 'user', content: 'q' }],
         providerId: 'mimo',
-        tools: [
-          { type: 'function', function: { name: 'read_file', parameters: {} } },
-        ],
+        tools: [{ type: 'function', function: { name: 'read_file', parameters: {} } }],
       }),
     ).rejects.toThrow();
     const caps = getCapabilities({ providerId: 'mimo', baseUrl, model });
@@ -288,9 +313,7 @@ describe('chatCompletion streaming', () => {
           choices: [
             {
               delta: {
-                tool_calls: [
-                  { index: 0, function: { arguments: 'th":"a.ts"}' } },
-                ],
+                tool_calls: [{ index: 0, function: { arguments: 'th":"a.ts"}' } }],
               },
               finish_reason: 'tool_calls',
             },
@@ -318,9 +341,7 @@ describe('chatCompletion streaming', () => {
   });
 
   it('throws when stream produces no content and no tool_calls', async () => {
-    requestMock.mockResolvedValueOnce(
-      sse([{ choices: [{ delta: {}, finish_reason: 'stop' }] }]),
-    );
+    requestMock.mockResolvedValueOnce(sse([{ choices: [{ delta: {}, finish_reason: 'stop' }] }]));
     await expect(
       chatCompletion({
         baseUrl: 'https://example.com/v1',

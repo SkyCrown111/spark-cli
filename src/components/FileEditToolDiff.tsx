@@ -57,7 +57,9 @@ export const FileEditToolDiff: React.FC<FileEditToolDiffProps> = ({
     <Box flexDirection="column">
       {/* File header */}
       <Box flexDirection="row" gap={1}>
-        <Text bold color="cyan">{'⏺'}</Text>
+        <Text bold color="cyan">
+          {'⏺'}
+        </Text>
         <Text bold>{filePath}</Text>
         <Text dimColor>
           (+{additions} -{deletions})

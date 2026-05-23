@@ -1,6 +1,6 @@
 /**
  * Custom React Hooks
- * 
+ *
  * This module exports custom hooks for the SparkCLI REPL interface.
  */
 

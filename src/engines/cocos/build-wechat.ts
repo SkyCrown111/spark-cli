@@ -44,13 +44,18 @@ export function buildWechatCocos(
     return {
       ok: false,
       command: cmd,
-      message: `Cocos Creator not found: ${creator}. Set project.creatorPath in spark-cli.config.yaml`,
+      message: `Cocos Creator not found: ${creator}. Set project.creatorPath in .spark/settings.json`,
       dryRun: false,
     };
   }
 
   if (options.dryRun) {
-    return { ok: true, command: cmd, message: 'Dry run — build command not executed', dryRun: true };
+    return {
+      ok: true,
+      command: cmd,
+      message: 'Dry run — build command not executed',
+      dryRun: true,
+    };
   }
 
   const r = spawnSync(creator, ['--project', projectRoot, '--build', buildOpts], {
@@ -61,7 +66,8 @@ export function buildWechatCocos(
   return {
     ok: r.status === 0,
     command: cmd,
-    message: r.status === 0 ? 'Build finished' : (r.stderr || r.stdout || 'Build failed').slice(0, 800),
+    message:
+      r.status === 0 ? 'Build finished' : (r.stderr || r.stdout || 'Build failed').slice(0, 800),
     exitCode: r.status ?? undefined,
     dryRun: false,
   };

@@ -5,6 +5,21 @@
 import { describe, it, expect } from 'vitest';
 import { colors } from './colors.js';
 
+const HEX_COLOR = /^#[0-9A-Fa-f]{6}$/;
+
+const CHALK_COLOR_NAMES = [
+  'black',
+  'red',
+  'green',
+  'yellow',
+  'blue',
+  'magenta',
+  'cyan',
+  'white',
+  'gray',
+  'grey',
+] as const;
+
 describe('colors theme', () => {
   it('exports colors object', () => {
     expect(colors).toBeDefined();
@@ -12,32 +27,32 @@ describe('colors theme', () => {
   });
 
   it('has primary colors', () => {
-    expect(colors.primary).toBe('cyan');
-    expect(colors.secondary).toBe('blue');
+    expect(colors.primary).toMatch(HEX_COLOR);
+    expect(colors.secondary).toMatch(HEX_COLOR);
   });
 
   it('has status colors', () => {
-    expect(colors.success).toBe('green');
-    expect(colors.warning).toBe('yellow');
-    expect(colors.error).toBe('red');
-    expect(colors.info).toBe('blue');
+    expect(colors.success).toMatch(HEX_COLOR);
+    expect(colors.warning).toMatch(HEX_COLOR);
+    expect(colors.error).toMatch(HEX_COLOR);
+    expect(colors.info).toMatch(HEX_COLOR);
   });
 
   it('has UI colors', () => {
-    expect(colors.muted).toBe('gray');
+    expect(colors.muted).toMatch(HEX_COLOR);
     expect(colors.text).toBe('white');
     expect(colors.background).toBe('black');
   });
 
   it('has role-specific colors', () => {
-    expect(colors.user).toBe('cyan');
-    expect(colors.assistant).toBe('green');
-    expect(colors.tool).toBe('magenta');
-    expect(colors.system).toBe('yellow');
+    expect(colors.user).toMatch(HEX_COLOR);
+    expect(colors.assistant).toMatch(HEX_COLOR);
+    expect(colors.tool).toMatch(HEX_COLOR);
+    expect(colors.system).toMatch(HEX_COLOR);
   });
 
   it('all color values are strings', () => {
-    Object.values(colors).forEach(color => {
+    Object.values(colors).forEach((color) => {
       expect(typeof color).toBe('string');
     });
   });
@@ -47,13 +62,11 @@ describe('colors theme', () => {
     expect(colorKeys.length).toBeGreaterThanOrEqual(11);
   });
 
-  it('color names are valid', () => {
-    const validColors = [
-      'black', 'red', 'green', 'yellow', 'blue', 'magenta', 'cyan', 'white', 'gray', 'grey'
-    ];
-    
-    Object.values(colors).forEach(color => {
-      expect(validColors).toContain(color);
+  it('color values are hex or chalk names', () => {
+    Object.values(colors).forEach((color) => {
+      const isHex = HEX_COLOR.test(color);
+      const isChalk = (CHALK_COLOR_NAMES as readonly string[]).includes(color);
+      expect(isHex || isChalk).toBe(true);
     });
   });
 });

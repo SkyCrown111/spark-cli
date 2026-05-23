@@ -49,7 +49,9 @@ export const PermissionRequest: React.FC<PermissionRequestProps> = ({
     <Box flexDirection="column" paddingX={1}>
       <Box>
         <Text color="yellow">{'⏺'} </Text>
-        <Text bold color="cyan">{tool}</Text>
+        <Text bold color="cyan">
+          {tool}
+        </Text>
         <Text dimColor> — {argsSummary}</Text>
       </Box>
 

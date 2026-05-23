@@ -1,9 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import {
-  isSensitiveTool,
-  summarizeToolArgs,
-  ToolPermissionSession,
-} from './tool-permissions.js';
+import { isSensitiveTool, summarizeToolArgs, ToolPermissionSession } from './tool-permissions.js';
 
 describe('tool-permissions', () => {
   it('marks bash, file writes, and MCP scene writes sensitive', () => {

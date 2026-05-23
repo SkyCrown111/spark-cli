@@ -1,5 +1,7 @@
 /**
- * Spark — SparkCLI's gamepad mascot (orange, Claude Code–inspired).
+ * Spark - SparkCLI's welcome mascot.
+ *
+ * We keep this ASCII-only so the art stays stable across Windows terminals.
  */
 
 import chalk from 'chalk';
@@ -9,11 +11,14 @@ export const MASCOT_NAME = 'Spark';
 
 /** Gamepad ASCII shown in the welcome card (left column). */
 export const SPARK_GAMEPAD_LINES = [
-  ' ╭──╮ ╭──╮ ',
-  '╭╯▓▓││▓▓╰╮',
-  '│   ═══   │',
-  '╰───┬─┬───╯',
-  '    └ └    ',
+  '      _________      ',
+  '   .-"  _   _  "-.   ',
+  '  /   _/ | | \\_   \\  ',
+  ' |   / __   __ \\   | ',
+  ' |  | /_\\\\_//_\\ |  | ',
+  ' |  | \\_/ o \\_/ |  | ',
+  '  \\  \\    ^    /  /  ',
+  '   "-.\\_____/.-"     ',
 ] as const;
 
 const GREETINGS = [
@@ -24,7 +29,7 @@ const GREETINGS = [
 ] as const;
 
 const FAREWELLS = [
-  'Save often — see you in the next playtest.',
+  'Save often - see you in the next playtest.',
   'Spark will be here when you return.',
   'Good luck on the build!',
 ] as const;
@@ -59,9 +64,9 @@ export function pickSparkFarewell(seed?: number): string {
 }
 
 function colorGamepadChar(ch: string): string {
-  if ('█▀╯╰'.includes(ch)) return accentBold(ch);
-  if ('▄▓╭╮│┬┘└─'.includes(ch)) return accent(ch);
-  if ('═'.includes(ch)) return accentBright(ch);
+  if ('o^'.includes(ch)) return accentBright(ch);
+  if ('_/\\\\'.includes(ch)) return accentBold(ch);
+  if ('-.|"()'.includes(ch)) return accent(ch);
   return ch;
 }
 
@@ -79,9 +84,9 @@ export function renderGemiArt(_variant: 'idle' | 'wave' = 'idle'): string {
 }
 
 export function renderGemiTagline(greeting: string): string {
-  return accentBold(MASCOT_NAME) + chalk.dim(' · ') + chalk.dim(greeting);
+  return accentBold(MASCOT_NAME) + chalk.dim(' * ') + chalk.dim(greeting);
 }
 
 export function renderGemiFarewellLine(message: string): string {
-  return chalk.dim('  ') + accentBold(MASCOT_NAME) + chalk.dim(` — ${message}`);
+  return chalk.dim('  ') + accentBold(MASCOT_NAME) + chalk.dim(` - ${message}`);
 }

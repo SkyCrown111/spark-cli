@@ -1,11 +1,4 @@
-import {
-  copyFileSync,
-  existsSync,
-  mkdirSync,
-  readdirSync,
-  readFileSync,
-  statSync,
-} from 'node:fs';
+import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { basename, dirname, extname, join, relative } from 'node:path';
 
 export type AssetType = 'texture' | 'prefab' | 'audio' | 'script' | 'scene' | 'other';
@@ -33,10 +26,7 @@ export function classifyAsset(filePath: string): AssetType {
   return 'other';
 }
 
-export function listAssets(
-  projectRoot: string,
-  filterType?: AssetType,
-): AssetEntry[] {
+export function listAssets(projectRoot: string, filterType?: AssetType): AssetEntry[] {
   const assetsDir = join(projectRoot, 'assets');
   if (!existsSync(assetsDir)) return [];
 
@@ -108,11 +98,7 @@ export function findUnusedAssets(projectRoot: string): AssetEntry[] {
   return assets.filter((a) => !refs.has(a.path));
 }
 
-export function importAsset(
-  projectRoot: string,
-  sourcePath: string,
-  destRelative: string,
-): string {
+export function importAsset(projectRoot: string, sourcePath: string, destRelative: string): string {
   const dest = join(projectRoot, destRelative);
   mkdirSync(dirname(dest), { recursive: true });
   copyFileSync(sourcePath, dest);

@@ -28,15 +28,12 @@ export const PlanApprovalMessage: React.FC<PlanApprovalMessageProps> = ({
   pending = true,
 }) => {
   return (
-    <Box
-      flexDirection="column"
-      paddingX={1}
-    >
+    <Box flexDirection="column" paddingX={1}>
       <Box flexDirection="row" gap={1}>
-        <Text color="magenta" bold>{'>'} Plan</Text>
-        {stepCount !== undefined && (
-          <Text dimColor>({stepCount} steps)</Text>
-        )}
+        <Text color="magenta" bold>
+          {'>'} Plan
+        </Text>
+        {stepCount !== undefined && <Text dimColor>({stepCount} steps)</Text>}
       </Box>
       <Box paddingLeft={2}>
         <Text wrap="wrap">{planSummary}</Text>
@@ -44,7 +41,8 @@ export const PlanApprovalMessage: React.FC<PlanApprovalMessageProps> = ({
       {pending && (
         <Box paddingLeft={2} marginTop={1}>
           <Text dimColor>
-            Press <Text bold>y</Text> to approve · <Text bold>n</Text> to reject · <Text bold>e</Text> to edit
+            Press <Text bold>y</Text> to approve · <Text bold>n</Text> to reject ·{' '}
+            <Text bold>e</Text> to edit
           </Text>
         </Box>
       )}

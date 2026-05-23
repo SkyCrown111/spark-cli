@@ -10,7 +10,11 @@ const MIME: Record<string, string> = {
   '.gif': 'image/gif',
 };
 
-export function imageToDataUrl(imagePath: string): { dataUrl: string; mime: string; bytes: number } {
+export function imageToDataUrl(imagePath: string): {
+  dataUrl: string;
+  mime: string;
+  bytes: number;
+} {
   if (!existsSync(imagePath)) {
     throw new SparkCLIError(`Image not found: ${imagePath}`, 1);
   }

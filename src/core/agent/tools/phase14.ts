@@ -32,11 +32,7 @@ import {
   parsePlaytestSession,
 } from '../../playtest/protocol.js';
 import { replayPlaytestSession, comparePlaytestHashes } from '../../playtest/runner.js';
-import {
-  acquireStagingLock,
-  releaseStagingLock,
-  listStagingLocks,
-} from '../../staging/locks.js';
+import { acquireStagingLock, releaseStagingLock, listStagingLocks } from '../../staging/locks.js';
 import { generateImageAsset, isImageGenEnabled } from '../../providers/image-gen.js';
 import { generateAudioAsset, isAudioGenEnabled } from '../../providers/audio-gen.js';
 import { bridgeRequest } from '../../../bridge/client.js';
@@ -260,7 +256,7 @@ export const difficultySuggestTool = tool(
 
 export const playtestRecordTool = tool(
   'playtest_record',
-  'Create a playtest session JSON file under .spark-cli/playtests/',
+  'Create a playtest session JSON file under .spark/playtests/',
   { scene: { type: 'string' }, seed: { type: 'number' } },
   [],
   async (args, ctx) => {
@@ -269,7 +265,7 @@ export const playtestRecordTool = tool(
       scene: (args.scene as string) ?? 'assets/scenes/main.scene',
       rngSeed: typeof args.seed === 'number' ? args.seed : 42,
     });
-    const rel = `.spark-cli/playtests/session-${Date.now()}.json`;
+    const rel = `.spark/playtests/session-${Date.now()}.json`;
     const abs = join(ctx.projectRoot, rel);
     mkdirSync(join(abs, '..'), { recursive: true });
     writeFileSync(abs, serializePlaytestSession(session), 'utf8');
@@ -286,10 +282,7 @@ export const playtestReplayTool = tool(
   async (args, ctx) => {
     const raw = readFileSync(join(ctx.projectRoot, args.path as string), 'utf8');
     return jsonResult(
-      replayPlaytestSession(
-        parsePlaytestSession(raw),
-        args.expected_hash as string | undefined,
-      ),
+      replayPlaytestSession(parsePlaytestSession(raw), args.expected_hash as string | undefined),
     );
   },
 );
@@ -332,7 +325,11 @@ export const farmRunTool = tool(
         agentId: owner,
         configOverride: ctx.config,
       });
-      return jsonResult({ owner, finalContent: result.finalContent, iterations: result.iterations });
+      return jsonResult({
+        owner,
+        finalContent: result.finalContent,
+        iterations: result.iterations,
+      });
     } finally {
       if (locks.length) releaseStagingLock(ctx.projectRoot, owner);
     }
@@ -381,7 +378,9 @@ export const editorConsoleTailTool = tool(
       return jsonResult({ error: 'Cocos project required' }, true);
     }
     return jsonResult(
-      await bridgeCall(ctx, 'console.tail', { limit: typeof args.limit === 'number' ? args.limit : 20 }),
+      await bridgeCall(ctx, 'console.tail', {
+        limit: typeof args.limit === 'number' ? args.limit : 20,
+      }),
     );
   },
 );

@@ -36,7 +36,8 @@ function expandField(token: string, idx: number): number[] {
       end = b !== undefined ? Number(b) : av;
       if (!Number.isFinite(end)) throw new Error(`bad value "${body}"`);
     }
-    if (start < lo || end > hi || start > end) throw new Error(`field ${idx} out of range: "${part}"`);
+    if (start < lo || end > hi || start > end)
+      throw new Error(`field ${idx} out of range: "${part}"`);
     for (let v = start; v <= end; v += step) out.add(v);
   }
   return Array.from(out).sort((a, b) => a - b);

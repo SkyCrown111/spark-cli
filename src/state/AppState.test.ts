@@ -57,9 +57,7 @@ describe('AppState', () => {
     appState.setState((prev) => ({
       messages: [...prev.messages, { role: 'user', content: 'hello' } as const],
     }));
-    expect(appState.getState().messages).toEqual([
-      { role: 'user', content: 'hello' },
-    ]);
+    expect(appState.getState().messages).toEqual([{ role: 'user', content: 'hello' }]);
   });
 
   it('supports multiple sequential updates', () => {

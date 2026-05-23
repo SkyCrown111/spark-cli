@@ -40,9 +40,7 @@ export interface CapabilitySnapshot {
 
 const OPTIONAL_PACKAGE_IDS = ['sharp', 'tree-sitter', 'tree-sitter-cpp', 'music-metadata'] as const;
 
-export function buildCapabilitySnapshot(
-  config: SparkCLIConfig,
-): CapabilitySnapshot {
+export function buildCapabilitySnapshot(config: SparkCLIConfig): CapabilitySnapshot {
   const imageConfigured = config.tools?.gen?.image?.provider ?? 'mock';
   const audioConfigured = config.tools?.gen?.audio?.provider ?? 'mock';
 
@@ -69,9 +67,7 @@ export function buildCapabilitySnapshot(
   const optionalPackages: CapabilitySnapshot['optionalPackages'] = {};
   for (const id of OPTIONAL_PACKAGE_IDS) {
     const hit = probeOptionalRequire(id);
-    optionalPackages[id] = hit.ok
-      ? { installed: true }
-      : { installed: false, reason: hit.reason };
+    optionalPackages[id] = hit.ok ? { installed: true } : { installed: false, reason: hit.reason };
   }
 
   return {

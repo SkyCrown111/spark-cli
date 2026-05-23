@@ -33,11 +33,7 @@ export async function flushMemoryOnSessionEnd(
   if (opts.history.length < 2) return [];
 
   try {
-    const facts = await extractMemoryFacts(
-      opts.projectRoot,
-      opts.history,
-      opts.completeFn,
-    );
+    const facts = await extractMemoryFacts(opts.projectRoot, opts.history, opts.completeFn);
     return facts.map((f) => ({ name: f.name, type: f.type }));
   } catch {
     // Flush failures are non-critical
@@ -64,11 +60,7 @@ export async function flushMemoryFromCompaction(
   ];
 
   try {
-    const facts = await extractMemoryFacts(
-      projectRoot,
-      syntheticHistory,
-      completeFn,
-    );
+    const facts = await extractMemoryFacts(projectRoot, syntheticHistory, completeFn);
     return facts.map((f) => ({ name: f.name, type: f.type }));
   } catch {
     return [];

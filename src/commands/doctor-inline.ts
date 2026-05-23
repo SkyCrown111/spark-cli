@@ -46,7 +46,9 @@ export async function runDoctorChecks(projectRoot: string): Promise<string> {
   checks.push({
     name: 'node',
     ok: nodeOk,
-    message: nodeOk ? `Node ${process.versions.node}` : `Node ${process.versions.node} (need >= 20)`,
+    message: nodeOk
+      ? `Node ${process.versions.node}`
+      : `Node ${process.versions.node} (need >= 20)`,
   });
 
   // Config
@@ -124,7 +126,11 @@ export async function runDoctorChecks(projectRoot: string): Promise<string> {
       message: `provider=auto with ${config.providers.fallback_providers.length} fallback(s)`,
     });
   } else {
-    checks.push({ name: 'api_key', ok: false, message: 'Set provider or fallback_providers in config' });
+    checks.push({
+      name: 'api_key',
+      ok: false,
+      message: 'Set provider or fallback_providers in config',
+    });
   }
 
   // Engine detection
@@ -158,12 +164,21 @@ export async function runDoctorChecks(projectRoot: string): Promise<string> {
 
   // Parity snapshot
   const parity = (() => {
-    const reg = config ? buildDefaultRegistry({ projectRoot: root, config, includeMcp: false }) : null;
-    const tools = reg?.list({ mode: 'normal' }).map((t) => t.function.name).sort() ?? [];
+    const reg = config
+      ? buildDefaultRegistry({ projectRoot: root, config, includeMcp: false })
+      : null;
+    const tools =
+      reg
+        ?.list({ mode: 'normal' })
+        .map((t) => t.function.name)
+        .sort() ?? [];
 
     const skillReg = createSkillRegistry();
     if (config) loadSkillsFromDisk(skillReg, root);
-    const skills = skillReg.list().map((s) => s.name).sort();
+    const skills = skillReg
+      .list()
+      .map((s) => s.name)
+      .sort();
     const skillValidation = config
       ? validateSkills(root, config)
       : { errors: [] as string[], warnings: [] as string[] };
@@ -176,12 +191,18 @@ export async function runDoctorChecks(projectRoot: string): Promise<string> {
     let memoryCount = 0;
     try {
       memoryCount = listMemories(root).length;
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
 
     const worktreeDir = join(getProjectSparkDir(root), 'worktrees');
     const worktrees = existsSync(worktreeDir);
     const cronCount = (() => {
-      try { return listCronJobs().length; } catch { return 0; }
+      try {
+        return listCronJobs().length;
+      } catch {
+        return 0;
+      }
     })();
 
     const web = config?.tools?.web?.enabled === true;
@@ -203,7 +224,18 @@ export async function runDoctorChecks(projectRoot: string): Promise<string> {
       });
     }
 
-    return { tools, skills, skillValidation, hooks, memoryCount, worktrees, cronCount, web, engineMcp, capabilities };
+    return {
+      tools,
+      skills,
+      skillValidation,
+      hooks,
+      memoryCount,
+      worktrees,
+      cronCount,
+      web,
+      engineMcp,
+      capabilities,
+    };
   })();
 
   // Format as markdown
@@ -224,7 +256,9 @@ export async function runDoctorChecks(projectRoot: string): Promise<string> {
   if (parity.skillValidation.errors.length > 0) {
     for (const e of parity.skillValidation.errors) lines.push(`  - ${e}`);
   }
-  const hookSummary = Object.entries(parity.hooks).map(([k, n]) => `${k}=${n}`).join(' ');
+  const hookSummary = Object.entries(parity.hooks)
+    .map(([k, n]) => `${k}=${n}`)
+    .join(' ');
   lines.push(`- **hooks** ${hookSummary || '(none)'}`);
   lines.push(`- **memory** ${parity.memoryCount} entries`);
   lines.push(`- **worktrees** ${parity.worktrees ? 'dir present' : 'no worktrees yet'}`);

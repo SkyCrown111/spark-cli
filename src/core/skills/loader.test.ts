@@ -2,7 +2,12 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { parseSkillFile, loadSkillsFromDisk, loadSkillsFromParentDir, compileSkillTriggerPattern } from './loader.js';
+import {
+  parseSkillFile,
+  loadSkillsFromDisk,
+  loadSkillsFromParentDir,
+  compileSkillTriggerPattern,
+} from './loader.js';
 import { createSkillRegistry } from './registry.js';
 
 let projectRoot: string;
@@ -52,7 +57,7 @@ describe('compileSkillTriggerPattern', () => {
 
 describe('loadSkillsFromParentDir', () => {
   function projectSkillsDir(): string {
-    return join(projectRoot, '.spark-cli', 'skills');
+    return join(projectRoot, '.spark', 'skills');
   }
 
   function writeSkill(name: string, raw: string): void {
@@ -64,17 +69,34 @@ describe('loadSkillsFromParentDir', () => {
   it('loads multiple skills with triggers', () => {
     writeSkill(
       'tilemap',
-      ['---', 'description: tilemap helpers', 'triggers: [tilemap, TiledMap]', '---', 'body-tile'].join('\n'),
+      [
+        '---',
+        'description: tilemap helpers',
+        'triggers: [tilemap, TiledMap]',
+        '---',
+        'body-tile',
+      ].join('\n'),
     );
     writeSkill(
       'physics',
-      ['---', 'description: physics tips', 'triggers: [physics, rigidbody]', '---', 'body-phys'].join('\n'),
+      [
+        '---',
+        'description: physics tips',
+        'triggers: [physics, rigidbody]',
+        '---',
+        'body-phys',
+      ].join('\n'),
     );
 
     const reg = createSkillRegistry();
     loadSkillsFromParentDir(reg, projectSkillsDir());
 
-    expect(reg.list().map((s) => s.name).sort()).toEqual(['physics', 'tilemap']);
+    expect(
+      reg
+        .list()
+        .map((s) => s.name)
+        .sort(),
+    ).toEqual(['physics', 'tilemap']);
     expect(reg.get('tilemap')?.body).toBe('body-tile');
   });
 
@@ -108,12 +130,21 @@ describe('loadSkillsFromParentDir', () => {
 
 describe('loadSkillsFromDisk', () => {
   it('includes project skills when only project dir exists', () => {
-    const dir = join(projectRoot, '.spark-cli', 'skills', 'only');
+    const dir = join(projectRoot, '.spark', 'skills', 'only');
     mkdirSync(dir, { recursive: true });
     writeFileSync(join(dir, 'SKILL.md'), '---\nname: onlyproj\n---\nbody', 'utf8');
     const reg = createSkillRegistry();
     loadSkillsFromDisk(reg, projectRoot);
     expect(reg.get('onlyproj')?.body).toBe('body');
+  });
+
+  it('falls back to legacy .spark-cli/skills', () => {
+    const dir = join(projectRoot, '.spark-cli', 'skills', 'legacy');
+    mkdirSync(dir, { recursive: true });
+    writeFileSync(join(dir, 'SKILL.md'), '---\nname: legacyproj\n---\nbody', 'utf8');
+    const reg = createSkillRegistry();
+    loadSkillsFromDisk(reg, projectRoot);
+    expect(reg.get('legacyproj')?.body).toBe('body');
   });
 });
 
@@ -130,7 +161,9 @@ describe('findByTrigger', () => {
       body: 'b',
       triggers: ['sound', 'audio'],
     });
-    expect(reg.findByTrigger('Please draw a TILEMAP for me').map((s) => s.name)).toEqual(['tilemap']);
+    expect(reg.findByTrigger('Please draw a TILEMAP for me').map((s) => s.name)).toEqual([
+      'tilemap',
+    ]);
     expect(reg.findByTrigger('add background AUDIO').map((s) => s.name)).toEqual(['audio']);
     expect(reg.findByTrigger('hello world')).toEqual([]);
   });

@@ -29,9 +29,21 @@ export function getFileSuggestions(
   maxResults = 20,
 ): FileSuggestion[] {
   const ignoreDirs = [
-    'node_modules', '.git', '.spark-cli', 'dist', 'build',
-    '.next', '.nuxt', 'coverage', '__pycache__', '.vscode',
-    '.idea', 'target', '.cache', '.tmp',
+    'node_modules',
+    '.git',
+    '.spark',
+    '.spark-cli',
+    'dist',
+    'build',
+    '.next',
+    '.nuxt',
+    'coverage',
+    '__pycache__',
+    '.vscode',
+    '.idea',
+    'target',
+    '.cache',
+    '.tmp',
   ];
 
   const results: FileSuggestion[] = [];

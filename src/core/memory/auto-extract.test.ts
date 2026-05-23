@@ -21,8 +21,16 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-  try { rmSync(TMP_ROOT, { recursive: true, force: true }); } catch { /* ignore */ }
-  try { rmSync(TMP_MEM_DIR, { recursive: true, force: true }); } catch { /* ignore */ }
+  try {
+    rmSync(TMP_ROOT, { recursive: true, force: true });
+  } catch {
+    /* ignore */
+  }
+  try {
+    rmSync(TMP_MEM_DIR, { recursive: true, force: true });
+  } catch {
+    /* ignore */
+  }
 });
 
 describe('extractMemoryFacts', () => {
@@ -84,11 +92,7 @@ describe('extractMemoryFacts', () => {
     });
 
     // Save first time
-    await extractMemoryFacts(
-      TMP_ROOT,
-      [{ role: 'user', content: 'test' }],
-      completeFn,
-    );
+    await extractMemoryFacts(TMP_ROOT, [{ role: 'user', content: 'test' }], completeFn);
 
     // Try to save again — should be skipped
     const result = await extractMemoryFacts(

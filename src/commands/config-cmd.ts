@@ -2,6 +2,7 @@ import chalk from 'chalk';
 import inquirer from 'inquirer';
 import { loadGlobalConfig, saveGlobalConfig } from '../config/load.js';
 import { getGlobalConfigPath } from '../config/paths.js';
+import { logger } from '../utils/logger.js';
 import {
   BUILTIN_PROVIDERS,
   looksLikePastedApiKey,
@@ -19,8 +20,8 @@ export async function runConfigInit(opts: GlobalOptions): Promise<void> {
       name: 'scope',
       message: 'Initialize configuration for:',
       choices: [
-        { name: 'User global (~/.spark-cli/config.yaml)', value: 'global' },
-        { name: 'Current project (spark-cli.config.yaml)', value: 'project' },
+        { name: 'User global (~/.spark/settings.json)', value: 'global' },
+        { name: 'Current project (.spark/settings.json)', value: 'project' },
       ],
     },
   ]);
@@ -41,7 +42,9 @@ export async function runConfigInit(opts: GlobalOptions): Promise<void> {
       },
     ]);
     await runInit(opts, engine);
-    console.log(chalk.dim('\nProject config created. Set model with: spark-cli model use <provider>/<model>'));
+    logger.info(
+      chalk.dim('\nProject config created. Set model with: spark-cli model use <provider>/<model>'),
+    );
     return;
   }
 
@@ -69,7 +72,12 @@ export async function runConfigInit(opts: GlobalOptions): Promise<void> {
       name: string;
       base_url: string;
     }>([
-      { type: 'input', name: 'name', message: 'Provider id (e.g. baidu, mimo)', validate: (v) => !!v.trim() },
+      {
+        type: 'input',
+        name: 'name',
+        message: 'Provider id (e.g. baidu, mimo)',
+        validate: (v) => !!v.trim(),
+      },
       {
         type: 'input',
         name: 'base_url',
@@ -87,11 +95,11 @@ export async function runConfigInit(opts: GlobalOptions): Promise<void> {
         message: 'How do you want to store your API key?',
         choices: [
           {
-            name: 'Environment variable (recommended — key not saved in yaml)',
+            name: 'Environment variable (recommended — key not saved in settings.json)',
             value: 'env',
           },
           {
-            name: 'Save in ~/.spark-cli/config.yaml as api_key',
+            name: 'Save in ~/.spark/settings.json as api_key',
             value: 'config',
           },
         ],
@@ -107,8 +115,7 @@ export async function runConfigInit(opts: GlobalOptions): Promise<void> {
         {
           type: 'input',
           name: 'key_env',
-          message:
-            'Env var NAME only (not the secret). Example: BAIDU_API_KEY — lowercase is OK',
+          message: 'Env var NAME only (not the secret). Example: BAIDU_API_KEY — lowercase is OK',
           default: envDefault,
           validate: (v) => {
             const raw = v.trim();
@@ -136,11 +143,8 @@ export async function runConfigInit(opts: GlobalOptions): Promise<void> {
         },
       ]);
       process.env[keyEnv] = keyValue.trim();
-      console.log(
-        chalk.green('✓'),
-        `Set $env:${keyEnv} for this terminal session.`,
-      );
-      console.log(
+      logger.info(chalk.green('✓'), `Set $env:${keyEnv} for this terminal session.`);
+      logger.info(
         chalk.dim(
           `  To persist: System Properties → Environment Variables → New user variable ${keyEnv}`,
         ),
@@ -150,15 +154,15 @@ export async function runConfigInit(opts: GlobalOptions): Promise<void> {
         {
           type: 'password',
           name: 'keyValue',
-          message: 'Paste your API key (stored in config.yaml — do not commit this file)',
+          message: 'Paste your API key (stored in settings.json — do not commit this file)',
           mask: '*',
           validate: (v) => (v.trim().length > 0 ? true : 'API key cannot be empty'),
         },
       ]);
       apiKey = keyValue.trim();
-      console.log(
+      logger.warn(
         chalk.yellow(
-          '\n  api_key is stored locally. Never commit ~/.spark-cli/config.yaml to git.\n',
+          '\n  api_key is stored locally. Never commit ~/.spark/settings.json to git.\n',
         ),
       );
     }
@@ -179,7 +183,7 @@ export async function runConfigInit(opts: GlobalOptions): Promise<void> {
   } else {
     const builtin = BUILTIN_PROVIDERS.find((p) => p.id === providerId);
     if (builtin) {
-      console.log(chalk.dim(`\nSet: $env:${builtin.envKey} = "your-key"\n`));
+      logger.info(chalk.dim(`\nSet: $env:${builtin.envKey} = "your-key"\n`));
     }
   }
 
@@ -217,22 +221,22 @@ export async function runConfigInit(opts: GlobalOptions): Promise<void> {
   }
 
   saveGlobalConfig(config);
-  console.log(chalk.green('✓'), 'Wrote', chalk.cyan(getGlobalConfigPath()));
-  console.log(chalk.dim('Run: spark-cli model test && spark-cli doctor'));
+  logger.info(chalk.green('✓'), 'Wrote', chalk.cyan(getGlobalConfigPath()));
+  logger.info(chalk.dim('Run: spark-cli model test && spark-cli doctor'));
 }
 
 export async function runConfigShow(opts: GlobalOptions): Promise<void> {
   const root = resolveProjectRoot(opts);
   const global = loadGlobalConfig();
   if (opts.json) {
-    console.log(JSON.stringify({ globalPath: getGlobalConfigPath(), global }, null, 2));
+    logger.json({ globalPath: getGlobalConfigPath(), global });
     return;
   }
-  console.log(chalk.bold('\nGlobal config'), chalk.dim(getGlobalConfigPath()));
-  console.log(
+  logger.info(chalk.bold('\nGlobal config'), chalk.dim(getGlobalConfigPath()));
+  logger.info(
     `  model: ${global.model?.provider ?? 'auto'} / ${global.model?.default ?? '(not set)'}`,
   );
   const custom = global.providers?.custom_providers?.length ?? 0;
-  if (custom > 0) console.log(chalk.dim(`  custom providers: ${custom}`));
-  console.log(chalk.dim('\nProject root:'), root);
+  if (custom > 0) logger.info(chalk.dim(`  custom providers: ${custom}`));
+  logger.info(chalk.dim('\nProject root:'), root);
 }

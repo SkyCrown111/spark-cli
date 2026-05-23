@@ -1,5 +1,5 @@
 /**
- * Stage Unity scene-graph mutations under `.spark-cli/staging/<scene>`.
+ * Stage Unity scene-graph mutations under `.spark/staging/<scene>`.
  *
  * Mirrors `engines/cocos/scene-writer.ts`: every write goes through
  * `stageWriteFile` so nothing touches the real `Assets/*.unity` until the user

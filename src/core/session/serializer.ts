@@ -1,7 +1,7 @@
 /**
  * Session serializer — saves and loads REPL conversation state.
  *
- * Sessions are stored as JSON files at `.spark-cli/sessions/<id>.json`.
+ * Sessions are stored as JSON files at `.spark/sessions/<id>.json`.
  * Each session captures the conversation history, permission state,
  * write mode, model, and metadata.
  *
@@ -28,6 +28,8 @@ export interface SessionSnapshot {
   projectRoot: string;
   /** User-defined session name (optional, set via --name or /rename). */
   name?: string;
+  /** Session tags for categorization. */
+  tags?: string[];
   /** Conversation history (without system messages). */
   history: ChatMessage[];
   /** Display messages (user + assistant prose). */
@@ -73,5 +75,6 @@ export function deserializeSession(raw: string): SessionSnapshot {
   data.plan = data.plan ?? { phase: 'normal' };
   data.messages = data.messages ?? [];
   data.model = data.model ?? 'unknown';
+  data.tags = data.tags ?? [];
   return data;
 }

@@ -41,6 +41,8 @@ export interface AppState {
   messages: ChatMessage[];
   /** Raw agent history (not displayed directly) */
   agentHistory: ChatMessage[];
+  /** Empty-state welcome card content. */
+  welcomeMessage?: string;
 
   // ── UI state ──
   mode: InputMode;
@@ -85,7 +87,12 @@ export interface AppState {
   searchQuery: string;
 
   // ── Command suggestions (from slash registry) ──
-  commandSuggestions: Array<{ value: string; label: string; description?: string; category?: string }>;
+  commandSuggestions: Array<{
+    value: string;
+    label: string;
+    description?: string;
+    category?: string;
+  }>;
 
   // ── Transcript ──
   transcriptSearchQuery: string;
@@ -138,7 +145,13 @@ export interface AppState {
 
   // ── Session picker ──
   /** Sessions available for resume (populated when picker opens). */
-  sessionList: Array<{ id: string; name?: string; title: string; updatedAt: string; messageCount: number }>;
+  sessionList: Array<{
+    id: string;
+    name?: string;
+    title: string;
+    updatedAt: string;
+    messageCount: number;
+  }>;
 }
 
 export interface FooterItem {
@@ -177,6 +190,7 @@ export const appState = create<AppState>(() => ({
   // Conversation
   messages: [],
   agentHistory: [],
+  welcomeMessage: undefined,
   // UI
   mode: 'chat',
   loading: false,
@@ -268,6 +282,8 @@ export function useAppState<T>(selector: (s: AppState) => T): T {
  * setAppState({ loading: true });
  * ```
  */
-export function useSetAppState(): (partial: Partial<AppState> | ((prev: AppState) => Partial<AppState>)) => void {
+export function useSetAppState(): (
+  partial: Partial<AppState> | ((prev: AppState) => Partial<AppState>),
+) => void {
   return appState.setState;
 }

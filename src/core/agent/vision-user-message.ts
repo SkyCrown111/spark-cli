@@ -2,10 +2,7 @@ import type { ChatMessage } from '../providers/openai-compatible.js';
 import type { VisualInputContext } from '../vision/visual-context.js';
 
 /** Build a user message for the agent loop, optionally with vision input. */
-export function buildAgentUserMessage(
-  text: string,
-  visual?: VisualInputContext,
-): ChatMessage {
+export function buildAgentUserMessage(text: string, visual?: VisualInputContext): ChatMessage {
   if (visual?.imageDataUrl) {
     return {
       role: 'user',

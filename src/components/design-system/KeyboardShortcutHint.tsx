@@ -22,10 +22,7 @@ export const KeyboardShortcutHint: React.FC<KeyboardShortcutHintProps> = ({
 }) => {
   return (
     <Box gap={1}>
-      <Text
-        backgroundColor={active ? 'gray' : undefined}
-        color={active ? 'white' : 'gray'}
-      >
+      <Text backgroundColor={active ? 'gray' : undefined} color={active ? 'white' : 'gray'}>
         {` ${keyCombo} `}
       </Text>
       <Text dimColor={!active}>{description}</Text>

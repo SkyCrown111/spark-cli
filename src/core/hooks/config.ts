@@ -1,7 +1,8 @@
 /**
  * Hook configuration loader.
  *
- * Reads `<projectRoot>/.spark-cli/hooks/config.json`. Each entry binds an event
+ * Reads `<projectRoot>/.spark/hooks/config.json` (with `.spark-cli` fallback).
+ * Each entry binds an event
  * to either a shell `command` string OR a `script` (interpreter + path) form.
  * The `script` form is the cross-platform path (e.g. `node scripts/audit.js`),
  * while `command` is the convenient string form that the runner spawns under
@@ -74,7 +75,8 @@ const VALID_EVENTS: ReadonlySet<HookEvent> = new Set<HookEvent>([
 ]);
 
 function configPath(projectRoot: string): string {
-  return join(projectRoot, '.spark-cli', 'hooks', 'config.json');
+  const primary = join(projectRoot, '.spark', 'hooks', 'config.json');
+  return existsSync(primary) ? primary : join(projectRoot, '.spark-cli', 'hooks', 'config.json');
 }
 
 export function loadHookConfig(projectRoot: string): HookConfig {
@@ -132,10 +134,7 @@ function normalizeEntry(entry: unknown): HookEntry | null {
 
   // Validate handler-specific fields
   if (handler === 'script') {
-    if (
-      typeof e.script?.interpreter !== 'string' ||
-      typeof e.script?.path !== 'string'
-    ) {
+    if (typeof e.script?.interpreter !== 'string' || typeof e.script?.path !== 'string') {
       return null;
     }
   }
@@ -165,11 +164,7 @@ function normalizeEntry(entry: unknown): HookEntry | null {
 }
 
 /** Filter hooks for a given event (and optional tool-name match). */
-export function selectHooks(
-  cfg: HookConfig,
-  event: HookEvent,
-  tool?: string,
-): HookEntry[] {
+export function selectHooks(cfg: HookConfig, event: HookEvent, tool?: string): HookEntry[] {
   return cfg.hooks
     .filter((h) => {
       if (h.event !== event) return false;

@@ -14,14 +14,12 @@ export interface BylineProps {
   dimColor?: boolean;
 }
 
-export const Byline: React.FC<BylineProps> = ({
-  text,
-  color,
-  dimColor = true,
-}) => {
+export const Byline: React.FC<BylineProps> = ({ text, color, dimColor = true }) => {
   return (
     <Box>
-      <Text dimColor={dimColor} color={color}>{text}</Text>
+      <Text dimColor={dimColor} color={color}>
+        {text}
+      </Text>
     </Box>
   );
 };

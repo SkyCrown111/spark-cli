@@ -34,6 +34,10 @@
     "build": "node scripts/build.mjs",
     "dev": "node scripts/build.mjs --watch",
     "typecheck": "tsc --noEmit",
+    "lint": "eslint src/",
+    "lint:fix": "eslint src/ --fix",
+    "format": "prettier --write src/",
+    "format:check": "prettier --check src/",
     "test": "vitest run",
     "test:phase1": "node scripts/phase1-accept.mjs",
     "test:phase2": "node scripts/phase2-accept.mjs",
@@ -50,6 +54,7 @@
     "test:phase13": "node scripts/phase13-accept.mjs",
     "test:phase14": "node scripts/phase14-accept.mjs",
     "test:phase15": "node scripts/phase15-accept.mjs",
+    "check:commands": "node scripts/check-commands.mjs",
     "prepublishOnly": "pnpm run build"
   },
   "engines": {
@@ -84,15 +89,19 @@
     "tree-sitter-cpp": "^0.23.4"
   },
   "devDependencies": {
+    "@eslint/js": "^9.0.0",
     "@types/diff": "^7.0.0",
     "@types/js-yaml": "^4.0.9",
     "@types/minimatch": "^6.0.0",
     "@types/node": "^22.13.10",
     "@types/ws": "^8.18.1",
     "esbuild": "^0.25.1",
+    "eslint": "^9.0.0",
     "fast-check": "^4.8.0",
     "ink-testing-library": "^4.0.0",
+    "prettier": "^3.0.0",
     "typescript": "^5.8.2",
+    "typescript-eslint": "^8.0.0",
     "vitest": "^3.0.8",
     "ws": "^8.18.1"
   }

@@ -122,7 +122,7 @@ describe('REPL screen', () => {
     const onSubmit = vi.fn();
     const { lastFrame } = renderREPL(onSubmit);
 
-    expect(lastFrame()).toContain('█');
+    expect(lastFrame()).toContain('|');
   });
 
   it('renders token usage when tokenUsage is set', () => {

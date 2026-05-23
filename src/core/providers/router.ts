@@ -2,11 +2,7 @@ import type { SparkCLIConfig } from '../../config/schema.js';
 import { SparkCLIError } from '../../utils/errors.js';
 import { DEFAULT_BASE_URLS, normalizeBaseUrl } from './endpoints.js';
 import { getProvider, resolveConfiguredApiKey, resolveCustomProviderApiKey } from './registry.js';
-import {
-  chatCompletion,
-  pingModel,
-  type ChatMessage,
-} from './openai-compatible.js';
+import { chatCompletion, pingModel, type ChatMessage } from './openai-compatible.js';
 import { anthropicChatCompletion } from './anthropic.js';
 import { isCloudKeysEnabled, getCloudEndpoint } from '../../cloud/config.js';
 import { loadCloudSession } from '../../cloud/session.js';
@@ -78,7 +74,7 @@ export function resolveModelForTask(
     baseUrl =
       config.model?.base_url ??
       DEFAULT_BASE_URLS[providerId] ??
-      (providerId === 'ollama' ? process.env.OLLAMA_HOST ?? DEFAULT_BASE_URLS.ollama : undefined);
+      (providerId === 'ollama' ? (process.env.OLLAMA_HOST ?? DEFAULT_BASE_URLS.ollama) : undefined);
   }
 
   if (providerId === 'ollama') {
@@ -108,7 +104,9 @@ export function resolveModelForTask(
     }
     const builtin = getProvider(providerId);
     throw new SparkCLIError(`Missing API key for provider: ${providerId}`, 2, [
-      builtin ? `Set environment variable ${builtin.envKey}` : 'Check custom provider api_key or key_env',
+      builtin
+        ? `Set environment variable ${builtin.envKey}`
+        : 'Check custom provider api_key or key_env',
       'Or: spark-cli cloud login && spark-cli cloud keys use',
     ]);
   }
@@ -122,6 +120,20 @@ export function resolveModelForTask(
     apiKey: apiKey ?? '',
     baseUrl: normalizeBaseUrl(baseUrl),
   };
+}
+
+function serializeMessageContent(content: ChatMessage['content']): string {
+  if (typeof content === 'string') return content;
+
+  let text = '';
+  for (const part of content) {
+    if (part.type === 'text') {
+      text += part.text;
+    } else if (part.type === 'image_url') {
+      text += '[Image]';
+    }
+  }
+  return text;
 }
 
 /**
@@ -138,12 +150,12 @@ function toCloudMessage(m: ChatMessage): CloudChatMessage {
     };
   }
   if (m.role === 'assistant') {
-    const content = typeof m.content === 'string' ? m.content : JSON.stringify(m.content);
+    const content = serializeMessageContent(m.content);
     const out: CloudChatMessage = { role: 'assistant', content };
     if (m.tool_calls && m.tool_calls.length > 0) out.tool_calls = m.tool_calls;
     return out;
   }
-  const content = typeof m.content === 'string' ? m.content : JSON.stringify(m.content);
+  const content = serializeMessageContent(m.content);
   return { role: m.role, content };
 }
 

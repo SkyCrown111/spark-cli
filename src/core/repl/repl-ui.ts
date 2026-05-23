@@ -3,6 +3,7 @@ import type { SlashRegistry } from '../slash/registry.js';
 import type { ShellState } from '../../commands/shell.js';
 import { isPlanMode } from '../slash/plan-mode.js';
 import chalk from 'chalk';
+import { logger } from '../../utils/logger.js';
 import { accent, accentBold, frameDim } from './theme.js';
 import { displayWidth, frameChars, supportsUnicodeUi, terminalWidth } from './terminal.js';
 
@@ -41,14 +42,14 @@ function inputRule(width: number): string {
 }
 
 export function printInputTopRule(): void {
-  console.log('');
-  console.log(inputRule(terminalWidth()));
+  logger.info('');
+  logger.info(inputRule(terminalWidth()));
 }
 
 export function printInputChromeBelow(state: ShellState): void {
-  console.log(inputRule(terminalWidth()));
-  console.log(formatModeLine(state));
-  console.log(formatInputFooterLine());
+  logger.info(inputRule(terminalWidth()));
+  logger.info(formatModeLine(state));
+  logger.info(formatInputFooterLine());
 }
 
 export function rewriteModeLine(state: ShellState): void {
@@ -60,18 +61,10 @@ export function rewriteModeLine(state: ShellState): void {
 function formatModeLeft(state: ShellState): string {
   const arrows = accent('▶▶ ');
   if (isPlanMode(state.plan)) {
-    return (
-      arrows +
-      chalk.hex('#2DD4BF').bold('plan mode on') +
-      chalk.dim(' (shift+tab to cycle)')
-    );
+    return arrows + chalk.hex('#2DD4BF').bold('plan mode on') + chalk.dim(' (shift+tab to cycle)');
   }
   if (state.writeMode === 'direct') {
-    return (
-      arrows +
-      accentBold('accept edits on') +
-      chalk.dim(' (shift+tab to cycle)')
-    );
+    return arrows + accentBold('accept edits on') + chalk.dim(' (shift+tab to cycle)');
   }
   return chalk.dim('? for shortcuts');
 }

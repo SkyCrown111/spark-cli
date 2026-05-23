@@ -40,10 +40,7 @@ export interface ShimmeredInputProps {
  * Lightweight animation frame hook for shimmer.
  * Returns the current time in ms since the animation started.
  */
-function useShimmerTimer(
-  active: boolean,
-  interval: number,
-): number {
+function useShimmerTimer(active: boolean, interval: number): number {
   const [time, setTime] = useState(0);
   const frameRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -85,15 +82,10 @@ export const ShimmeredInput: React.FC<ShimmeredInputProps> = ({
   // Compute the sweep range and current glimmer position
   const textLength = text.length;
   const sweepStart = useMemo(() => -sweepPadding, [sweepPadding]);
-  const cycleLength = useMemo(
-    () => textLength + sweepPadding * 2,
-    [textLength, sweepPadding],
-  );
+  const cycleLength = useMemo(() => textLength + sweepPadding * 2, [textLength, sweepPadding]);
 
   // Current glimmer position: cycles from sweepStart to sweepStart + cycleLength
-  const glimmerIndex = active
-    ? sweepStart + Math.floor(time / interval) % cycleLength
-    : -100; // Off-screen when inactive
+  const glimmerIndex = active ? sweepStart + (Math.floor(time / interval) % cycleLength) : -100; // Off-screen when inactive
 
   // Split text into lines for rendering
   const lines = useMemo(() => text.split('\n'), [text]);

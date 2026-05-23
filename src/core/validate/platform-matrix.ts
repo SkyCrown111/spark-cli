@@ -8,7 +8,10 @@ import {
   type LimitCheck,
   type PlatformId,
 } from './platform-rules.js';
-import { findPlatformBuildDir, analyzePlatformBuild } from '../../engines/platform/build-analyzer.js';
+import {
+  findPlatformBuildDir,
+  analyzePlatformBuild,
+} from '../../engines/platform/build-analyzer.js';
 
 export type MatrixStatus = 'pass' | 'warn' | 'fail' | 'skip';
 

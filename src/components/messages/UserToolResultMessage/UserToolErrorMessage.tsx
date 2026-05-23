@@ -18,16 +18,17 @@ export const UserToolErrorMessage: React.FC<UserToolErrorMessageProps> = ({
   content,
 }) => {
   return (
-    <Box
-      flexDirection="column"
-      paddingX={1}
-    >
+    <Box flexDirection="column" paddingX={1}>
       <Box>
-        <Text bold color="red">! {toolLabel}</Text>
+        <Text bold color="red">
+          ! {toolLabel}
+        </Text>
         <Text color="red"> — error</Text>
       </Box>
       <Box paddingLeft={2}>
-        <Text color="red" wrap="wrap">{content}</Text>
+        <Text color="red" wrap="wrap">
+          {content}
+        </Text>
       </Box>
     </Box>
   );

@@ -51,10 +51,12 @@ describe('tool registry', () => {
       handler: async () => ({ content: '' }),
     });
     expect(reg.list({ mode: 'plan' }).map((t) => t.function.name)).toEqual(['reader']);
-    expect(reg.list({ mode: 'normal' }).map((t) => t.function.name).sort()).toEqual([
-      'reader',
-      'writer',
-    ]);
+    expect(
+      reg
+        .list({ mode: 'normal' })
+        .map((t) => t.function.name)
+        .sort(),
+    ).toEqual(['reader', 'writer']);
   });
 
   it('refuses unknown tool names with isError', async () => {

@@ -28,7 +28,9 @@ export const ErrorMessage: React.FC<ErrorMessageProps> = ({
   return (
     <Box flexDirection="column" paddingX={1}>
       <Box>
-        <Text bold color="red">{isNetworkError ? '! Network Error' : `! ${title}`}</Text>
+        <Text bold color="red">
+          {isNetworkError ? '! Network Error' : `! ${title}`}
+        </Text>
       </Box>
       <Box>
         <Text color="red">{message}</Text>

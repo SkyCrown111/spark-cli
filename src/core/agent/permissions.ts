@@ -64,15 +64,12 @@ export function isMcpWriteToolName(name: string): boolean {
 }
 
 /** Tools that auto-approve in acceptEdits mode (file edits + common fs commands). */
-export const EDIT_TOOL_NAMES = new Set([
-  'write_file',
-  'edit_file',
-  'bash',
-]);
+export const EDIT_TOOL_NAMES = new Set(['write_file', 'edit_file', 'bash']);
 
 /** Paths that are never auto-approved, even in acceptEdits/bypass mode. */
 export const DEFAULT_PROTECTED_PATHS = [
   '.git',
+  '.spark',
   '.spark-cli',
   '.vscode',
   '.claude',
@@ -206,7 +203,7 @@ export function isToolAllowed(input: PermissionInput): PermissionResult {
         allowed: false,
         reason:
           `MCP write tool "${input.toolName}" is disabled. ` +
-          'Set mcp.allowWrite: true in spark-cli.config.yaml.',
+          'Set mcp.allowWrite: true in .spark/settings.json.',
       };
     }
   }
@@ -218,7 +215,7 @@ export function isToolAllowed(input: PermissionInput): PermissionResult {
         allowed: false,
         reason:
           `MCP client write tool "${input.toolName}" is disabled. ` +
-          'Set mcp.allowWrite: true in spark-cli.config.yaml.',
+          'Set mcp.allowWrite: true in .spark/settings.json.',
       };
     }
   }

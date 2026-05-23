@@ -1,12 +1,7 @@
 import { request } from 'undici';
 import { SparkCLIError } from '../../utils/errors.js';
 import type { ChatMessage } from './openai-compatible.js';
-import type {
-  ProviderResponse,
-  ProviderStopReason,
-  ToolCall,
-  ToolDefinition,
-} from './types.js';
+import type { ProviderResponse, ProviderStopReason, ToolCall, ToolDefinition } from './types.js';
 
 /**
  * Anthropic Messages API content blocks.

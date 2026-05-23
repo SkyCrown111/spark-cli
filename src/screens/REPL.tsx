@@ -31,24 +31,12 @@ import { AutoModeOptInDialog } from '../components/AutoModeOptInDialog.js';
 import { BypassPermissionsDialog } from '../components/BypassPermissionsDialog.js';
 import { GlobalSearchDialog } from '../components/GlobalSearchDialog.js';
 import { TranscriptOverlay } from '../components/TranscriptOverlay.js';
-import { TokenWarning } from '../components/TokenWarning.js';
-import { BackgroundTaskStatus } from '../components/BackgroundTaskStatus.js';
-import { TaskList } from '../components/TaskList.js';
 import { SessionPicker } from '../components/SessionPicker.js';
 import { AlternateScreen } from '../ink/components/AlternateScreen.js';
 import { useTerminalSize } from '../hooks/useTerminalSize.js';
 import { useInputHistory } from '../hooks/useInputHistory.js';
-import { useKeybindings, commonKeybindings } from '../hooks/useKeybindings.js';
-import { generateGitSuggestions } from '../utils/suggestions/gitSuggestions.js';
-import {
-  useRegisterKeybindingContext,
-  useKeybinding,
-} from '../keybindings/useKeybinding.js';
-import { useShortcutDisplay } from '../keybindings/useShortcutDisplay.js';
-import {
-  useAppState,
-  useSetAppState,
-} from '../state/AppState.js';
+import { useRegisterKeybindingContext, useKeybinding } from '../keybindings/useKeybinding.js';
+import { appState, useAppState, useSetAppState } from '../state/AppState.js';
 import {
   selectMessages,
   selectMode,
@@ -63,6 +51,8 @@ import {
 export interface REPLProps {
   /** Callback when user submits a line (agent turn) */
   onSubmit: (text: string, mode: InputMode) => void;
+  /** Callback to interrupt the current operation. */
+  onInterrupt?: () => void;
   /** Callback to request exit */
   onExit?: () => void;
 }
@@ -77,10 +67,7 @@ export interface REPLProps {
  *   4. KeybindingHints
  *   5. StatusLine
  */
-export const REPL: React.FC<REPLProps> = ({
-  onSubmit,
-  onExit,
-}) => {
+export const REPL: React.FC<REPLProps> = ({ onSubmit, onInterrupt, onExit }) => {
   const { width, height } = useTerminalSize();
   const { exit } = useApp();
   const setAppState = useSetAppState();
@@ -94,6 +81,7 @@ export const REPL: React.FC<REPLProps> = ({
   const statusText = useAppState(selectStatusText);
   const streamingContent = useAppState(selectStreamingContent);
   const isStreaming = useAppState(selectIsStreaming);
+  const welcomeMessage = useAppState((s) => s.welcomeMessage);
   const showModelPicker = useAppState((s) => s.showModelPicker);
   const showThemePicker = useAppState((s) => s.showThemePicker);
   const showSettingsPanel = useAppState((s) => s.showSettingsPanel);
@@ -118,56 +106,46 @@ export const REPL: React.FC<REPLProps> = ({
   const activeToolId = useAppState((s) => s.activeToolId);
   const activeToolDetail = useAppState((s) => s.activeToolDetail);
   const permissionRequest = useAppState((s) => s.permissionRequest);
-  const backgroundAgents = useAppState((s) => s.backgroundAgents);
-  const todos = useAppState((s) => s.todos);
   const checkpoint = useAppState((s) => s.checkpoint);
-  const projectRoot = useAppState((s) => s.projectRoot);
 
   // ── Git suggestions (cached) ──
-  const gitSuggestionsRef = useRef<Array<{ value: string; label: string; source: string }>>([]);
-  const getGitSuggestions = useCallback(() => {
-    if (gitSuggestionsRef.current.length === 0) {
-      try {
-        gitSuggestionsRef.current = generateGitSuggestions(projectRoot, '');
-      } catch {
-        gitSuggestionsRef.current = [];
-      }
-    }
-    return gitSuggestionsRef.current;
-  }, [projectRoot]);
 
   // ── Local state ──
   const historyHook = useInputHistory({ maxHistory: 100 });
   const pendingExit = useRef(false);
   const [transcriptSearchActive, setTranscriptSearchActive] = useState(false);
-  const [searchMatches, setSearchMatches] = useState<Array<{ msgIdx: number; charIdx: number }>>([]);
+  const [searchMatches, setSearchMatches] = useState<Array<{ msgIdx: number; charIdx: number }>>(
+    [],
+  );
   const [searchFocusIdx, setSearchFocusIdx] = useState(0);
 
   // ── Global search logic ──
-  const updateSearchMatches = useCallback((query: string) => {
-    if (!query) {
-      setSearchMatches([]);
-      setSearchFocusIdx(0);
-      return;
-    }
-    const lower = query.toLowerCase();
-    const matches: Array<{ msgIdx: number; charIdx: number }> = [];
-    for (let i = 0; i < messages.length; i++) {
-      const rawContent = messages[i].content;
-      const content: string = typeof rawContent === 'string'
-        ? rawContent
-        : JSON.stringify(rawContent);
-      let idx = 0;
-      while (idx < content.length) {
-        const found = content.toLowerCase().indexOf(lower, idx);
-        if (found === -1) break;
-        matches.push({ msgIdx: i, charIdx: found });
-        idx = found + 1;
+  const updateSearchMatches = useCallback(
+    (query: string) => {
+      if (!query) {
+        setSearchMatches([]);
+        setSearchFocusIdx(0);
+        return;
       }
-    }
-    setSearchMatches(matches);
-    setSearchFocusIdx(matches.length > 0 ? 0 : -1);
-  }, [messages]);
+      const lower = query.toLowerCase();
+      const matches: Array<{ msgIdx: number; charIdx: number }> = [];
+      for (let i = 0; i < messages.length; i++) {
+        const rawContent = messages[i].content;
+        const content: string =
+          typeof rawContent === 'string' ? rawContent : JSON.stringify(rawContent);
+        let idx = 0;
+        while (idx < content.length) {
+          const found = content.toLowerCase().indexOf(lower, idx);
+          if (found === -1) break;
+          matches.push({ msgIdx: i, charIdx: found });
+          idx = found + 1;
+        }
+      }
+      setSearchMatches(matches);
+      setSearchFocusIdx(matches.length > 0 ? 0 : -1);
+    },
+    [messages],
+  );
 
   const handleSearchNext = useCallback(() => {
     if (searchMatches.length === 0) return;
@@ -180,15 +158,18 @@ export const REPL: React.FC<REPLProps> = ({
   }, [searchMatches]);
 
   // ── Mode cycling ──
-  const handleModeChange = useCallback((nextMode: InputMode) => {
-    setAppState({ mode: nextMode });
-  }, [setAppState]);
+  const handleModeChange = useCallback(
+    (nextMode: InputMode) => {
+      setAppState({ mode: nextMode });
+    },
+    [setAppState],
+  );
 
   // ── Submit handler ──
   const handleSubmit = useCallback(
     (text: string) => {
       historyHook.addToHistory(text);
-      setAppState({ loading: true, statusText: 'Thinking...' });
+      setAppState({ loading: true, statusText: undefined, welcomeMessage: undefined });
       onSubmit(text, mode);
     },
     [mode, onSubmit, historyHook, setAppState],
@@ -224,84 +205,108 @@ export const REPL: React.FC<REPLProps> = ({
   );
 
   // ── Keybindings ──
-  useKeybindings({
-    bindings: [
-      commonKeybindings.interrupt(() => {
-        setAppState({ loading: false });
-      }),
-      commonKeybindings.exit(() => {
-        if (pendingExit.current) {
-          onExit?.();
-          exit();
-        } else {
-          pendingExit.current = true;
-          setAppState({ statusText: 'Press Ctrl-D again to exit, or wait to cancel' });
-          setTimeout(() => {
-            if (pendingExit.current) {
-              pendingExit.current = false;
-              setAppState({ statusText: undefined });
-            }
-          }, 3000);
-        }
-      }),
-      commonKeybindings.clear(() => {
-        setAppState({ messages: [], agentHistory: [] });
-      }),
-    ],
-    enabled: !loading,
-  });
-
   // ── Context-based keybinding system ──
   // Register Chat context as active when not in a sub-dialog
-  useRegisterKeybindingContext('Chat', !loading);
+  useRegisterKeybindingContext('Chat', true);
 
   // Register action handlers for context-based bindings
-  useKeybinding('app:interrupt', () => {
-    setAppState({ loading: false });
-  }, !loading);
+  useKeybinding(
+    'app:interrupt',
+    () => {
+      onInterrupt?.();
+    },
+    true,
+  );
 
-  useKeybinding('app:redraw', () => {
-    setAppState({ messages: [], agentHistory: [] });
-  }, !loading);
+  useKeybinding(
+    'app:exit',
+    () => {
+      if (pendingExit.current) {
+        onExit?.();
+        exit();
+        return;
+      }
 
-  useKeybinding('chat:modelPicker', () => {
-    setAppState({ showModelPicker: true });
-  }, !loading);
+      pendingExit.current = true;
+      setAppState({ statusText: 'Press Ctrl-D again to exit, or wait to cancel' });
+      setTimeout(() => {
+        if (pendingExit.current) {
+          pendingExit.current = false;
+          const state = appState.getState();
+          if (state.statusText === 'Press Ctrl-D again to exit, or wait to cancel') {
+            setAppState({ statusText: undefined });
+          }
+        }
+      }, 3000);
+    },
+    true,
+  );
+
+  useKeybinding(
+    'app:redraw',
+    () => {
+      setAppState({ messages: [], agentHistory: [], statusText: undefined });
+    },
+    true,
+  );
+
+  useKeybinding(
+    'chat:modelPicker',
+    () => {
+      setAppState({ showModelPicker: true });
+    },
+    !loading,
+  );
 
   // Ctrl+F: Global search
-  useKeybinding('chat:search', () => {
-    setAppState({ showGlobalSearch: true });
-  }, !loading && !showGlobalSearch);
+  useKeybinding(
+    'chat:search',
+    () => {
+      setAppState({ showGlobalSearch: true });
+    },
+    !loading && !showGlobalSearch,
+  );
 
   // Ctrl+O: Toggle transcript overlay
-  useKeybinding('app:toggleTranscript', () => {
-    setAppState((prev) => ({
-      showTranscript: !prev.showTranscript,
-      transcriptSearchQuery: '',
-    }));
-    setTranscriptSearchActive(false);
-  }, !loading);
+  useKeybinding(
+    'app:toggleTranscript',
+    () => {
+      setAppState((prev) => ({
+        showTranscript: !prev.showTranscript,
+        transcriptSearchQuery: '',
+      }));
+      setTranscriptSearchActive(false);
+    },
+    !loading,
+  );
 
   // ── Overlay action handlers ──
-  const handleModelSelect = useCallback((selectedModel: string) => {
-    setAppState({ model: selectedModel, showModelPicker: false });
-  }, [setAppState]);
+  const handleModelSelect = useCallback(
+    (selectedModel: string) => {
+      setAppState({ model: selectedModel, showModelPicker: false });
+    },
+    [setAppState],
+  );
 
-  const handleThemeSelect = useCallback((_themeName: string) => {
-    setAppState({ showThemePicker: false });
-  }, [setAppState]);
+  const handleThemeSelect = useCallback(
+    (_themeName: string) => {
+      setAppState({ showThemePicker: false });
+    },
+    [setAppState],
+  );
 
-  const handleSettingsChange = useCallback((key: string, value: any) => {
-    setAppState({ [key]: value });
-  }, [setAppState]);
+  const handleSettingsChange = useCallback(
+    (key: string, value: any) => {
+      setAppState({ [key]: value });
+    },
+    [setAppState],
+  );
 
   const handleDismissOnboarding = useCallback(() => {
     setAppState({ showOnboarding: false });
   }, [setAppState]);
 
   // ── Dynamic shortcut hints ──
-  const shortcutHints = useShortcutDisplay(undefined, 3);
-
   // ── Layout strategy ──
   // Two-section layout that guarantees the input box is ALWAYS visible.
   // Uses explicit height calculations instead of percentage-based maxHeight,
@@ -329,247 +334,245 @@ export const REPL: React.FC<REPLProps> = ({
 
   return (
     <ErrorBoundary>
-    <AlternateScreen mouseTracking={true}>
-    <Box flexDirection="column" width={width} height={height}>
-      {/* ── Top section: scrollable messages, fixed height ── */}
-      <Box flexDirection="column" height={messagesHeight} overflow="hidden">
-        <ScrollBox
-          rowCount={messages.length}
-          estimatedRowHeight={3}
-          maxHeight={messagesHeight}
-          autoPinToBottom={true}
-          scrollingEnabled={!loading}
-        >
-          {(visibleStart, visibleEnd) => (
-            <Messages
-              messages={messages}
-              maxHeight={messagesHeight}
-              visibleRange={[visibleStart, visibleEnd]}
-              streamingContent={streamingContent}
-              isStreaming={isStreaming}
-            />
-          )}
-        </ScrollBox>
-
-        {/* Token usage warning — shown when approaching budget */}
-        {tokenUsage && (
-          <TokenWarning used={tokenUsage.used} budget={tokenUsage.budget} />
-        )}
-      </Box>
-
-      {/* ── Background tasks indicator ── */}
-      {backgroundAgents.length > 0 && (
-        <Box flexShrink={0}>
-          <BackgroundTaskStatus tasks={backgroundAgents} />
-        </Box>
-      )}
-
-      {/* ── Todo list (agent task tracking) ── */}
-      {todos.length > 0 && (
-        <Box flexShrink={0} paddingX={1}>
-          <TaskList
-            tasks={todos.map((t) => ({
-              id: t.id,
-              label: t.subject,
-              status: t.status === 'completed' ? 'completed' :
-                      t.status === 'in_progress' ? 'running' : 'pending',
-            }))}
-          />
-        </Box>
-      )}
-
-      {/* ── Bottom section: pinned footer, fixed height, NEVER shrinks ── */}
-      <Box flexDirection="column" flexShrink={0} width="100%" height={FOOTER_RESERVE} overflow="hidden">
-        <Box flexDirection="column" width="100%">
-          {/* Loading spinner — shows during agent turns with dynamic verb */}
-          {loading && (
-            <Box paddingX={1} flexShrink={0}>
-              <SpinnerWithVerb
-                toolId={activeToolId}
-                detail={activeToolDetail}
-                verbOverride={activeToolId ? undefined : 'Thinking'}
-                color="cyan"
+      <AlternateScreen mouseTracking={true}>
+        <Box flexDirection="column" width={width} height={height}>
+          {/* ── Top section: scrollable messages, fixed height ── */}
+          <Box flexDirection="column" height={messagesHeight} overflow="hidden">
+            {messages.length === 0 && welcomeMessage ? (
+              <Messages
+                messages={[{ role: 'assistant', content: welcomeMessage }]}
+                maxHeight={messagesHeight}
+                visibleRange={[0, 1]}
+                streamingContent=""
+                isStreaming={false}
               />
+            ) : (
+              <ScrollBox
+                rowCount={messages.length}
+                estimatedRowHeight={3}
+                maxHeight={messagesHeight}
+                autoPinToBottom={true}
+                scrollingEnabled={true}
+              >
+                {(visibleStart, visibleEnd) => (
+                  <Messages
+                    messages={messages}
+                    maxHeight={messagesHeight}
+                    visibleRange={[visibleStart, visibleEnd]}
+                    streamingContent={streamingContent}
+                    isStreaming={isStreaming}
+                  />
+                )}
+              </ScrollBox>
+            )}
+
+            {/* Token usage warning — shown when approaching budget */}
+          </Box>
+
+          {/* ── Background tasks indicator ── */}
+
+          {/* ── Todo list (agent task tracking) ── */}
+
+          {/* ── Bottom section: pinned footer, fixed height, NEVER shrinks ── */}
+          <Box
+            flexDirection="column"
+            flexShrink={0}
+            width="100%"
+            height={FOOTER_RESERVE}
+            overflow="hidden"
+          >
+            <Box flexDirection="column" width="100%">
+              {/* Loading spinner — shows during agent turns with dynamic verb */}
+              {loading && (
+                <Box paddingX={1} flexShrink={0}>
+                  <SpinnerWithVerb
+                    toolId={activeToolId}
+                    detail={activeToolDetail}
+                    verbOverride={activeToolId ? undefined : 'Thinking'}
+                    color="cyan"
+                  />
+                </Box>
+              )}
+
+              {/* Input area — ALWAYS visible, disabled during loading */}
+              <Box flexShrink={0}>
+                <PromptInput
+                  onSubmit={handleSubmit}
+                  onBashSubmit={handleBashSubmit}
+                  mode={mode}
+                  onModeChange={handleModeChange}
+                  disabled={loading}
+                  history={historyHook.history}
+                  onHistoryNavigate={() => {
+                    historyHook.resetNavigation();
+                  }}
+                  multiline={true}
+                  maxLines={5}
+                  placeholder={
+                    mode === 'plan' ? 'Plan mode — describe your goal...' : 'Type your message...'
+                  }
+                  vimEnabled={vimEnabled}
+                  vimMode={vimMode}
+                  onVimModeChange={(m) => setAppState({ vimMode: m })}
+                  commandSuggestions={commandSuggestions}
+                />
+              </Box>
+
+              {/* Status line — single row: model + tokens + hints */}
+              <Box flexShrink={0}>
+                <StatusLine
+                  model={model}
+                  tokensUsed={tokenUsage?.used ?? 0}
+                  tokensBudget={tokenUsage?.budget ?? 0}
+                  status={loading ? undefined : statusText}
+                  writeMode={writeMode}
+                  planMode={mode === 'plan'}
+                  checkpointId={checkpoint?.id}
+                />
+              </Box>
             </Box>
+          </Box>
+
+          {/* ── Overlay dialogs ── */}
+          {showModelPicker && (
+            <ModelPicker
+              currentModel={model}
+              onSelect={handleModelSelect}
+              onCancel={() => setAppState({ showModelPicker: false })}
+            />
+          )}
+          {showThemePicker && (
+            <ThemePicker
+              onSelect={handleThemeSelect}
+              onCancel={() => setAppState({ showThemePicker: false })}
+            />
+          )}
+          {showSettingsPanel && (
+            <SettingsPanel
+              writeMode={writeMode}
+              permissionMode={permissionMode}
+              vimEnabled={vimEnabled}
+              companionEnabled={companionEnabled}
+              onSettingChange={handleSettingsChange}
+              onClose={() => setAppState({ showSettingsPanel: false })}
+            />
+          )}
+          {showOnboarding && <Onboarding onDismiss={handleDismissOnboarding} />}
+          {showCostThresholdDialog && (
+            <CostThresholdDialog
+              estimatedCost={(tokenUsage?.used ?? 0) * 0.00001}
+              threshold={1.0}
+              onApprove={() => setAppState({ showCostThresholdDialog: false })}
+              onDeny={() => setAppState({ showCostThresholdDialog: false })}
+            />
+          )}
+          {showIdleReturnDialog && (
+            <IdleReturnDialog
+              idleDuration="a while"
+              messageCount={messages.length}
+              onContinue={() => setAppState({ showIdleReturnDialog: false })}
+              onStartFresh={() => {
+                setAppState({ messages: [], agentHistory: [], showIdleReturnDialog: false });
+              }}
+            />
+          )}
+          {showAutoModeOptIn && (
+            <AutoModeOptInDialog
+              onConfirm={() => setAppState({ permissionMode: 'auto', showAutoModeOptIn: false })}
+              onCancel={() => setAppState({ showAutoModeOptIn: false })}
+            />
+          )}
+          {showBypassPermissions && (
+            <BypassPermissionsDialog
+              onConfirm={() =>
+                setAppState({ permissionMode: 'bypass', showBypassPermissions: false })
+              }
+              onCancel={() => setAppState({ showBypassPermissions: false })}
+            />
+          )}
+          {showSessionPicker && (
+            <SessionPicker
+              sessions={sessionList}
+              onSelect={(sessionId) => {
+                setAppState({
+                  showSessionPicker: false,
+                  loading: true,
+                  statusText: `Resuming session ${sessionId}...`,
+                });
+                // Trigger resume via the same path as /resume <id>
+                import('../core/session/manager.js').then(({ loadSession }) => {
+                  const snapshot = loadSession('.', sessionId);
+                  if (snapshot) {
+                    setAppState({
+                      sessionId: snapshot.id,
+                      messages: snapshot.messages,
+                      agentHistory: snapshot.history,
+                      writeMode: snapshot.writeMode as 'staging' | 'direct',
+                      permissionMode: snapshot.permissionMode,
+                      effortLevel: snapshot.effortLevel,
+                      plan: snapshot.plan,
+                      sessionTitle: snapshot.title,
+                      loading: false,
+                      statusText: undefined,
+                    });
+                  } else {
+                    setAppState({ loading: false, statusText: 'Session not found' });
+                  }
+                });
+              }}
+              onCancel={() => setAppState({ showSessionPicker: false })}
+            />
+          )}
+          {showGlobalSearch && (
+            <GlobalSearchDialog
+              query={searchQuery}
+              onQueryChange={(q) => {
+                setAppState({ searchQuery: q });
+                updateSearchMatches(q);
+              }}
+              matchCount={searchMatches.length}
+              focusIndex={searchFocusIdx}
+              onNextMatch={handleSearchNext}
+              onPrevMatch={handleSearchPrev}
+              onClose={() => {
+                setAppState({ showGlobalSearch: false, searchQuery: '' });
+                setSearchMatches([]);
+                setSearchFocusIdx(0);
+              }}
+            />
+          )}
+          {showTranscript && (
+            <TranscriptOverlay
+              agentHistory={agentHistory}
+              searchQuery={transcriptSearchQuery}
+              onSearchQueryChange={(q) => setAppState({ transcriptSearchQuery: q })}
+              searchActive={transcriptSearchActive}
+              onToggleSearch={() => setTranscriptSearchActive((v) => !v)}
+              onClose={() => {
+                setAppState({ showTranscript: false, transcriptSearchQuery: '' });
+                setTranscriptSearchActive(false);
+              }}
+            />
           )}
 
-          {/* Input area — ALWAYS visible, disabled during loading */}
-          <Box flexShrink={0}>
-            <PromptInput
-              onSubmit={handleSubmit}
-              onBashSubmit={handleBashSubmit}
-              mode={mode}
-              onModeChange={handleModeChange}
-              disabled={loading}
-              history={historyHook.history}
-              onHistoryNavigate={() => {
-                historyHook.resetNavigation();
+          {/* ── Permission confirmation dialog ── */}
+          {permissionRequest && (
+            <PermissionRequest
+              tool={permissionRequest.tool}
+              argsSummary={permissionRequest.argsSummary}
+              showAlwaysAllow={permissionRequest.showAlwaysAllow}
+              onApprove={(always) => {
+                permissionRequest.resolve(always ? 'allow-always' : 'allow');
+                setAppState({ permissionRequest: undefined });
               }}
-              multiline={true}
-              maxLines={5}
-              placeholder={mode === 'plan' ? 'Plan mode — describe your goal...' : 'Type your message...'}
-              vimEnabled={vimEnabled}
-              vimMode={vimMode}
-              onVimModeChange={(m) => setAppState({ vimMode: m })}
-              commandSuggestions={commandSuggestions}
-              gitSuggestions={getGitSuggestions()}
+              onDeny={() => {
+                permissionRequest.resolve('deny');
+                setAppState({ permissionRequest: undefined });
+              }}
             />
-          </Box>
-
-          {/* Status line — single row: model + tokens + hints */}
-          <Box flexShrink={0}>
-            <StatusLine
-              model={model}
-              tokensUsed={tokenUsage?.used ?? 0}
-              tokensBudget={tokenUsage?.budget ?? 0}
-              hints={shortcutHints}
-              status={statusText}
-              writeMode={writeMode}
-              planMode={mode === 'plan'}
-              checkpointId={checkpoint?.id}
-            />
-          </Box>
+          )}
         </Box>
-      </Box>
-
-      {/* ── Overlay dialogs ── */}
-      {showModelPicker && (
-        <ModelPicker
-          currentModel={model}
-          onSelect={handleModelSelect}
-          onCancel={() => setAppState({ showModelPicker: false })}
-        />
-      )}
-      {showThemePicker && (
-        <ThemePicker
-          onSelect={handleThemeSelect}
-          onCancel={() => setAppState({ showThemePicker: false })}
-        />
-      )}
-      {showSettingsPanel && (
-        <SettingsPanel
-          writeMode={writeMode}
-          permissionMode={permissionMode}
-          vimEnabled={vimEnabled}
-          companionEnabled={companionEnabled}
-          onSettingChange={handleSettingsChange}
-          onClose={() => setAppState({ showSettingsPanel: false })}
-        />
-      )}
-      {showOnboarding && (
-        <Onboarding
-          onDismiss={handleDismissOnboarding}
-        />
-      )}
-      {showCostThresholdDialog && (
-        <CostThresholdDialog
-          estimatedCost={(tokenUsage?.used ?? 0) * 0.00001}
-          threshold={1.0}
-          onApprove={() => setAppState({ showCostThresholdDialog: false })}
-          onDeny={() => setAppState({ showCostThresholdDialog: false })}
-        />
-      )}
-      {showIdleReturnDialog && (
-        <IdleReturnDialog
-          idleDuration="a while"
-          messageCount={messages.length}
-          onContinue={() => setAppState({ showIdleReturnDialog: false })}
-          onStartFresh={() => {
-            setAppState({ messages: [], agentHistory: [], showIdleReturnDialog: false });
-          }}
-        />
-      )}
-      {showAutoModeOptIn && (
-        <AutoModeOptInDialog
-          onConfirm={() => setAppState({ permissionMode: 'auto', showAutoModeOptIn: false })}
-          onCancel={() => setAppState({ showAutoModeOptIn: false })}
-        />
-      )}
-      {showBypassPermissions && (
-        <BypassPermissionsDialog
-          onConfirm={() => setAppState({ permissionMode: 'bypass', showBypassPermissions: false })}
-          onCancel={() => setAppState({ showBypassPermissions: false })}
-        />
-      )}
-      {showSessionPicker && (
-        <SessionPicker
-          sessions={sessionList}
-          onSelect={(sessionId) => {
-            setAppState({ showSessionPicker: false, loading: true, statusText: `Resuming session ${sessionId}...` });
-            // Trigger resume via the same path as /resume <id>
-            import('../core/session/manager.js').then(({ loadSession }) => {
-              const snapshot = loadSession('.', sessionId);
-              if (snapshot) {
-                setAppState({
-                  sessionId: snapshot.id,
-                  messages: snapshot.messages,
-                  agentHistory: snapshot.history,
-                  writeMode: snapshot.writeMode as 'staging' | 'direct',
-                  permissionMode: snapshot.permissionMode,
-                  effortLevel: snapshot.effortLevel,
-                  plan: snapshot.plan,
-                  sessionTitle: snapshot.title,
-                  loading: false,
-                  statusText: undefined,
-                });
-              } else {
-                setAppState({ loading: false, statusText: 'Session not found' });
-              }
-            });
-          }}
-          onCancel={() => setAppState({ showSessionPicker: false })}
-        />
-      )}
-      {showGlobalSearch && (
-        <GlobalSearchDialog
-          query={searchQuery}
-          onQueryChange={(q) => {
-            setAppState({ searchQuery: q });
-            updateSearchMatches(q);
-          }}
-          matchCount={searchMatches.length}
-          focusIndex={searchFocusIdx}
-          onNextMatch={handleSearchNext}
-          onPrevMatch={handleSearchPrev}
-          onClose={() => {
-            setAppState({ showGlobalSearch: false, searchQuery: '' });
-            setSearchMatches([]);
-            setSearchFocusIdx(0);
-          }}
-        />
-      )}
-      {showTranscript && (
-        <TranscriptOverlay
-          agentHistory={agentHistory}
-          searchQuery={transcriptSearchQuery}
-          onSearchQueryChange={(q) => setAppState({ transcriptSearchQuery: q })}
-          searchActive={transcriptSearchActive}
-          onToggleSearch={() => setTranscriptSearchActive((v) => !v)}
-          onClose={() => {
-            setAppState({ showTranscript: false, transcriptSearchQuery: '' });
-            setTranscriptSearchActive(false);
-          }}
-        />
-      )}
-
-      {/* ── Permission confirmation dialog ── */}
-      {permissionRequest && (
-        <PermissionRequest
-          tool={permissionRequest.tool}
-          argsSummary={permissionRequest.argsSummary}
-          showAlwaysAllow={permissionRequest.showAlwaysAllow}
-          onApprove={(always) => {
-            permissionRequest.resolve(always ? 'allow-always' : 'allow');
-            setAppState({ permissionRequest: undefined });
-          }}
-          onDeny={() => {
-            permissionRequest.resolve('deny');
-            setAppState({ permissionRequest: undefined });
-          }}
-        />
-      )}
-    </Box>
-    </AlternateScreen>
+      </AlternateScreen>
     </ErrorBoundary>
   );
 };

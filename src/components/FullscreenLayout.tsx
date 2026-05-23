@@ -75,7 +75,13 @@ export const FullscreenLayout: React.FC<FullscreenLayoutProps> = ({
       </Box>
 
       {/* ── Bottom section: pinned footer, NEVER shrinks ── */}
-      <Box flexDirection="column" flexShrink={0} width="100%" height={footerReserve} overflow="hidden">
+      <Box
+        flexDirection="column"
+        flexShrink={0}
+        width="100%"
+        height={footerReserve}
+        overflow="hidden"
+      >
         <Box flexDirection="column" width="100%" overflow="hidden">
           {bottom}
         </Box>

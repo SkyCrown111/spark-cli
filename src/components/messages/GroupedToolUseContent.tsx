@@ -58,12 +58,11 @@ export const GroupedToolUseContent: React.FC<GroupedToolUseContentProps> = ({
     <Box flexDirection="column">
       {/* Group header */}
       <Box flexDirection="row" gap={1}>
-        <Text bold color="cyan">{'⏺'} {count}×</Text>
+        <Text bold color="cyan">
+          {'⏺'} {count}×
+        </Text>
         <Text bold>{toolName}</Text>
-        <Text
-          dimColor
-          underline={expanded}
-        >
+        <Text dimColor underline={expanded}>
           {expanded ? '▾ collapse' : '▸ expand'}
         </Text>
       </Box>
@@ -73,7 +72,9 @@ export const GroupedToolUseContent: React.FC<GroupedToolUseContentProps> = ({
         <Box flexDirection="column" paddingLeft={2}>
           {messages.map((msg, i) => (
             <Box key={msg.tool_call_id ?? i} flexDirection="column">
-              <Text dimColor>─ {i + 1}/{count} ─</Text>
+              <Text dimColor>
+                ─ {i + 1}/{count} ─
+              </Text>
               <UserToolResultMessage message={msg} expanded={false} />
             </Box>
           ))}

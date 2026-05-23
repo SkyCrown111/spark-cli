@@ -2,16 +2,13 @@ import chalk from 'chalk';
 import { loadMergedConfig } from '../config/load.js';
 import { buildWechatCocos } from '../engines/cocos/build-wechat.js';
 import { analyzeWechatBuild } from '../engines/wechat/build-analyzer.js';
-import {
-  compareToLimits,
-  formatBytes,
-  loadWechatRules,
-} from '../core/validate/wechat-limits.js';
+import { compareToLimits, formatBytes, loadWechatRules } from '../core/validate/wechat-limits.js';
 import { suggestWechatSplits } from '../engines/wechat/suggest-split.js';
 import { planGodotExport } from '../engines/godot/build.js';
 import { planUnrealBuild } from '../engines/unreal/build.js';
 import type { GlobalOptions } from '../utils/output.js';
 import { printJson, resolveProjectRoot } from '../utils/output.js';
+import { logger } from '../utils/logger.js';
 
 export async function runBuildWechat(opts: GlobalOptions): Promise<number> {
   const root = resolveProjectRoot(opts);
@@ -23,9 +20,9 @@ export async function runBuildWechat(opts: GlobalOptions): Promise<number> {
     return result.ok ? 0 : 1;
   }
 
-  console.log(chalk.bold('\nBuild WeChat\n'));
-  console.log(chalk.dim('  Command:'), result.command);
-  console.log(result.ok ? chalk.green('✓') : chalk.red('✗'), result.message);
+  logger.info(chalk.bold('\nBuild WeChat\n'));
+  logger.info(chalk.dim('  Command:'), result.command);
+  logger.info(result.ok ? chalk.green('✓') : chalk.red('✗'), result.message);
   return result.ok ? 0 : 1;
 }
 
@@ -42,18 +39,22 @@ export function runBuildAnalyze(opts: GlobalOptions): number {
       return checks.every((c) => c.ok || c.severity === 'info') ? 0 : 1;
     }
 
-    console.log(chalk.bold('\nBuild analyze (WeChat)\n'));
-    console.log(chalk.dim(`  Dir: ${sizes.buildDir}`));
-    console.log(`  Main:  ${formatBytes(sizes.mainBytes)}`);
+    logger.info(chalk.bold('\nBuild analyze (WeChat)\n'));
+    logger.info(chalk.dim(`  Dir: ${sizes.buildDir}`));
+    logger.info(`  Main:  ${formatBytes(sizes.mainBytes)}`);
     for (const s of sizes.subpackages) {
-      console.log(`  Sub "${s.name}": ${formatBytes(s.bytes)} (${s.root})`);
+      logger.info(`  Sub "${s.name}": ${formatBytes(s.bytes)} (${s.root})`);
     }
-    console.log(`  Total: ${formatBytes(sizes.totalBytes)}  (${sizes.fileCount} files)\n`);
+    logger.info(`  Total: ${formatBytes(sizes.totalBytes)}  (${sizes.fileCount} files)\n`);
 
     for (const c of checks) {
       if (c.severity === 'info' && c.ok) continue;
-      const icon = c.ok ? chalk.green('✓') : c.severity === 'error' ? chalk.red('✗') : chalk.yellow('⚠');
-      console.log(`  ${icon} ${c.message}`);
+      const icon = c.ok
+        ? chalk.green('✓')
+        : c.severity === 'error'
+          ? chalk.red('✗')
+          : chalk.yellow('⚠');
+      logger.info(`  ${icon} ${c.message}`);
     }
 
     const failed = checks.some((c) => !c.ok && c.severity === 'error');
@@ -64,7 +65,7 @@ export function runBuildAnalyze(opts: GlobalOptions): number {
       printJson({ error: msg });
       return 1;
     }
-    console.error(chalk.red(msg));
+    logger.error(chalk.red(msg));
     return 1;
   }
 }
@@ -78,9 +79,9 @@ export function runBuildGodot(opts: GlobalOptions, platform: string): number {
     return result.ok ? 0 : 1;
   }
 
-  console.log(chalk.bold('\nBuild Godot\n'));
-  console.log(chalk.dim('  Command:'), result.command);
-  console.log(result.ok ? chalk.green('✓') : chalk.red('✗'), result.message);
+  logger.info(chalk.bold('\nBuild Godot\n'));
+  logger.info(chalk.dim('  Command:'), result.command);
+  logger.info(result.ok ? chalk.green('✓') : chalk.red('✗'), result.message);
   return result.ok ? 0 : 1;
 }
 
@@ -93,9 +94,9 @@ export function runBuildUnreal(opts: GlobalOptions, target: string): number {
     return result.ok ? 0 : 1;
   }
 
-  console.log(chalk.bold('\nBuild Unreal\n'));
-  console.log(chalk.dim('  Command:'), result.command);
-  console.log(result.ok ? chalk.green('✓') : chalk.red('✗'), result.message);
+  logger.info(chalk.bold('\nBuild Unreal\n'));
+  logger.info(chalk.dim('  Command:'), result.command);
+  logger.info(result.ok ? chalk.green('✓') : chalk.red('✗'), result.message);
   return result.ok ? 0 : 1;
 }
 
@@ -108,12 +109,12 @@ export function runBuildSuggestSplit(opts: GlobalOptions): void {
     return;
   }
 
-  console.log(chalk.bold('\nSuggest subpackages\n'));
+  logger.info(chalk.bold('\nSuggest subpackages\n'));
   for (const s of suggestions) {
-    console.log(chalk.cyan(`  ${s.name}`), chalk.dim(`→ ${s.root}`));
-    console.log(chalk.dim(`    ${s.reason}`));
+    logger.info(chalk.cyan(`  ${s.name}`), chalk.dim(`→ ${s.root}`));
+    logger.info(chalk.dim(`    ${s.reason}`));
     if (s.estimatedAssets.length) {
-      console.log(chalk.dim(`    assets: ${s.estimatedAssets.join(', ')}`));
+      logger.info(chalk.dim(`    assets: ${s.estimatedAssets.join(', ')}`));
     }
   }
 }

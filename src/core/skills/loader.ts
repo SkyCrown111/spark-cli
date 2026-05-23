@@ -3,8 +3,8 @@
  *
  * Sources (lowest → highest precedence; later overrides same `name`):
  * 1. Bundled `skills/` next to the CLI (copied to `dist/skills/` at build)
- * 2. `~/.spark-cli/skills/`
- * 3. `<projectRoot>/.spark-cli/skills/`
+ * 2. `~/.spark/skills/`
+ * 3. `<projectRoot>/.spark/skills/`
  *
  * Same minimal frontmatter parser as the slash-command loader (kept
  * independent so changes to one don't ripple through the other).
@@ -22,7 +22,7 @@
 import { readFileSync, readdirSync, existsSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import type { Skill, SkillRegistry } from './registry.js';
-import { getGlobalSkillsDir } from '../../config/paths.js';
+import { getGlobalSkillsDir, getLegacyGlobalSkillsDir } from '../../config/paths.js';
 import { getBuiltinSkillsDir } from './builtin-dir.js';
 
 interface SkillFrontmatter {
@@ -72,7 +72,10 @@ export function parseSkillFile(raw: string): ParsedSkill {
     else if (key === 'disablemodelinvocation') fm.disableModelInvocation = parseBool(value);
     else if (key === 'userinvocable') fm.userInvocable = parseBool(value);
   }
-  const body = lines.slice(fmEnd + 1).join('\n').trim();
+  const body = lines
+    .slice(fmEnd + 1)
+    .join('\n')
+    .trim();
   return { frontmatter: fm, body };
 }
 
@@ -102,7 +105,9 @@ export function compileSkillTriggerPattern(raw: string | undefined): RegExp | un
 }
 
 function projectSkillsDir(projectRoot: string): string {
-  return join(projectRoot, '.spark-cli', 'skills');
+  return existsSync(join(projectRoot, '.spark', 'skills'))
+    ? join(projectRoot, '.spark', 'skills')
+    : join(projectRoot, '.spark-cli', 'skills');
 }
 
 export type SkillSourceLayer = 'bundled' | 'global' | 'project';
@@ -121,6 +126,10 @@ export function listSkillSourceRoots(projectRoot: string): SkillSourceRoot[] {
   if (bundled) out.push({ layer: 'bundled', dir: bundled });
   const globalDir = getGlobalSkillsDir();
   if (existsSync(globalDir)) out.push({ layer: 'global', dir: globalDir });
+  else {
+    const legacyGlobalDir = getLegacyGlobalSkillsDir();
+    if (existsSync(legacyGlobalDir)) out.push({ layer: 'global', dir: legacyGlobalDir });
+  }
   const proj = projectSkillsDir(projectRoot);
   if (existsSync(proj)) out.push({ layer: 'project', dir: proj });
   return out;
@@ -169,9 +178,7 @@ export function loadSkillsFromParentDir(registry: SkillRegistry, parentDir: stri
       body: parsed.body,
       triggers: parsed.frontmatter.triggers ?? [],
       ...(triggerPattern ? { triggerPattern } : {}),
-      ...(parsed.frontmatter.allowedTools
-        ? { allowedTools: parsed.frontmatter.allowedTools }
-        : {}),
+      ...(parsed.frontmatter.allowedTools ? { allowedTools: parsed.frontmatter.allowedTools } : {}),
       ...(parsed.frontmatter.disableModelInvocation !== undefined
         ? { disableModelInvocation: parsed.frontmatter.disableModelInvocation }
         : {}),
@@ -184,8 +191,8 @@ export function loadSkillsFromParentDir(registry: SkillRegistry, parentDir: stri
 }
 
 /**
- * Load skills from bundled dir, then `~/.spark-cli/skills/`, then project
- * `.spark-cli/skills/` (project wins on duplicate names).
+ * Load skills from bundled dir, then `~/.spark/skills/`, then project
+ * `.spark/skills/` (project wins on duplicate names).
  */
 export function loadSkillsFromDisk(registry: SkillRegistry, projectRoot: string): void {
   for (const { dir } of listSkillSourceRoots(projectRoot)) {

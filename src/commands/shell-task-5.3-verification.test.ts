@@ -1,12 +1,12 @@
 /**
  * Task 5.3 Verification Tests
- * 
+ *
  * Verifies that resumeAfterRerender is called AFTER all content is redrawn.
- * 
+ *
  * Requirements:
  * - Req 2.4: InputBox resumes only after welcome banner and history are fully rendered
  * - Req 3.4: InputBox resume during non-resize operations unaffected
- * 
+ *
  * Test Strategy:
  * - Mock InputBox and verify call sequence
  * - Verify resume happens after welcome banner redraw
@@ -127,7 +127,7 @@ describe('Task 5.3: Call resumeAfterRerender AFTER all content redrawn', () => {
 
     // Verify call order
     expect(writeCallOrder).toEqual(['clear', 'welcome', 'history', 'history', 'resume']);
-    
+
     // Verify resume happened after all content
     const clearIndex = writeCallOrder.indexOf('clear');
     const welcomeIndex = writeCallOrder.indexOf('welcome');
@@ -151,7 +151,7 @@ describe('Task 5.3: Call resumeAfterRerender AFTER all content redrawn', () => {
     mockStdout.write('\x1b[H\x1b[2J'); // clear
     mockStdout.write('Welcome to spark-cli\n'); // welcome banner
     mockStdout.write('history turn 1\n'); // history
-    
+
     if (draft) {
       mockInputBox.resumeAfterRerender(draft);
     }
@@ -170,7 +170,7 @@ describe('Task 5.3: Call resumeAfterRerender AFTER all content redrawn', () => {
       suspendForRerender: vi.fn(() => inputDraft),
       resumeAfterRerender: vi.fn((_draft: string) => {
         // When resume is called, all content should be rendered
-        contentFullyRendered = 
+        contentFullyRendered =
           writeCallOrder.includes('clear') &&
           writeCallOrder.includes('welcome') &&
           writeCallOrder.includes('history');

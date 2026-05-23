@@ -36,11 +36,14 @@ export const ThinkingToggle: React.FC<ThinkingToggleProps> = ({
 
   return (
     <Box flexDirection="row" gap={1}>
-      <Text dimColor bold>{icon}</Text>
-      <Text dimColor italic>{label}{tokenLabel}</Text>
-      {!expanded && !isStreaming && (
-        <Text dimColor>(enter to expand)</Text>
-      )}
+      <Text dimColor bold>
+        {icon}
+      </Text>
+      <Text dimColor italic>
+        {label}
+        {tokenLabel}
+      </Text>
+      {!expanded && !isStreaming && <Text dimColor>(enter to expand)</Text>}
     </Box>
   );
 };
@@ -71,17 +74,12 @@ export const ThinkingBlock: React.FC<ThinkingBlockProps> = ({
 
   return (
     <Box flexDirection="column" marginY={1}>
-      <ThinkingToggle
-        expanded={showThinking}
-        tokenCount={tokenCount}
-        isStreaming={isStreaming}
-      />
+      <ThinkingToggle expanded={showThinking} tokenCount={tokenCount} isStreaming={isStreaming} />
       {showThinking && content && (
-        <Box
-          flexDirection="column"
-          paddingLeft={2}
-        >
-          <Text dimColor italic wrap="wrap">{content}</Text>
+        <Box flexDirection="column" paddingLeft={2}>
+          <Text dimColor italic wrap="wrap">
+            {content}
+          </Text>
         </Box>
       )}
     </Box>

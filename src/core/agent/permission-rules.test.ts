@@ -50,7 +50,11 @@ describe('parseSpecifier', () => {
 
   it('parses WebFetch(domain:example.com) — domain pattern', () => {
     const result = parseSpecifier('WebFetch(domain:example.com)');
-    expect(result).toEqual({ kind: 'webfetch', toolPattern: 'web_fetch', domainPattern: 'example.com' });
+    expect(result).toEqual({
+      kind: 'webfetch',
+      toolPattern: 'web_fetch',
+      domainPattern: 'example.com',
+    });
   });
 
   it('parses Agent(Explore) — agent name pattern', () => {
@@ -115,9 +119,7 @@ describe('evaluateRules', () => {
   });
 
   it('returns undefined when no rule matches', () => {
-    const rules: ToolRule[] = [
-      { specifier: 'Tool(bash)', action: 'deny' },
-    ];
+    const rules: ToolRule[] = [{ specifier: 'Tool(bash)', action: 'deny' }];
     expect(evaluateRules(rules, 'read_file', ['src/foo.ts'])).toBe(undefined);
   });
 
@@ -131,9 +133,7 @@ describe('evaluateRules', () => {
   });
 
   it('wildcard rule matches everything', () => {
-    const rules: ToolRule[] = [
-      { specifier: 'Tool(*)', action: 'ask' },
-    ];
+    const rules: ToolRule[] = [{ specifier: 'Tool(*)', action: 'ask' }];
     expect(evaluateRules(rules, 'bash', [])).toBe('ask');
     expect(evaluateRules(rules, 'write_file', ['foo.ts'])).toBe('ask');
   });
@@ -152,6 +152,9 @@ describe('extractPathArgs', () => {
   });
 
   it('extracts multiple path keys', () => {
-    expect(extractPathArgs({ path: 'src/a.ts', target: 'dist/b.js' })).toEqual(['src/a.ts', 'dist/b.js']);
+    expect(extractPathArgs({ path: 'src/a.ts', target: 'dist/b.js' })).toEqual([
+      'src/a.ts',
+      'dist/b.js',
+    ]);
   });
 });

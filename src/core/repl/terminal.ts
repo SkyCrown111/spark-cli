@@ -37,8 +37,7 @@ function isCombiningCodePoint(cp: number): boolean {
 function isFullWidthCodePoint(cp: number): boolean {
   return (
     cp >= 0x1100 &&
-    (
-      cp <= 0x115f ||
+    (cp <= 0x115f ||
       cp === 0x2329 ||
       cp === 0x232a ||
       (cp >= 0x2e80 && cp <= 0x3247 && cp !== 0x303f) ||
@@ -53,8 +52,7 @@ function isFullWidthCodePoint(cp: number): boolean {
       (cp >= 0xffe0 && cp <= 0xffe6) ||
       (cp >= 0x1f300 && cp <= 0x1f64f) ||
       (cp >= 0x1f900 && cp <= 0x1f9ff) ||
-      (cp >= 0x20000 && cp <= 0x3fffd)
-    )
+      (cp >= 0x20000 && cp <= 0x3fffd))
   );
 }
 

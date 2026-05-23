@@ -18,10 +18,7 @@ import { appendReplayEvent } from '../../replay/log.js';
 import { runHooks } from '../../hooks/runner.js';
 import { processSkillBody, canModelInvoke } from '../../skills/processor.js';
 
-async function handler(
-  args: Record<string, unknown>,
-  ctx: ToolContext,
-): Promise<ToolResult> {
+async function handler(args: Record<string, unknown>, ctx: ToolContext): Promise<ToolResult> {
   const name = args.name;
   if (typeof name !== 'string' || !name.trim()) {
     return { content: 'load_skill: `name` must be a non-empty string', isError: true };
@@ -31,7 +28,11 @@ async function handler(
   }
   const skill = ctx.skills.get(name);
   if (!skill) {
-    const available = ctx.skills.list().map((s) => s.name).join(', ') || '(none)';
+    const available =
+      ctx.skills
+        .list()
+        .map((s) => s.name)
+        .join(', ') || '(none)';
     return {
       content: `load_skill: skill "${name}" not found. Available: ${available}`,
       isError: true,
@@ -101,11 +102,12 @@ export const loadSkillTool: RegisteredTool = {
     properties: {
       name: {
         type: 'string',
-        description: 'The skill name (folder name under .spark-cli/skills/).',
+        description: 'The skill name (folder name under .spark/skills/).',
       },
       arguments: {
         type: 'string',
-        description: 'Optional arguments passed to the skill for variable substitution ($ARGUMENTS, $0, $1, ...).',
+        description:
+          'Optional arguments passed to the skill for variable substitution ($ARGUMENTS, $0, $1, ...).',
       },
     },
     required: ['name'],

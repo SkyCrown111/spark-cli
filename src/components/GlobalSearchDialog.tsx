@@ -83,21 +83,17 @@ export const GlobalSearchDialog: React.FC<GlobalSearchDialogProps> = ({
     }
   });
 
-  const matchDisplay = matchCount > 0
-    ? `${focusIndex + 1}/${matchCount}`
-    : 'no matches';
+  const matchDisplay = matchCount > 0 ? `${focusIndex + 1}/${matchCount}` : 'no matches';
 
   return (
-    <Box
-      flexDirection="row"
-      gap={1}
-      borderStyle="single"
-      borderColor="yellow"
-      paddingX={1}
-    >
-      <Text color="yellow" bold>{'>'}</Text>
+    <Box flexDirection="row" gap={1} borderStyle="single" borderColor="yellow" paddingX={1}>
+      <Text color="yellow" bold>
+        {'>'}
+      </Text>
       <Text color="white">{query}</Text>
-      <Text color="white" bold>█</Text>
+      <Text color="white" bold>
+        █
+      </Text>
       <Box flexGrow={1} />
       <Text dimColor>{matchDisplay}</Text>
       <Text dimColor>n/N navigate · Esc close</Text>
@@ -149,11 +145,7 @@ export const SearchBox: React.FC<SearchBoxProps> = ({
   return (
     <Box flexDirection="row" gap={1}>
       <Text color="yellow">{'>'}</Text>
-      {query.length > 0 ? (
-        <Text>{query}</Text>
-      ) : (
-        <Text dimColor>{placeholder}</Text>
-      )}
+      {query.length > 0 ? <Text>{query}</Text> : <Text dimColor>{placeholder}</Text>}
       <Text bold>█</Text>
     </Box>
   );

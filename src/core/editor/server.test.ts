@@ -16,7 +16,7 @@ describe('startEditorServer', () => {
 
   it('serves health and staging API', async () => {
     root = mkdtempSync(join(tmpdir(), 'spark-cli-srv-'));
-    mkdirSync(join(root, '.spark-cli'), { recursive: true });
+    mkdirSync(join(root, '.spark'), { recursive: true });
     writeFileSync(join(root, 'spark-cli.config.yaml'), 'project:\n  engine: cocos-creator\n');
 
     const srv = await startEditorServer({ projectRoot: root, port: 0 });
@@ -28,7 +28,7 @@ describe('startEditorServer', () => {
 
   it('returns staging entries with action metadata', async () => {
     root = mkdtempSync(join(tmpdir(), 'spark-cli-srv-'));
-    mkdirSync(join(root, '.spark-cli'), { recursive: true });
+    mkdirSync(join(root, '.spark'), { recursive: true });
     writeFileSync(join(root, 'spark-cli.config.yaml'), 'project:\n  engine: cocos-creator\n');
 
     const srv = await startEditorServer({ projectRoot: root, port: 0 });
@@ -57,7 +57,7 @@ describe('startEditorServer', () => {
 
   it('blocks cross-origin writes to staging', async () => {
     root = mkdtempSync(join(tmpdir(), 'spark-cli-srv-'));
-    mkdirSync(join(root, '.spark-cli'), { recursive: true });
+    mkdirSync(join(root, '.spark'), { recursive: true });
     writeFileSync(join(root, 'spark-cli.config.yaml'), 'project:\n  engine: cocos-creator\n');
 
     const srv = await startEditorServer({ projectRoot: root, port: 0 });
@@ -77,7 +77,7 @@ describe('startEditorServer', () => {
 
   it('rejects project-escaping staged paths', async () => {
     root = mkdtempSync(join(tmpdir(), 'spark-cli-srv-'));
-    mkdirSync(join(root, '.spark-cli'), { recursive: true });
+    mkdirSync(join(root, '.spark'), { recursive: true });
     writeFileSync(join(root, 'spark-cli.config.yaml'), 'project:\n  engine: cocos-creator\n');
 
     const srv = await startEditorServer({ projectRoot: root, port: 0 });

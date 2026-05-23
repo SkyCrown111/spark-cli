@@ -13,10 +13,10 @@ import { getPlatform } from '../ink/terminal-querier.js';
 // ── Symbol mappings ────────────────────────────────────
 
 const MACOS_SYMBOLS: Record<string, string> = {
-  'ctrl':  '⌃',
-  'shift': '⇧',
-  'meta':  '⌥',
-  'alt':   '⌥',
+  ctrl: '⌃',
+  shift: '⇧',
+  meta: '⌥',
+  alt: '⌥',
 };
 
 // ── Formatting ─────────────────────────────────────────
@@ -51,7 +51,7 @@ export function formatShortcut(keyCombo: string): string {
   }
 
   return useSymbols
-    ? formattedParts.join('')   // macOS: ⌃C (no separator)
+    ? formattedParts.join('') // macOS: ⌃C (no separator)
     : formattedParts.join('+'); // Windows/Linux: Ctrl+C
 }
 
@@ -64,21 +64,21 @@ function capitalizeKey(key: string): string {
 
   // Special key names
   const specialNames: Record<string, string> = {
-    'enter':    'Enter',
-    'escape':   'Esc',
-    'tab':      'Tab',
-    'back':     'Bksp',
-    'delete':   'Del',
-    'pageup':   'PgUp',
-    'pagedown': 'PgDn',
-    'home':     'Home',
-    'end':      'End',
-    'insert':   'Ins',
-    'up':       '↑',
-    'down':     '↓',
-    'left':     '←',
-    'right':    '→',
-    'space':    'Space',
+    enter: 'Enter',
+    escape: 'Esc',
+    tab: 'Tab',
+    back: 'Bksp',
+    delete: 'Del',
+    pageup: 'PgUp',
+    pagedown: 'PgDn',
+    home: 'Home',
+    end: 'End',
+    insert: 'Ins',
+    up: '↑',
+    down: '↓',
+    left: '←',
+    right: '→',
+    space: 'Space',
   };
 
   return specialNames[key] ?? key.charAt(0).toUpperCase() + key.slice(1);
@@ -96,9 +96,6 @@ export function formatShortcuts(shortcuts: string[]): string {
  * Format a shortcut with its action description.
  * E.g., ("ctrl+c", "Interrupt") → "Ctrl+C Interrupt"
  */
-export function formatShortcutWithDescription(
-  keyCombo: string,
-  description: string,
-): string {
+export function formatShortcutWithDescription(keyCombo: string, description: string): string {
   return `${formatShortcut(keyCombo)} ${description}`;
 }

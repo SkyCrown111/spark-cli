@@ -13,9 +13,9 @@ describe('Box component', () => {
     const { lastFrame } = render(
       <Box>
         <Text>Hello World</Text>
-      </Box>
+      </Box>,
     );
-    
+
     expect(lastFrame()).toContain('Hello World');
   });
 
@@ -24,9 +24,9 @@ describe('Box component', () => {
       <Box flexDirection="column">
         <Text>Line 1</Text>
         <Text>Line 2</Text>
-      </Box>
+      </Box>,
     );
-    
+
     const output = lastFrame();
     expect(output).toContain('Line 1');
     expect(output).toContain('Line 2');
@@ -36,9 +36,9 @@ describe('Box component', () => {
     const { lastFrame } = render(
       <Box padding={2}>
         <Text>Padded</Text>
-      </Box>
+      </Box>,
     );
-    
+
     expect(lastFrame()).toContain('Padded');
   });
 
@@ -46,9 +46,9 @@ describe('Box component', () => {
     const { lastFrame } = render(
       <Box borderStyle="single">
         <Text>Bordered</Text>
-      </Box>
+      </Box>,
     );
-    
+
     const output = lastFrame()!;
     expect(output).toContain('Bordered');
     // Border characters should be present
@@ -66,9 +66,9 @@ describe('Box component', () => {
         <Text>First</Text>
         <Text>Second</Text>
         <Text>Third</Text>
-      </Box>
+      </Box>,
     );
-    
+
     const output = lastFrame();
     expect(output).toContain('First');
     expect(output).toContain('Second');
@@ -81,9 +81,9 @@ describe('Box component', () => {
         <Box>
           <Text>Nested</Text>
         </Box>
-      </Box>
+      </Box>,
     );
-    
+
     expect(lastFrame()).toContain('Nested');
   });
 });

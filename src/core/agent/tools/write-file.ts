@@ -15,6 +15,7 @@ import type { RegisteredTool, ToolContext, ToolResult } from '../tool-registry.j
 import { stageWriteFile } from '../../staging/patch-manager.js';
 import { appendReplayEvent } from '../../replay/log.js';
 import { resolveProjectPath } from './read-file.js';
+import { getErrorMessage } from '../../../utils/errors.js';
 
 const DEFAULT_MAX_WRITE_BYTES = 5 * 1024 * 1024; // 5 MB
 
@@ -24,10 +25,7 @@ function getMaxWriteBytes(ctx: ToolContext): number {
   return typeof v === 'number' && v > 0 ? v : DEFAULT_MAX_WRITE_BYTES;
 }
 
-async function handler(
-  args: Record<string, unknown>,
-  ctx: ToolContext,
-): Promise<ToolResult> {
+async function handler(args: Record<string, unknown>, ctx: ToolContext): Promise<ToolResult> {
   const path = args.path;
   const content = args.content;
 
@@ -56,7 +54,7 @@ async function handler(
       stageWriteFile(ctx.projectRoot, r.rel, content);
     } catch (e) {
       return {
-        content: `write_file: staging failed: ${(e as Error).message}`,
+        content: `write_file: staging failed: ${getErrorMessage(e)}`,
         isError: true,
       };
     }
@@ -82,7 +80,7 @@ async function handler(
     writeFileSync(target, content, 'utf8');
   } catch (e) {
     return {
-      content: `write_file: direct write failed: ${(e as Error).message}`,
+      content: `write_file: direct write failed: ${getErrorMessage(e)}`,
       isError: true,
     };
   }
@@ -104,7 +102,7 @@ async function handler(
 export const writeFileTool: RegisteredTool = {
   name: 'write_file',
   description:
-    'Create or overwrite a file. Defaults to staging (.spark-cli/staging/) — the project tree is only updated when the user runs /apply or starts in --auto/`/auto` mode for direct writes.',
+    'Create or overwrite a file. Defaults to staging (.spark/staging/) — the project tree is only updated when the user runs /apply or starts in --auto/`/auto` mode for direct writes.',
   planModeAllowed: false,
   mutates: true,
   parameters: {

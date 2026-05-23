@@ -10,10 +10,7 @@
 import type { RegisteredTool, ToolContext, ToolResult } from '../tool-registry.js';
 import { getBackgroundManager } from '../background-tasks.js';
 
-async function handler(
-  args: Record<string, unknown>,
-  _ctx: ToolContext,
-): Promise<ToolResult> {
+async function handler(args: Record<string, unknown>, _ctx: ToolContext): Promise<ToolResult> {
   const id = args.id;
   if (typeof id !== 'string' || id.length === 0) {
     return { content: 'task_output: `id` must be a non-empty string', isError: true };
@@ -27,7 +24,9 @@ async function handler(
 
   const { info, stdout, stderr, truncated } = result;
   const parts: string[] = [];
-  parts.push(`task ${info.id} status=${info.status}${info.exitCode != null ? ` exit=${info.exitCode}` : ''}`);
+  parts.push(
+    `task ${info.id} status=${info.status}${info.exitCode != null ? ` exit=${info.exitCode}` : ''}`,
+  );
   if (stdout) parts.push(stdout.replace(/\s+$/, ''));
   if (stderr) parts.push(`[stderr]\n${stderr.replace(/\s+$/, '')}`);
   if (!stdout && !stderr) parts.push('(no new output)');

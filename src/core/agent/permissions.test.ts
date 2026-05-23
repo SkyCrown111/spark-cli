@@ -196,6 +196,11 @@ describe('protected paths', () => {
     expect(isProtectedPath('.git')).toBe(true);
   });
 
+  it('detects .spark as protected', () => {
+    expect(isProtectedPath('.spark/staging/manifest.json')).toBe(true);
+    expect(isProtectedPath('.spark')).toBe(true);
+  });
+
   it('does not flag normal src paths', () => {
     expect(isProtectedPath('src/foo.ts')).toBe(false);
     expect(isProtectedPath('package.json')).toBe(false);

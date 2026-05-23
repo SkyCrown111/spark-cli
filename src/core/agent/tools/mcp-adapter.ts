@@ -12,6 +12,7 @@
 import type { RegisteredTool, ToolContext, ToolResult } from '../tool-registry.js';
 import { handleMcpTool, listMcpTools } from '../../../mcp/tools.js';
 import { isMcpWriteToolName } from '../permissions.js';
+import { getErrorMessage } from '../../../utils/errors.js';
 
 interface McpToolMeta {
   name: string;
@@ -26,11 +27,12 @@ function asParameters(schema: Record<string, unknown> | undefined): Record<strin
   return { type: 'object', properties: {}, additionalProperties: false };
 }
 
-function flattenContent(
-  result: { content?: Array<{ type: string; text?: string }>; isError?: boolean },
-): { text: string; isError: boolean } {
+function flattenContent(result: {
+  content?: Array<{ type: string; text?: string }>;
+  isError?: boolean;
+}): { text: string; isError: boolean } {
   const text = (result.content ?? [])
-    .map((c) => (c.type === 'text' ? c.text ?? '' : ''))
+    .map((c) => (c.type === 'text' ? (c.text ?? '') : ''))
     .filter(Boolean)
     .join('\n');
   return { text: text || '(no content)', isError: !!result.isError };
@@ -51,7 +53,7 @@ export function wrapMcpTool(meta: McpToolMeta): RegisteredTool {
         return { content: text, isError };
       } catch (e) {
         return {
-          content: `MCP tool "${meta.name}" failed: ${(e as Error).message}`,
+          content: `MCP tool "${meta.name}" failed: ${getErrorMessage(e)}`,
           isError: true,
         };
       }

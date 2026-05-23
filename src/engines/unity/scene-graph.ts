@@ -255,9 +255,10 @@ function insertComponentRef(goDoc: UnityDoc, newFileId: string): string[] {
 
 function buildMonoBehaviourDoc(input: AddComponentInput): string[] {
   const header = `--- !u!${input.classId} &${input.newFileId}`;
-  const scriptRef = input.scriptGuid && input.scriptFileId
-    ? `{fileID: ${input.scriptFileId}, guid: ${input.scriptGuid}, type: 3}`
-    : '{fileID: 0}';
+  const scriptRef =
+    input.scriptGuid && input.scriptFileId
+      ? `{fileID: ${input.scriptFileId}, guid: ${input.scriptGuid}, type: 3}`
+      : '{fileID: 0}';
   return [
     header,
     'MonoBehaviour:',
@@ -275,7 +276,12 @@ function buildMonoBehaviourDoc(input: AddComponentInput): string[] {
 
 /** Convenience: project the parsed graph into the same shape MCP scene_analyze uses. */
 export function unitySceneToMcpTree(scene: UnitySceneGraph): {
-  gameObjects: Array<{ fileId: string; name: string; transformFileId?: string; components: string[] }>;
+  gameObjects: Array<{
+    fileId: string;
+    name: string;
+    transformFileId?: string;
+    components: string[];
+  }>;
 } {
   return {
     gameObjects: scene.gameObjects.map((g) => ({

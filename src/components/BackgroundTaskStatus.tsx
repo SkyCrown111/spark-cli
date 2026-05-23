@@ -31,20 +31,23 @@ export interface BackgroundTaskStatusProps {
  * Renders a compact row for each task with status indicator.
  * Only visible when there are active background tasks.
  */
-export const BackgroundTaskStatus: React.FC<BackgroundTaskStatusProps> = ({
-  tasks,
-}) => {
+export const BackgroundTaskStatus: React.FC<BackgroundTaskStatusProps> = ({ tasks }) => {
   if (tasks.length === 0) return null;
 
   return (
     <Box flexDirection="column" paddingX={1}>
       <Text dimColor>Background tasks:</Text>
       {tasks.map((task) => {
-        const statusIcon = task.status === 'running' ? '●' :
-                          task.status === 'exited' ? '○' :
-                          task.status === 'error' ? '✗' : '○';
-        const statusColor = task.status === 'running' ? 'green' :
-                           task.status === 'error' ? 'red' : 'gray';
+        const statusIcon =
+          task.status === 'running'
+            ? '●'
+            : task.status === 'exited'
+              ? '○'
+              : task.status === 'error'
+                ? '✗'
+                : '○';
+        const statusColor =
+          task.status === 'running' ? 'green' : task.status === 'error' ? 'red' : 'gray';
 
         return (
           <Box key={task.id} gap={1}>

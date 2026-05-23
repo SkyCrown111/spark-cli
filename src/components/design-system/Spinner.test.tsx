@@ -52,9 +52,7 @@ describe('Spinner component', () => {
   });
 
   it('renders with all props', () => {
-    const { lastFrame } = render(
-      <Spinner type="dots" label="Custom" color="yellow" />
-    );
+    const { lastFrame } = render(<Spinner type="dots" label="Custom" color="yellow" />);
     expect(lastFrame()).toContain('Custom');
   });
 });

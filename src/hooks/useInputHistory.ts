@@ -37,32 +37,32 @@ export interface UseInputHistoryReturn {
 
 /**
  * Hook to manage input history with navigation
- * 
+ *
  * Provides command history functionality similar to bash/zsh,
  * with up/down arrow navigation and automatic deduplication.
- * 
+ *
  * @param options - Configuration options
  * @returns History state and management functions
- * 
+ *
  * @example
  * ```tsx
- * const { 
- *   history, 
- *   addToHistory, 
- *   navigateUp, 
+ * const {
+ *   history,
+ *   addToHistory,
+ *   navigateUp,
  *   navigateDown,
- *   getCurrentEntry 
+ *   getCurrentEntry
  * } = useInputHistory({
  *   maxHistory: 100
  * });
- * 
+ *
  * // Add command to history
  * addToHistory('spark-cli gen player');
- * 
+ *
  * // Navigate history
  * const previousCommand = navigateUp();
  * const nextCommand = navigateDown();
- * 
+ *
  * // Get current entry
  * const current = getCurrentEntry();
  * ```
@@ -94,49 +94,55 @@ export const useInputHistory = ({
   /**
    * Save history to storage if persistence is enabled
    */
-  const saveHistory = useCallback((newHistory: string[]) => {
-    if (persist && typeof localStorage !== 'undefined') {
-      try {
-        localStorage.setItem(storageKey, JSON.stringify(newHistory));
-      } catch (error) {
-        // Ignore storage errors
+  const saveHistory = useCallback(
+    (newHistory: string[]) => {
+      if (persist && typeof localStorage !== 'undefined') {
+        try {
+          localStorage.setItem(storageKey, JSON.stringify(newHistory));
+        } catch (error) {
+          // Ignore storage errors
+        }
       }
-    }
-  }, [persist, storageKey]);
+    },
+    [persist, storageKey],
+  );
 
   /**
    * Add a new entry to history
    * Deduplicates consecutive identical entries
    */
-  const addToHistory = useCallback((entry: string) => {
-    const trimmed = entry.trim();
-    
-    // Don't add empty entries
-    if (!trimmed) {
-      return;
-    }
+  const addToHistory = useCallback(
+    (entry: string) => {
+      const trimmed = entry.trim();
 
-    setHistory(prev => {
-      // Don't add if it's the same as the most recent entry
-      if (prev.length > 0 && prev[0] === trimmed) {
-        return prev;
+      // Don't add empty entries
+      if (!trimmed) {
+        return;
       }
 
-      // Add to front (newest first)
-      const newHistory = [trimmed, ...prev];
-      
-      // Trim to max length
-      const trimmedHistory = newHistory.slice(0, maxHistory);
-      
-      // Save to storage
-      saveHistory(trimmedHistory);
-      
-      return trimmedHistory;
-    });
+      setHistory((prev) => {
+        // Don't add if it's the same as the most recent entry
+        if (prev.length > 0 && prev[0] === trimmed) {
+          return prev;
+        }
 
-    // Reset navigation
-    setHistoryIndex(-1);
-  }, [maxHistory, saveHistory]);
+        // Add to front (newest first)
+        const newHistory = [trimmed, ...prev];
+
+        // Trim to max length
+        const trimmedHistory = newHistory.slice(0, maxHistory);
+
+        // Save to storage
+        saveHistory(trimmedHistory);
+
+        return trimmedHistory;
+      });
+
+      // Reset navigation
+      setHistoryIndex(-1);
+    },
+    [maxHistory, saveHistory],
+  );
 
   /**
    * Navigate up in history (to older entries)
@@ -147,7 +153,7 @@ export const useInputHistory = ({
       return undefined;
     }
 
-    setHistoryIndex(prev => {
+    setHistoryIndex((prev) => {
       const newIndex = prev < history.length - 1 ? prev + 1 : prev;
       return newIndex;
     });
@@ -166,8 +172,8 @@ export const useInputHistory = ({
       return undefined;
     }
 
-    setHistoryIndex(prev => prev - 1);
-    
+    setHistoryIndex((prev) => prev - 1);
+
     const newIndex = historyIndex - 1;
     return newIndex >= 0 ? history[newIndex] : undefined;
   }, [history, historyIndex]);
@@ -185,7 +191,7 @@ export const useInputHistory = ({
   const clearHistory = useCallback(() => {
     setHistory([]);
     setHistoryIndex(-1);
-    
+
     if (persist && typeof localStorage !== 'undefined') {
       try {
         localStorage.removeItem(storageKey);

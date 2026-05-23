@@ -57,9 +57,7 @@ describe('compactHistory', () => {
       content: '[Conversation summary]\nPREFIX SUMMARY',
     });
     // Tail preserved verbatim.
-    expect(out.history.slice(1)).toEqual(
-      swapped.slice(swapped.length - DEFAULT_RECENT_N),
-    );
+    expect(out.history.slice(1)).toEqual(swapped.slice(swapped.length - DEFAULT_RECENT_N));
   });
 
   it('renders tool calls and tool messages into the transcript', async () => {
@@ -149,9 +147,7 @@ describe('compactHistory', () => {
   });
 
   it('falls back to a placeholder when the model returns empty content', async () => {
-    const h: ChatMessage[] = Array.from({ length: 10 }, (_, i) =>
-      userMsg(`m${i}`),
-    );
+    const h: ChatMessage[] = Array.from({ length: 10 }, (_, i) => userMsg(`m${i}`));
     const out = await compactHistory(h, {
       completeFn: fixedCompletion({
         content: '',
@@ -159,8 +155,6 @@ describe('compactHistory', () => {
       } as ProviderResponse),
     });
     expect(out.summary).toBe('(no summary produced)');
-    expect((out.history[0] as { content: string }).content).toContain(
-      '(no summary produced)',
-    );
+    expect((out.history[0] as { content: string }).content).toContain('(no summary produced)');
   });
 });

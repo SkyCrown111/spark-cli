@@ -9,6 +9,7 @@
  */
 
 import React, { createContext, useContext, useRef, useCallback } from 'react';
+import { logger } from '../utils/logger.js';
 import type { KeybindingContextName } from './types.js';
 import { KeybindingResolver } from './resolver.js';
 import { loadUserBindings } from './loadUserBindings.js';
@@ -66,9 +67,9 @@ function createResolver(): KeybindingResolver {
   if (validation.issues.length > 0) {
     for (const issue of validation.issues) {
       if (issue.severity === 'error') {
-        console.error(`Keybinding error: ${issue.message}`);
+        logger.error(`Keybinding error: ${issue.message}`);
       } else {
-        console.warn(`Keybinding warning: ${issue.message}`);
+        logger.warn(`Keybinding warning: ${issue.message}`);
       }
     }
   }
@@ -93,18 +94,27 @@ export const KeybindingProvider: React.FC<KeybindingProviderProps> = ({ children
   // Action handlers registry
   const handlersRef = useRef<Map<string, Set<() => void>>>(new Map());
 
-  const registerContext = useCallback((context: KeybindingContextName) => {
-    resolver.pushContext(context);
-  }, [resolver]);
+  const registerContext = useCallback(
+    (context: KeybindingContextName) => {
+      resolver.pushContext(context);
+    },
+    [resolver],
+  );
 
-  const unregisterContext = useCallback((context: KeybindingContextName) => {
-    resolver.popContext(context);
-  }, [resolver]);
+  const unregisterContext = useCallback(
+    (context: KeybindingContextName) => {
+      resolver.popContext(context);
+    },
+    [resolver],
+  );
 
-  const resolveKeyEvent = useCallback((input: string, key: InkKeyEvent): string | undefined => {
-    const event = inkEventToKeyCombo(input, key);
-    return resolver.resolve(event);
-  }, [resolver]);
+  const resolveKeyEvent = useCallback(
+    (input: string, key: InkKeyEvent): string | undefined => {
+      const event = inkEventToKeyCombo(input, key);
+      return resolver.resolve(event);
+    },
+    [resolver],
+  );
 
   const dispatchAction = useCallback((action: string): boolean => {
     const handlers = handlersRef.current.get(action);
@@ -123,18 +133,15 @@ export const KeybindingProvider: React.FC<KeybindingProviderProps> = ({ children
     handlersRef.current.set(action, existing);
   }, []);
 
-  const unregisterActionHandler = useCallback(
-    (action: string, handler: () => void): void => {
-      const existing = handlersRef.current.get(action);
-      if (existing) {
-        existing.delete(handler);
-        if (existing.size === 0) {
-          handlersRef.current.delete(action);
-        }
+  const unregisterActionHandler = useCallback((action: string, handler: () => void): void => {
+    const existing = handlersRef.current.get(action);
+    if (existing) {
+      existing.delete(handler);
+      if (existing.size === 0) {
+        handlersRef.current.delete(action);
       }
-    },
-    [],
-  );
+    }
+  }, []);
 
   const value: KeybindingContextValue = {
     resolver,
@@ -146,9 +153,5 @@ export const KeybindingProvider: React.FC<KeybindingProviderProps> = ({ children
     unregisterActionHandler,
   };
 
-  return (
-    <KeybindingCtx.Provider value={value}>
-      {children}
-    </KeybindingCtx.Provider>
-  );
+  return <KeybindingCtx.Provider value={value}>{children}</KeybindingCtx.Provider>;
 };

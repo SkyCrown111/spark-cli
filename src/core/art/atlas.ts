@@ -23,7 +23,10 @@ export interface AtlasPackResult {
 }
 
 /** Naive row packer — places sprites left-to-right, wraps rows. */
-export function packAtlasGrid(sprites: AtlasSpriteInput[], pad = 2): Omit<AtlasPackResult, 'stagedPath' | 'format'> {
+export function packAtlasGrid(
+  sprites: AtlasSpriteInput[],
+  pad = 2,
+): Omit<AtlasPackResult, 'stagedPath' | 'format'> {
   let x = pad;
   let y = pad;
   let rowH = 0;
@@ -47,7 +50,10 @@ export function packAtlasGrid(sprites: AtlasSpriteInput[], pad = 2): Omit<AtlasP
   return { width: maxW, height: maxY, sprites: placed };
 }
 
-export function atlasToCocosPlist(result: Omit<AtlasPackResult, 'stagedPath' | 'format'>, textureName: string): string {
+export function atlasToCocosPlist(
+  result: Omit<AtlasPackResult, 'stagedPath' | 'format'>,
+  textureName: string,
+): string {
   const frames: Record<string, unknown> = {};
   for (const s of result.sprites) {
     frames[`${s.name}.png`] = {

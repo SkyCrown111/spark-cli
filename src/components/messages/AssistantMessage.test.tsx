@@ -13,14 +13,14 @@ import type { AssistantMessage as AssistantMessageType } from '../../core/provid
 
 // Mock ink-markdown to avoid ESM top-level await issues in tests
 vi.mock('ink-markdown', () => ({
-  default: ({ children }: { children: string }) => <>{children}</>
+  default: ({ children }: { children: string }) => <>{children}</>,
 }));
 
 describe('AssistantMessage component', () => {
   it('renders simple text message', () => {
     const message: AssistantMessageType = {
       role: 'assistant',
-      content: 'Hello, user!'
+      content: 'Hello, user!',
     };
 
     const { lastFrame } = render(<AssistantMessage message={message} />);
@@ -32,7 +32,7 @@ describe('AssistantMessage component', () => {
   it('renders markdown formatted message', () => {
     const message: AssistantMessageType = {
       role: 'assistant',
-      content: '**Bold text** and *italic text*'
+      content: '**Bold text** and *italic text*',
     };
 
     const { lastFrame } = render(<AssistantMessage message={message} />);
@@ -51,9 +51,9 @@ describe('AssistantMessage component', () => {
         {
           id: 'call_123',
           type: 'function',
-          function: { name: 'search', arguments: '{}' }
-        }
-      ]
+          function: { name: 'search', arguments: '{}' },
+        },
+      ],
     };
 
     const { lastFrame } = render(<AssistantMessage message={message} />);
@@ -71,14 +71,14 @@ describe('AssistantMessage component', () => {
         {
           id: 'call_1',
           type: 'function',
-          function: { name: 'tool1', arguments: '{}' }
+          function: { name: 'tool1', arguments: '{}' },
         },
         {
           id: 'call_2',
           type: 'function',
-          function: { name: 'tool2', arguments: '{}' }
-        }
-      ]
+          function: { name: 'tool2', arguments: '{}' },
+        },
+      ],
     };
 
     const { lastFrame } = render(<AssistantMessage message={message} />);
@@ -96,9 +96,9 @@ describe('AssistantMessage component', () => {
         {
           id: 'call_123',
           type: 'function',
-          function: { name: 'search', arguments: '{}' }
-        }
-      ]
+          function: { name: 'search', arguments: '{}' },
+        },
+      ],
     };
 
     const { lastFrame } = render(<AssistantMessage message={message} />);
@@ -110,9 +110,7 @@ describe('AssistantMessage component', () => {
   it('renders message with content parts', () => {
     const message: AssistantMessageType = {
       role: 'assistant',
-      content: [
-        { type: 'text', text: 'Here is the answer.' }
-      ]
+      content: [{ type: 'text', text: 'Here is the answer.' }],
     };
 
     const { lastFrame } = render(<AssistantMessage message={message} />);
@@ -124,7 +122,7 @@ describe('AssistantMessage component', () => {
   it('handles empty message', () => {
     const message: AssistantMessageType = {
       role: 'assistant',
-      content: ''
+      content: '',
     };
 
     const { lastFrame } = render(<AssistantMessage message={message} />);
@@ -135,7 +133,7 @@ describe('AssistantMessage component', () => {
   it('handles whitespace-only content', () => {
     const message: AssistantMessageType = {
       role: 'assistant',
-      content: '   \n\n   '
+      content: '   \n\n   ',
     };
 
     const { lastFrame } = render(<AssistantMessage message={message} />);
@@ -148,7 +146,7 @@ describe('AssistantMessage component', () => {
   it('renders multiline markdown', () => {
     const message: AssistantMessageType = {
       role: 'assistant',
-      content: '# Heading\n\nParagraph text\n\n- Item 1\n- Item 2'
+      content: '# Heading\n\nParagraph text\n\n- Item 1\n- Item 2',
     };
 
     const { lastFrame } = render(<AssistantMessage message={message} />);
@@ -163,8 +161,8 @@ describe('AssistantMessage component', () => {
       role: 'assistant',
       content: [
         { type: 'thinking', text: 'Let me reason about this...' },
-        { type: 'text', text: 'Here is my answer.' }
-      ]
+        { type: 'text', text: 'Here is my answer.' },
+      ],
     };
 
     const { lastFrame } = render(<AssistantMessage message={message} />);

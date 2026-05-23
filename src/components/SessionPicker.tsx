@@ -31,11 +31,7 @@ export interface SessionPickerProps {
 
 // ── Component ──────────────────────────────────────────
 
-export const SessionPicker: React.FC<SessionPickerProps> = ({
-  sessions,
-  onSelect,
-  onCancel,
-}) => {
+export const SessionPicker: React.FC<SessionPickerProps> = ({ sessions, onSelect, onCancel }) => {
   const [focusIndex, setFocusIndex] = useState(0);
 
   useInput((input, key) => {
@@ -75,7 +71,9 @@ export const SessionPicker: React.FC<SessionPickerProps> = ({
   return (
     <Box flexDirection="column" borderStyle="round" borderColor="cyan" paddingX={1}>
       <Box marginBottom={1}>
-        <Text bold color="cyan">Resume Session</Text>
+        <Text bold color="cyan">
+          Resume Session
+        </Text>
         <Text dimColor> — ↑↓ navigate, Enter select, Esc cancel</Text>
       </Box>
 
@@ -89,9 +87,7 @@ export const SessionPicker: React.FC<SessionPickerProps> = ({
 
           return (
             <Box key={session.id} gap={1}>
-              <Text color={isFocused ? 'cyan' : 'dim'}>
-                {isFocused ? '❯' : ' '}
-              </Text>
+              <Text color={isFocused ? 'cyan' : 'dim'}>{isFocused ? '❯' : ' '}</Text>
               <Text color={isFocused ? 'white' : 'dim'} bold={isFocused}>
                 {idx}
               </Text>
@@ -106,9 +102,7 @@ export const SessionPicker: React.FC<SessionPickerProps> = ({
         })
       )}
 
-      {sessions.length > 10 && (
-        <Text dimColor>... and {sessions.length - 10} more</Text>
-      )}
+      {sessions.length > 10 && <Text dimColor>... and {sessions.length - 10} more</Text>}
     </Box>
   );
 };

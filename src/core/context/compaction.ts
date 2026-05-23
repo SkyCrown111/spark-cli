@@ -107,8 +107,7 @@ export async function compactHistory(
   //     summary by skipping it from the kept tail.
   if (tail.length > 0 && tail[0]?.role === 'user') {
     const folded = tail[0];
-    const foldedText =
-      typeof folded.content === 'string' ? folded.content : '';
+    const foldedText = typeof folded.content === 'string' ? folded.content : '';
     tail = tail.slice(1);
     return {
       history: [
@@ -124,10 +123,7 @@ export async function compactHistory(
   }
 
   return {
-    history: [
-      { role: 'user', content: `[Conversation summary]\n${summary}` },
-      ...tail,
-    ],
+    history: [{ role: 'user', content: `[Conversation summary]\n${summary}` }, ...tail],
     summary,
     compactedCount: prefix.length,
   };

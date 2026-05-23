@@ -2,6 +2,7 @@ import { runAgentTaskPrompt } from '../core/agent/run-task.js';
 import { buildUiAgentPrompt } from '../core/agent/task-prompts.js';
 import { resolveVisualContext } from '../core/vision/visual-context.js';
 import { loadMergedConfig } from '../config/load.js';
+import { logger } from '../utils/logger.js';
 import type { GlobalOptions } from '../utils/output.js';
 import { printJson, resolveProjectRoot } from '../utils/output.js';
 import { SparkCLIError } from '../utils/errors.js';
@@ -34,7 +35,7 @@ export async function runUi(opts: UiOptions, prompt: string): Promise<void> {
         summary: visualContext.summary,
       });
     } else {
-      console.log(`Dry run — ${visualContext.source} input parsed (no LLM call)`);
+      logger.info(`Dry run — ${visualContext.source} input parsed (no LLM call)`);
     }
     return;
   }

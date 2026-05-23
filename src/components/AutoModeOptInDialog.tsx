@@ -34,7 +34,9 @@ export const AutoModeOptInDialog: React.FC<AutoModeOptInDialogProps> = ({
   return (
     <Box flexDirection="column" paddingX={1}>
       <Box>
-        <Text bold color="yellow">! Enable Auto Mode?</Text>
+        <Text bold color="yellow">
+          ! Enable Auto Mode?
+        </Text>
       </Box>
 
       <Box marginTop={1}>

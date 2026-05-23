@@ -7,6 +7,7 @@ import { runAgentTurnForCli } from '../core/agent/run-turn.js';
 import { startBackgroundAgent } from '../core/agent/background-agent.js';
 import type { GlobalOptions } from '../utils/output.js';
 import { printJson, resolveProjectRoot } from '../utils/output.js';
+import { logger } from '../utils/logger.js';
 
 interface FarmNode {
   id: string;
@@ -56,7 +57,7 @@ export async function runAgentFarm(opts: GlobalOptions, planPath: string): Promi
   const config = await loadMergedConfig(root);
   const abs = join(root, planPath);
   if (!existsSync(abs)) {
-    console.error(chalk.red(`Plan not found: ${planPath}`));
+    logger.error(chalk.red(`Plan not found: ${planPath}`));
     return 1;
   }
   const plan = parseFarmYaml(readFileSync(abs, 'utf8'));
@@ -64,16 +65,12 @@ export async function runAgentFarm(opts: GlobalOptions, planPath: string): Promi
   const results: Record<string, unknown> = {};
 
   const ready = () =>
-    plan.nodes.filter(
-      (n) =>
-        !done.has(n.id) &&
-        (n.depends_on ?? []).every((d) => done.has(d)),
-    );
+    plan.nodes.filter((n) => !done.has(n.id) && (n.depends_on ?? []).every((d) => done.has(d)));
 
   while (done.size < plan.nodes.length) {
     const batch = ready();
     if (batch.length === 0) {
-      console.error(chalk.red('Cycle or missing dependency in farm plan'));
+      logger.error(chalk.red('Cycle or missing dependency in farm plan'));
       return 1;
     }
     await Promise.all(
@@ -120,6 +117,6 @@ export async function runAgentFarm(opts: GlobalOptions, planPath: string): Promi
     printJson({ ok: true, results });
     return 0;
   }
-  console.log(chalk.green(`✓ Farm completed ${plan.nodes.length} node(s)`));
+  logger.info(chalk.green(`✓ Farm completed ${plan.nodes.length} node(s)`));
   return 0;
 }

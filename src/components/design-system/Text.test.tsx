@@ -43,7 +43,7 @@ describe('Text component', () => {
     const { lastFrame } = render(
       <Text bold color="green">
         Styled Text
-      </Text>
+      </Text>,
     );
     expect(lastFrame()).toContain('Styled Text');
   });
@@ -60,7 +60,7 @@ describe('Text component', () => {
 
   it('renders with wrap truncate', () => {
     const { lastFrame } = render(
-      <Text wrap="truncate">This is a very long text that should be truncated</Text>
+      <Text wrap="truncate">This is a very long text that should be truncated</Text>,
     );
     expect(lastFrame()).toContain('This is a very long text');
   });

@@ -19,7 +19,7 @@
  *     same as `scene-graph.ts` already does. Round-trip fidelity is the goal,
  *     not full YAML support.
  *   - All callers go through `scene-writer.ts` so writes stage to
- *     `.spark-cli/staging/`.
+ *     `.spark/staging/`.
  */
 
 import type { UnityDoc, UnitySceneGraph } from './scene-graph.js';
@@ -284,8 +284,7 @@ export function setNestedProperty(
       }
       const valueAfterColon = lines[idx]!.slice(curIndent.length + seg.name.length + 1).trim();
       const isInlineMap = valueAfterColon.startsWith('{');
-      const isLastBeforeLeaf =
-        s === segs.length - 2 && segs[segs.length - 1]!.kind === 'key';
+      const isLastBeforeLeaf = s === segs.length - 2 && segs[segs.length - 1]!.kind === 'key';
       if (isInlineMap && isLastBeforeLeaf) {
         // Leave [lo, hi) as-is; leaf logic below will inline-map-rewrite.
         curIndent = curIndent + '  ';
@@ -325,7 +324,13 @@ export function setNestedProperty(
   if (segs.length >= 2 && segs[segs.length - 2]!.kind === 'key') {
     const parentName = (segs[segs.length - 2] as { kind: 'key'; name: string }).name;
     // Find the parent line within [docKindIdx+1, lines.length).
-    const parentIdx = findKeyAtIndent(lines, docKindIdx + 1, lines.length, parentIndent, parentName);
+    const parentIdx = findKeyAtIndent(
+      lines,
+      docKindIdx + 1,
+      lines.length,
+      parentIndent,
+      parentName,
+    );
     if (parentIdx >= 0) {
       const parentLine = lines[parentIdx]!;
       const colon = parentLine.indexOf(':');
@@ -431,9 +436,7 @@ export function replacePrefabInstance(
     throw new Error(`unity scene: no PrefabInstance with fileId ${input.instanceFileId}`);
   }
   if (doc.kind !== 'PrefabInstance') {
-    throw new Error(
-      `unity scene: doc ${input.instanceFileId} is ${doc.kind}, not PrefabInstance`,
-    );
+    throw new Error(`unity scene: doc ${input.instanceFileId} is ${doc.kind}, not PrefabInstance`);
   }
 
   // Find m_SourcePrefab line and pull the existing guid.

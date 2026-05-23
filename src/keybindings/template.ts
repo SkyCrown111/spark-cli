@@ -41,10 +41,26 @@ export function generateActionList(): string {
  */
 export function generateContextList(): string {
   const contexts: KeybindingContextName[] = [
-    'Global', 'Chat', 'Autocomplete', 'Settings', 'Confirmation',
-    'Tabs', 'Transcript', 'HistorySearch', 'Task', 'ThemePicker',
-    'ModelPicker', 'Scroll', 'Help', 'Attachments', 'Footer',
-    'MessageSelector', 'MessageActions', 'DiffDialog', 'Select', 'Plugin',
+    'Global',
+    'Chat',
+    'Autocomplete',
+    'Settings',
+    'Confirmation',
+    'Tabs',
+    'Transcript',
+    'HistorySearch',
+    'Task',
+    'ThemePicker',
+    'ModelPicker',
+    'Scroll',
+    'Help',
+    'Attachments',
+    'Footer',
+    'MessageSelector',
+    'MessageActions',
+    'DiffDialog',
+    'Select',
+    'Plugin',
   ];
   return contexts.map((c) => `- ${c}`).join('\n');
 }

@@ -47,24 +47,23 @@ export interface InkKeyEvent {
 /**
  * Convert an Ink (input, key) pair into a KeyCombo for matching.
  */
-export function inkEventToKeyCombo(
-  input: string,
-  key: InkKeyEvent,
-): KeyCombo {
+export function inkEventToKeyCombo(input: string, key: InkKeyEvent): KeyCombo {
   // Special keys first
-  if (key.return)    return { key: 'enter',    ctrl: !!key.ctrl, shift: !!key.shift, meta: !!key.meta };
-  if (key.escape)    return { key: 'escape',   ctrl: !!key.ctrl, shift: !!key.shift, meta: !!key.meta };
-  if (key.tab)       return { key: 'tab',      ctrl: !!key.ctrl, shift: !!key.shift, meta: !!key.meta };
-  if (key.backspace) return { key: 'back',     ctrl: !!key.ctrl, shift: !!key.shift, meta: !!key.meta };
-  if (key.delete)    return { key: 'delete',   ctrl: !!key.ctrl, shift: !!key.shift, meta: !!key.meta };
-  if (key.pageUp)    return { key: 'pageup',   ctrl: !!key.ctrl, shift: !!key.shift, meta: !!key.meta };
-  if (key.pageDown)  return { key: 'pagedown', ctrl: !!key.ctrl, shift: !!key.shift, meta: !!key.meta };
-  if (key.home)      return { key: 'home',     ctrl: !!key.ctrl, shift: !!key.shift, meta: !!key.meta };
-  if (key.end)       return { key: 'end',      ctrl: !!key.ctrl, shift: !!key.shift, meta: !!key.meta };
-  if (key.upArrow)   return { key: 'up',       ctrl: !!key.ctrl, shift: !!key.shift, meta: !!key.meta };
-  if (key.downArrow) return { key: 'down',     ctrl: !!key.ctrl, shift: !!key.shift, meta: !!key.meta };
-  if (key.leftArrow) return { key: 'left',     ctrl: !!key.ctrl, shift: !!key.shift, meta: !!key.meta };
-  if (key.rightArrow)return { key: 'right',    ctrl: !!key.ctrl, shift: !!key.shift, meta: !!key.meta };
+  if (key.return) return { key: 'enter', ctrl: !!key.ctrl, shift: !!key.shift, meta: !!key.meta };
+  if (key.escape) return { key: 'escape', ctrl: !!key.ctrl, shift: !!key.shift, meta: !!key.meta };
+  if (key.tab) return { key: 'tab', ctrl: !!key.ctrl, shift: !!key.shift, meta: !!key.meta };
+  if (key.backspace) return { key: 'back', ctrl: !!key.ctrl, shift: !!key.shift, meta: !!key.meta };
+  if (key.delete) return { key: 'delete', ctrl: !!key.ctrl, shift: !!key.shift, meta: !!key.meta };
+  if (key.pageUp) return { key: 'pageup', ctrl: !!key.ctrl, shift: !!key.shift, meta: !!key.meta };
+  if (key.pageDown)
+    return { key: 'pagedown', ctrl: !!key.ctrl, shift: !!key.shift, meta: !!key.meta };
+  if (key.home) return { key: 'home', ctrl: !!key.ctrl, shift: !!key.shift, meta: !!key.meta };
+  if (key.end) return { key: 'end', ctrl: !!key.ctrl, shift: !!key.shift, meta: !!key.meta };
+  if (key.upArrow) return { key: 'up', ctrl: !!key.ctrl, shift: !!key.shift, meta: !!key.meta };
+  if (key.downArrow) return { key: 'down', ctrl: !!key.ctrl, shift: !!key.shift, meta: !!key.meta };
+  if (key.leftArrow) return { key: 'left', ctrl: !!key.ctrl, shift: !!key.shift, meta: !!key.meta };
+  if (key.rightArrow)
+    return { key: 'right', ctrl: !!key.ctrl, shift: !!key.shift, meta: !!key.meta };
 
   // Regular character
   return {
@@ -83,10 +82,7 @@ export function inkEventToKeyCombo(
  * Both the key character and modifier flags must match exactly.
  * A combo with ctrl=true only matches when Ctrl is held, etc.
  */
-export function matchesKeyCombo(
-  event: KeyCombo,
-  binding: KeyCombo,
-): boolean {
+export function matchesKeyCombo(event: KeyCombo, binding: KeyCombo): boolean {
   // Key must match exactly
   if (event.key !== binding.key) return false;
 

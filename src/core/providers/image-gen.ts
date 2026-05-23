@@ -63,7 +63,10 @@ export class OpenAIImageGenProvider implements ImageGenProvider {
     });
     const raw = await res.body.text();
     if (res.statusCode >= 400) {
-      throw new SparkCLIError(`OpenAI image generation failed (${res.statusCode}): ${raw.slice(0, 400)}`, 1);
+      throw new SparkCLIError(
+        `OpenAI image generation failed (${res.statusCode}): ${raw.slice(0, 400)}`,
+        1,
+      );
     }
     let parsed: { data?: Array<{ b64_json?: string }> };
     try {

@@ -30,7 +30,10 @@ function todoLine(t: Pick<Todo, 'id' | 'subject' | 'status' | 'blockedBy'>): str
   return `  [${t.status}] ${t.id} ${t.subject}${blocked}`;
 }
 
-async function createHandler(args: Record<string, unknown>, _ctx: ToolContext): Promise<ToolResult> {
+async function createHandler(
+  args: Record<string, unknown>,
+  _ctx: ToolContext,
+): Promise<ToolResult> {
   const subject = asString(args.subject);
   const description = asString(args.description);
   if (!subject || subject.trim().length === 0) {
@@ -40,9 +43,10 @@ async function createHandler(args: Record<string, unknown>, _ctx: ToolContext): 
     return { content: 'todo_create: `description` must be a string', isError: true };
   }
   const activeForm = asString(args.activeForm);
-  const metadata = (args.metadata && typeof args.metadata === 'object' && !Array.isArray(args.metadata))
-    ? (args.metadata as Record<string, unknown>)
-    : undefined;
+  const metadata =
+    args.metadata && typeof args.metadata === 'object' && !Array.isArray(args.metadata)
+      ? (args.metadata as Record<string, unknown>)
+      : undefined;
 
   const todo = getTodoStore().create({ subject, description, activeForm, metadata });
   return {
@@ -80,7 +84,10 @@ async function getHandler(args: Record<string, unknown>, _ctx: ToolContext): Pro
   return { content: lines.join('\n'), structured: { ...t } };
 }
 
-async function updateHandler(args: Record<string, unknown>, _ctx: ToolContext): Promise<ToolResult> {
+async function updateHandler(
+  args: Record<string, unknown>,
+  _ctx: ToolContext,
+): Promise<ToolResult> {
   const id = asString(args.id);
   if (!id) return { content: 'todo_update: `id` must be a string', isError: true };
 
@@ -106,9 +113,10 @@ async function updateHandler(args: Record<string, unknown>, _ctx: ToolContext): 
     status: status as TodoStatus | undefined,
     addBlocks: asStringArray(args.addBlocks),
     addBlockedBy: asStringArray(args.addBlockedBy),
-    metadata: (args.metadata && typeof args.metadata === 'object' && !Array.isArray(args.metadata))
-      ? (args.metadata as Record<string, unknown>)
-      : undefined,
+    metadata:
+      args.metadata && typeof args.metadata === 'object' && !Array.isArray(args.metadata)
+        ? (args.metadata as Record<string, unknown>)
+        : undefined,
   });
   if ('error' in result) return { content: `todo_update: ${result.error}`, isError: true };
 
@@ -131,7 +139,8 @@ export const todoCreateTool: RegisteredTool = {
       description: { type: 'string', description: 'What needs to be done.' },
       activeForm: {
         type: 'string',
-        description: 'Optional present-continuous form shown while in_progress (e.g. "Running tests").',
+        description:
+          'Optional present-continuous form shown while in_progress (e.g. "Running tests").',
       },
       metadata: { type: 'object', additionalProperties: true },
     },

@@ -9,28 +9,28 @@ import type { ColorValue } from '../../theme/colors.js';
 
 export interface TextProps {
   children?: React.ReactNode;
-  
+
   // Color
   color?: ColorValue | string;
   backgroundColor?: ColorValue | string;
-  
+
   // Style
   bold?: boolean;
   italic?: boolean;
   underline?: boolean;
   strikethrough?: boolean;
   inverse?: boolean;
-  
+
   // Dimming
   dimColor?: boolean;
-  
+
   // Wrapping
   wrap?: 'wrap' | 'truncate' | 'truncate-start' | 'truncate-middle' | 'truncate-end';
 }
 
 /**
  * Text component for displaying styled text
- * 
+ *
  * @example
  * ```tsx
  * <Text color="cyan" bold>Hello World</Text>

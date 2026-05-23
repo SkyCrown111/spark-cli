@@ -3,6 +3,7 @@ import { loadMergedConfig } from '../config/load.js';
 import { generateImageAsset } from '../core/providers/image-gen.js';
 import type { GlobalOptions } from '../utils/output.js';
 import { printJson, resolveProjectRoot } from '../utils/output.js';
+import { logger } from '../utils/logger.js';
 
 export async function runAssetGenerateIcon(
   opts: GlobalOptions,
@@ -35,7 +36,7 @@ export async function runAssetGenerateIcon(
       printJson(result);
       return 0;
     }
-    console.log(chalk.green(`✓ Staged ${result.path} via ${result.provider}`));
+    logger.info(chalk.green(`✓ Staged ${result.path} via ${result.provider}`));
     return 0;
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
@@ -43,8 +44,8 @@ export async function runAssetGenerateIcon(
       printJson({ error: msg });
       return 1;
     }
-    console.error(chalk.red(msg));
-    console.error(chalk.dim('Enable tools.gen.image.enabled or use provider: mock in config'));
+    logger.error(chalk.red(msg));
+    logger.error(chalk.dim('Enable tools.gen.image.enabled or use provider: mock in config'));
     return 1;
   }
 }

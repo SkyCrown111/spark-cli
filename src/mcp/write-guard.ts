@@ -6,7 +6,7 @@ export function isMcpWriteAllowed(config: SparkCLIConfig): boolean {
 
 export function mcpWriteDeniedMessage(): string {
   return (
-    'MCP write tools are disabled. Set mcp.allowWrite: true in spark-cli.config.yaml ' +
-    '(project or ~/.spark-cli/config.yaml), then restart the MCP server.'
+    'MCP write tools are disabled. Set mcp.allowWrite: true in .spark/settings.json ' +
+    '(project or ~/.spark/settings.json), then restart the MCP server.'
   );
 }

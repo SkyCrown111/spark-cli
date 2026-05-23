@@ -21,12 +21,16 @@ export const UserToolCanceledMessage: React.FC<UserToolCanceledMessageProps> = (
   return (
     <Box flexDirection="column">
       <Box>
-        <Text dimColor bold>{'>'} {toolLabel}</Text>
+        <Text dimColor bold>
+          {'>'} {toolLabel}
+        </Text>
         <Text dimColor> — canceled</Text>
       </Box>
       {content && (
         <Box paddingLeft={2}>
-          <Text dimColor wrap="wrap">{content}</Text>
+          <Text dimColor wrap="wrap">
+            {content}
+          </Text>
         </Box>
       )}
     </Box>

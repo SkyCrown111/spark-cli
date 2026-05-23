@@ -1,3 +1,5 @@
+import { logger } from './logger.js';
+
 export interface GlobalOptions {
   project?: string;
   config?: string;
@@ -39,6 +41,16 @@ export interface GlobalOptions {
   dangerouslySkipPermissions?: boolean;
   /** Custom agent name (--agent). */
   agent?: string;
+  /** Minimal mode: skip auto-discovery of hooks/skills/plugins/MCP. */
+  bare?: boolean;
+  /** Auto-fallback model if primary fails. */
+  fallbackModel?: string;
+  /** Comma-separated list of available built-in tools. */
+  tools?: string;
+  /** Output format: text|json|stream-json. */
+  outputFormat?: string;
+  /** Extra working directories. */
+  addDirs?: string[];
 }
 
 export function resolveProjectRoot(opts: GlobalOptions): string {
@@ -46,5 +58,5 @@ export function resolveProjectRoot(opts: GlobalOptions): string {
 }
 
 export function printJson(data: unknown): void {
-  console.log(JSON.stringify(data, null, 2));
+  logger.json(data);
 }

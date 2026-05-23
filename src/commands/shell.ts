@@ -13,7 +13,7 @@
  *   `mode: 'plan'` and the registry hides mutation tools. `/exit-plan y`
  *   replays the last intent in normal mode.
  * - Slash commands come from `createSlashRegistry()` plus
- *   `loadFileCommands()` for `.spark-cli/commands/*.md`.
+ *   `loadFileCommands()` for `.spark/commands/*.md` (with legacy fallback).
  */
 
 import * as readline from 'node:readline';
@@ -26,37 +26,25 @@ import { getAlwaysAllowPath } from '../config/paths.js';
 import { scanProjectContext } from '../core/context/project-scanner.js';
 import { resolveModelForTask } from '../core/providers/router.js';
 import { buildTokenUsageSnapshot } from '../core/context/token-usage.js';
-import type { ChatMessage } from '../core/providers/openai-compatible.js';
 import { runAgentTurnForCli } from '../core/agent/run-turn.js';
 import type { ToolWriteMode } from '../core/agent/tool-registry.js';
 import { SparkCLIError } from '../utils/errors.js';
-import {
-  createSlashRegistry,
-  type SlashRegistry,
-} from '../core/slash/registry.js';
+import { createSlashRegistry, type SlashRegistry } from '../core/slash/registry.js';
 import { buildBuiltinCommands } from '../core/slash/built-ins.js';
-import type { ExtendedOutcome } from '../core/slash/built-ins.js';
 import { loadFileCommands } from '../core/slash/loader.js';
 import {
-  approvePlan,
   cancelPlan,
   createPlanState,
-  enterPlan,
   forceEnterPlan,
   isPlanMode,
   recordPlanTurn,
-  requestApproval,
   type PlanState,
 } from '../core/slash/plan-mode.js';
 import { runHooks } from '../core/hooks/runner.js';
 import { loadHookConfig } from '../core/hooks/config.js';
-import { compactHistory } from '../core/context/compaction.js';
 import { resolveCompletionFn } from '../core/agent/run-turn.js';
-import { appendReplayEvent } from '../core/replay/log.js';
 import { expandAtReferences } from '../core/repl/at-refs.js';
-import {
-  createSlashCompleter,
-} from '../core/repl/repl-ui.js';
+import { createSlashCompleter } from '../core/repl/repl-ui.js';
 import { InputBox, printInputBoxChrome } from '../core/repl/input-box.js';
 import {
   printAssistantBlock,
@@ -68,11 +56,7 @@ import {
   type ThinkingSpinner,
 } from '../core/repl/transcript.js';
 import { renderReplWelcome } from '../core/repl/welcome.js';
-import {
-  isMascotDisabled,
-  pickGemiFarewell,
-  renderGemiFarewellLine,
-} from '../core/repl/mascot.js';
+import { isMascotDisabled, pickGemiFarewell, renderGemiFarewellLine } from '../core/repl/mascot.js';
 import { ToolPermissionSession } from '../core/agent/tool-permissions.js';
 import { askToolConfirm } from '../core/repl/tool-confirm.js';
 import {
@@ -94,27 +78,15 @@ import { getBackgroundManager } from '../core/agent/background-tasks.js';
 import { printInlineDiffForPath } from '../core/staging/inline-diff.js';
 import { getCliVersion } from '../utils/version.js';
 import {
-  clearTtyViewport,
-  shouldUseAlternateScreen,
-  watchTtyResize,
-  writeReplBlock,
-  writeReplLine,
-} from '../core/repl/viewport.js';
+  resolveRenderer,
+  shouldUseFullscreenRenderer,
+  type RendererMode,
+  type RendererShellOptions,
+} from '../core/repl/renderer.js';
+import { watchTtyResize, writeReplBlock, writeReplLine } from '../core/repl/viewport.js';
 
-export interface ShellState {
-  history: ChatMessage[];
-  writeMode: ToolWriteMode;
-  plan: PlanState;
-  toolPermissionSession: ToolPermissionSession;
-  /** Token usage info for the status line. */
-  tokenUsage?: { used: number; budget: number };
-  /** Current session ID for persistence. */
-  sessionId?: string;
-  /** Session title (derived from first user message). */
-  sessionTitle?: string;
-  /** Current checkpoint for rewind. */
-  checkpoint?: { id: string; timestamp: string };
-}
+export type { ShellState } from './shell/types.js';
+import type { ShellState } from './shell/types.js';
 
 /** @internal test helper */
 export function freshStateForTest(overrides: Partial<ShellState> = {}): ShellState {
@@ -131,22 +103,6 @@ export const SHELL_HELP_HEADER = `
 Tip: plain text goes to the agent. Use @path/to/file to attach context.
 Sensitive tools (bash, write_file, edit_file) prompt [y/n/a]. Tab completes /commands.
 `.trim();
-
-function renderHelp(registry: SlashRegistry): string {
-  const cmds = registry.list();
-  const max = cmds.length > 0 ? Math.max(...cmds.map((c) => c.name.length)) : 0;
-  const lines = ['', SHELL_HELP_HEADER, '', 'Commands:'];
-  for (const c of cmds) {
-    const tag =
-      c.source === 'project'
-        ? chalk.dim(' (project)')
-        : c.source === 'user'
-          ? chalk.dim(' (user)')
-          : '';
-    lines.push(`  /${c.name.padEnd(max)}  ${c.description}${tag}`);
-  }
-  return lines.join('\n');
-}
 
 /** Backward-compat export for the existing shell.test.ts. */
 export const SHELL_HELP = `
@@ -188,8 +144,7 @@ async function buildWelcomeText(
     modelLine = e instanceof Error ? e.message : String(e);
   }
 
-  const writeModeLabel =
-    state.writeMode === 'direct' ? 'direct (auto-write)' : 'staging (safe)';
+  const writeModeLabel = state.writeMode === 'direct' ? 'direct (auto-write)' : 'staging (safe)';
 
   return renderReplWelcome({
     showMascot: !shellOpts.noMascot && !isMascotDisabled(),
@@ -209,32 +164,6 @@ async function printBannerAsync(
   shellOpts: RunShellOptions = {},
 ): Promise<void> {
   writeReplBlock(await buildWelcomeText(opts, state, shellOpts));
-}
-
-function enterAlternateScreen(): boolean {
-  if (!shouldUseAlternateScreen()) return false;
-  // Keep the caret visible — InputBox positions the terminal cursor for editing.
-  process.stdout.write('\x1b[?1049h\x1b[?25h');
-  clearTtyViewport();
-  return true;
-}
-
-function leaveAlternateScreen(enabled: boolean): void {
-  if (!enabled || !process.stdout.isTTY) return;
-  process.stdout.write('\x1b[?25h\x1b[?1049l');
-}
-
-function renderHistory(history: ChatMessage[]): void {
-  for (const message of history) {
-    if (message.role === 'user' && typeof message.content === 'string') {
-      printUserTurn(message.content);
-      continue;
-    }
-    if (message.role === 'assistant' && typeof message.content === 'string' && message.content.trim()) {
-      printAssistantBlock(message.content);
-      writeReplLine('');
-    }
-  }
 }
 
 function printReplFarewell(seed = 0): void {
@@ -278,13 +207,7 @@ function onStagingToolCompleted(
   }
 }
 
-interface SlashHandled {
-  state: ShellState;
-  handled: boolean;
-  shouldExit?: boolean;
-  /** Synthetic prompt the dispatcher wants the REPL to run as the next turn. */
-  syntheticPrompt?: { text: string; mode: 'normal' | 'plan' };
-}
+import { handleSlashImpl, type SlashHandled } from './shell/slash-handler.js';
 
 async function handleSlash(
   line: string,
@@ -292,297 +215,25 @@ async function handleSlash(
   state: ShellState,
   registry: SlashRegistry,
 ): Promise<SlashHandled> {
-  return _handleSlashImpl(line, opts, state, registry);
+  return handleSlashImpl(line, opts, state, registry);
 }
 
-/** Exposed for unit tests. */
-export async function _handleSlashImpl(
-  line: string,
-  opts: GlobalOptions,
-  state: ShellState,
-  registry: SlashRegistry,
-): Promise<SlashHandled> {
-  const trimmed = line.trim();
-  if (trimmed === '/help' || trimmed === '/?') {
-    console.log(renderHelp(registry));
-    return { state, handled: true };
-  }
+/** Backward-compat alias for tests. */
+export const _handleSlashImpl = handleSlashImpl;
 
-  const outcome = (await registry.dispatch(trimmed, opts)) as ExtendedOutcome | { kind: 'unknown' };
-  if (outcome.kind === 'unknown') return { state, handled: false };
-
-  if (outcome.kind === 'handled') return { state, handled: true };
-  if (outcome.kind === 'exit') return { state, handled: true, shouldExit: true };
-
-  if (outcome.kind === 'enter-plan') {
-    if (isPlanMode(state.plan)) {
-      console.log(chalk.dim('Already in plan mode.'));
-      return { state, handled: true };
-    }
-    console.log(chalk.cyan('Plan mode engaged. The agent runs read-only.'));
-    console.log(chalk.dim('  Use /exit-plan y to approve, /exit-plan to cancel.'));
-    appendReplayEvent(resolveProjectRoot(opts), 'plan_enter', {});
-    const planRoot = resolveProjectRoot(opts);
-    runHooks(
-      'on_plan_enter',
-      { event: 'on_plan_enter', projectRoot: planRoot },
-      planRoot,
-      { config: loadHookConfig(planRoot) },
-    );
-    return {
-      state: { ...state, plan: enterPlan(state.plan) },
-      handled: true,
-    };
-  }
-
-  if (outcome.kind === 'exit-plan') {
-    if (state.plan.phase === 'normal') {
-      console.log(chalk.dim('Not in plan mode.'));
-      return { state, handled: true };
-    }
-    if (outcome.approve) {
-      const pending = requestApproval(state.plan);
-      if (!pending) {
-        console.log(
-          chalk.yellow('No plan to apply yet. Describe the task in plan mode first.'),
-        );
-        return {
-          state: { ...state, plan: cancelPlan(state.plan) },
-          handled: true,
-        };
-      }
-      const approved = approvePlan(pending);
-      if (!approved) {
-        return {
-          state: { ...state, plan: cancelPlan(state.plan) },
-          handled: true,
-        };
-      }
-      console.log(chalk.green('OK Plan approved. Re-running in normal mode...'));
-      const planRoot = resolveProjectRoot(opts);
-      appendReplayEvent(planRoot, 'plan_exit', { approved: true });
-      runHooks(
-        'on_plan_exit',
-        { event: 'on_plan_exit', projectRoot: planRoot, approved: true },
-        planRoot,
-        { config: loadHookConfig(planRoot) },
-      );
-      return {
-        state: { ...state, plan: approved.next },
-        handled: true,
-        syntheticPrompt: { text: approved.intent, mode: 'normal' },
-      };
-    }
-    console.log(chalk.dim('Plan cancelled.'));
-    const planRoot = resolveProjectRoot(opts);
-    appendReplayEvent(planRoot, 'plan_exit', { approved: false });
-    runHooks(
-      'on_plan_exit',
-      { event: 'on_plan_exit', projectRoot: planRoot, approved: false },
-      planRoot,
-      { config: loadHookConfig(planRoot) },
-    );
-    return {
-      state: { ...state, plan: cancelPlan(state.plan) },
-      handled: true,
-    };
-  }
-
-  // Handle the sentinel state mutation outcomes from built-ins.
-  if (outcome.kind === 'state-clear-history') {
-    return { state: { ...state, history: [] }, handled: true };
-  }
-  if (outcome.kind === 'state-set-write-mode') {
-    const requested = outcome.writeMode as 'staging' | 'direct' | 'toggle';
-    let next: ToolWriteMode;
-    if (requested === 'direct' || requested === 'staging') {
-      next = requested;
-    } else {
-      next = state.writeMode === 'direct' ? 'staging' : 'direct';
-    }
-    console.log(
-      chalk.dim('write-mode:'),
-      next === 'direct' ? chalk.yellow('direct (auto)') : chalk.cyan('staging'),
-    );
-    if (next === 'direct') {
-      console.log(
-        chalk.dim('  Tools now write directly to the project tree. /revert is unavailable.'),
-      );
-    }
-    return { state: { ...state, writeMode: next }, handled: true };
-  }
-
-  if (outcome.kind === 'state-set-effort') {
-    try {
-      const { appState } = await import('../state/AppState.js');
-      appState.setState({ effortLevel: outcome.effortLevel });
-    } catch {
-      // CLI-only mode: store locally for next turn
-    }
-    return { state, handled: true };
-  }
-
-  if (outcome.kind === 'state-show-model-picker') {
-    // Ink REPL handles this via AppState; in CLI mode just show current
-    try {
-      const { appState } = await import('../state/AppState.js');
-      appState.setState({ showModelPicker: true });
-    } catch {
-      // Fallback: just show current model
-      const root = resolveProjectRoot(opts);
-      const cfg = await loadMergedConfig(root);
-      const resolved = resolveModelForTask(cfg, 'chat', {
-        provider: opts.provider,
-        model: opts.model,
-      });
-      console.log(chalk.dim('Current model:'), resolved);
-    }
-    return { state, handled: true };
-  }
-
-  if (outcome.kind === 'state-show-theme-picker') {
-    // Ink REPL handles this via AppState; in CLI mode just list themes
-    try {
-      const { appState } = await import('../state/AppState.js');
-      appState.setState({ showThemePicker: true });
-    } catch {
-      const { listThemes: listT } = await import('../theme/theme.js');
-      const available = listT().join(', ');
-      console.log(chalk.dim(`Available themes: ${available}`));
-    }
-    return { state, handled: true };
-  }
-
-  if (outcome.kind === 'state-show-status') {
-    const root = resolveProjectRoot(opts);
-    const cfg = await loadMergedConfig(root);
-    const resolved = resolveModelForTask(cfg, 'chat', {
-      provider: opts.provider,
-      model: opts.model,
-    });
-    const snap = buildTokenUsageSnapshot(cfg, resolved, state.history);
-    const pct = snap.budget > 0 ? Math.round((snap.used / snap.budget) * 100) : 0;
-    console.log(chalk.dim('messages:'), state.history.length);
-    console.log(chalk.dim('tokens:'), `${snap.used} / ${snap.budget}`, chalk.dim(`(${pct}%)`));
-    console.log(
-      chalk.dim('write-mode:'),
-      state.writeMode === 'direct' ? chalk.yellow('direct (auto)') : chalk.cyan('staging'),
-    );
-    console.log(
-      chalk.dim('plan-phase:'),
-      state.plan.phase,
-    );
-    return { state, handled: true };
-  }
-
-  if (outcome.kind === 'state-compact-history') {
-    if (state.history.length < 4) {
-      console.log(chalk.dim('History too short to compact.'));
-      return { state, handled: true };
-    }
-    try {
-      const { completeFn } = await resolveCompletionFn(opts);
-      const before = state.history.length;
-      const { history: compacted, summary, compactedCount } = await compactHistory(
-        state.history,
-        { completeFn },
-      );
-      const after = compacted.length;
-      console.log(
-        chalk.green('OK'),
-        chalk.dim(`compacted ${compactedCount} messages (${before} -> ${after})`),
-      );
-      if (summary) {
-        const preview = summary.slice(0, 200);
-        console.log(chalk.dim('  summary: ' + preview + (summary.length > 200 ? '...' : '')));
-      }
-      appendReplayEvent(resolveProjectRoot(opts), 'compaction', {
-        agentId: 'repl',
-        before,
-        after,
-        compactedCount,
-        summaryPreview: summary.slice(0, 200),
-        reason: 'manual',
-      });
-      const compactRoot = resolveProjectRoot(opts);
-      runHooks(
-        'on_compaction',
-        {
-          event: 'on_compaction',
-          projectRoot: compactRoot,
-          agentId: 'repl',
-          before,
-          after,
-          compactedCount,
-          reason: 'manual',
-        },
-        compactRoot,
-        { config: loadHookConfig(compactRoot) },
-      );
-      return { state: { ...state, history: compacted }, handled: true };
-    } catch (e) {
-      console.error(
-        chalk.red('ERROR'),
-        'compaction failed:',
-        e instanceof Error ? e.message : String(e),
-      );
-      return { state, handled: true };
-    }
-  }
-
-  if (outcome.kind === 'prompt') {
-    return {
-      state,
-      handled: true,
-      syntheticPrompt: {
-        text: outcome.text,
-        mode: outcome.mode === 'plan' ? 'plan' : 'normal',
-      },
-    };
-  }
-
-  if (outcome.kind === 'state-resume-session') {
-    const root = resolveProjectRoot(opts);
-    const targetId = outcome.sessionId;
-    let loaded: SessionSnapshot | undefined;
-    if (targetId) {
-      loaded = loadSession(root, targetId);
-      if (!loaded) {
-        console.log(chalk.yellow(`Session ${targetId} not found.`));
-        return { state, handled: true };
-      }
-    } else {
-      loaded = findMostRecent(root);
-      if (!loaded) {
-        console.log(chalk.dim('No sessions to resume.'));
-        return { state, handled: true };
-      }
-    }
-    console.log(chalk.green(`Resumed session: ${loaded.title || loaded.id}`));
-    return {
-      state: {
-        ...state,
-        history: loaded.history,
-        writeMode: loaded.writeMode as ToolWriteMode,
-        plan: loaded.plan as PlanState,
-        sessionId: loaded.id,
-        sessionTitle: loaded.title,
-      },
-      handled: true,
-    };
-  }
-
-  return { state, handled: true };
-}
-
-export interface RunShellOptions {
+export interface RunShellOptions extends RendererShellOptions {
   /** Start in direct-write mode (`spark-cli --auto` / `spark-cli chat --auto`). */
   auto?: boolean;
   /** Skip Spark mascot (also `SPARK_CLI_NO_MASCOT=1`). */
   noMascot?: boolean;
-  /** Use legacy readline-based UI instead of Ink (default: Ink). */
-  noInk?: boolean;
 }
+
+export type { RendererMode };
+
+/** @deprecated use shouldUseFullscreenRenderer */
+export const shouldUseInkShell = shouldUseFullscreenRenderer;
+
+export { resolveRenderer, shouldUseFullscreenRenderer };
 
 export interface ProcessReplLineResult {
   state: ShellState;
@@ -684,8 +335,15 @@ export async function runShell(
   opts: GlobalOptions,
   shellOpts: RunShellOptions = {},
 ): Promise<void> {
-  // Use Ink REPL by default; fall back to readline with --no-ink
-  if (!shellOpts.noInk) {
+  const projectRoot = resolveProjectRoot(opts);
+  const config = await loadMergedConfig(projectRoot);
+  const rendererMode = resolveRenderer({
+    ...shellOpts,
+    configRenderer: config.ui?.renderer,
+  });
+
+  // Fullscreen renderer: Ink + alternate screen (opt-in only).
+  if (rendererMode === 'fullscreen') {
     const { runInkRepl } = await import('../core/repl/ink-repl.js');
     return runInkRepl(opts, shellOpts);
   }
@@ -694,8 +352,7 @@ export async function runShell(
   const { initThemeFromConfig } = await import('../theme/theme.js');
   initThemeFromConfig();
 
-  const useAlternateScreen = enterAlternateScreen();
-  const projectRoot = resolveProjectRoot(opts);
+  // Default renderer: main terminal buffer — native scrollback, no alt screen.
   const persistPath = getAlwaysAllowPath(projectRoot);
   const toolPermissionSession = new ToolPermissionSession(persistPath);
 
@@ -818,12 +475,9 @@ export async function runShell(
     } else if (state.writeMode === 'direct') {
       state.writeMode = 'staging';
       state.plan = forceEnterPlan();
-      runHooks(
-        'on_plan_enter',
-        { event: 'on_plan_enter', projectRoot },
-        projectRoot,
-        { config: hookConfig },
-      );
+      runHooks('on_plan_enter', { event: 'on_plan_enter', projectRoot }, projectRoot, {
+        config: hookConfig,
+      });
     }
     if (inputBox.isVisible) {
       inputBox.redraw();
@@ -839,59 +493,33 @@ export async function runShell(
     }
   };
 
-  /** 
-   * Full layout refresh after terminal resize (welcome uses new column width).
-   * 
-   * Fixed to prevent duplicate rendering:
-   * - Task 4.1: Atomic flag check-and-set at function start
-   * - Task 4.2: Try-finally block to ensure flag reset
-   * - Task 5.1: Call suspendForRerender BEFORE clearTtyViewport
-   * - Task 5.2: Ensure complete viewport clear including InputBox chrome
-   * - Task 5.3: Call resumeAfterRerender AFTER all content redrawn
+  /**
+   * Default renderer: do not clear scrollback or replay history on resize.
+   * Only refresh the input chrome so column width stays correct.
    */
   const rerenderLayout = async (): Promise<void> => {
-    // Task 4.1: Atomic check-and-set at the very start (synchronous, before any async)
     if (layoutRerendering || activeController || sessionClosed) return;
     layoutRerendering = true;
-    
-    // Task 4.2: Wrap in try-finally to ensure flag is always reset
     try {
-      // Task 5.1: Suspend InputBox BEFORE clearing viewport
-      const inputDraft = inputBox.isVisible ? inputBox.suspendForRerender() : undefined;
-      
-      // Task 5.2: Complete viewport clear (clears screen and homes cursor)
-      clearTtyViewport();
-      
-      // Redraw welcome banner and history
-      writeReplBlock(await buildWelcomeText(opts, state, shellOpts));
-      renderHistory(state.history);
-      
-      // Task 5.3: Resume InputBox AFTER all content is redrawn
-      if (inputDraft) {
-        inputBox.resumeAfterRerender(inputDraft);
+      if (inputBox.isVisible) {
+        inputBox.redraw();
       }
     } finally {
-      // Task 4.2: Always reset flag, even if error occurs
       layoutRerendering = false;
     }
   };
 
-  /** 
+  /**
    * Task 6.1: Made async to properly await rerenderLayout completion
    */
   const handleTerminalResize = async (): Promise<void> => {
     await rerenderLayout();
   };
 
-  const runTurn = async (
-    userInput: string,
-    overrideMode?: 'normal' | 'plan',
-  ): Promise<void> => {
+  const runTurn = async (userInput: string, overrideMode?: 'normal' | 'plan'): Promise<void> => {
     hookConfig = loadHookConfig(projectRoot);
 
-    const isPlan =
-      overrideMode === 'plan' ||
-      (overrideMode !== 'normal' && isPlanMode(state.plan));
+    const isPlan = overrideMode === 'plan' || (overrideMode !== 'normal' && isPlanMode(state.plan));
     runHooks(
       'pre_user_message',
       {
@@ -923,9 +551,7 @@ export async function runShell(
     const expanded = expandAtReferences(projectRoot, userInput);
     if (expanded.refs.length > 0 && !opts.json) {
       stopThinkingSpinner();
-      console.log(
-        chalk.dim('  @ refs: ' + expanded.refs.map((r) => '@' + r).join(', ')),
-      );
+      console.log(chalk.dim('  @ refs: ' + expanded.refs.map((r) => '@' + r).join(', ')));
       restartThinkingSpinner();
     }
 
@@ -970,12 +596,7 @@ export async function runShell(
       provider: opts.provider,
       model: opts.model,
     });
-    state.tokenUsage = buildTokenUsageSnapshot(
-      config,
-      resolved,
-      state.history,
-      result.usage,
-    );
+    state.tokenUsage = buildTokenUsageSnapshot(config, resolved, state.history, result.usage);
 
     if (isPlan && result.finalContent) {
       state.plan = recordPlanTurn(state.plan, userInput, result.finalContent);
@@ -1195,9 +816,5 @@ export async function runShell(
       }
     }, 100);
   });
-  leaveAlternateScreen(useAlternateScreen);
   printReplFarewell(projectRoot.length);
 }
-
-
-

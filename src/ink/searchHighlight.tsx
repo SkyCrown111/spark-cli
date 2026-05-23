@@ -81,11 +81,19 @@ export const HighlightedText: React.FC<HighlightedTextProps> = ({
       {segments.map((seg, i) => {
         if (seg.isMatch && seg.isFocused) {
           // Focused match: inverted colors
-          return <Text key={i} backgroundColor="yellow" color="black" bold>{seg.text}</Text>;
+          return (
+            <Text key={i} backgroundColor="yellow" color="black" bold>
+              {seg.text}
+            </Text>
+          );
         }
         if (seg.isMatch) {
           // Regular match: yellow background
-          return <Text key={i} backgroundColor="yellow" color="black">{seg.text}</Text>;
+          return (
+            <Text key={i} backgroundColor="yellow" color="black">
+              {seg.text}
+            </Text>
+          );
         }
         // Non-match text
         return <Text key={i}>{seg.text}</Text>;

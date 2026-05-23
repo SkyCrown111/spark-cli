@@ -11,10 +11,7 @@ describe('resolveModelForTask errors', () => {
     const prev = process.env.OPENAI_API_KEY;
     delete process.env.OPENAI_API_KEY;
     try {
-      resolveModelForTask(
-        { model: { default: 'gpt-4o', provider: 'openai' } },
-        'chat',
-      );
+      resolveModelForTask({ model: { default: 'gpt-4o', provider: 'openai' } }, 'chat');
       expect.fail('should throw');
     } catch (e) {
       expect(e).toBeInstanceOf(SparkCLIError);

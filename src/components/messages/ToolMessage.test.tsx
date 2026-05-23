@@ -16,7 +16,7 @@ describe('ToolMessage component', () => {
     const message: ToolMessageType = {
       role: 'tool',
       content: 'Tool execution successful',
-      tool_call_id: 'call_123'
+      tool_call_id: 'call_123',
     };
 
     const { lastFrame } = render(<ToolMessage message={message} />);
@@ -30,7 +30,7 @@ describe('ToolMessage component', () => {
     const message: ToolMessageType = {
       role: 'tool',
       content: 'Result',
-      tool_call_id: 'my-custom-id'
+      tool_call_id: 'my-custom-id',
     };
 
     const { lastFrame } = render(<ToolMessage message={message} />);
@@ -44,7 +44,7 @@ describe('ToolMessage component', () => {
     const message: ToolMessageType = {
       role: 'tool',
       content: 'Result',
-      tool_call_id: 'call_abc123'
+      tool_call_id: 'call_abc123',
     };
 
     const { lastFrame } = render(<ToolMessage message={message} />);
@@ -59,7 +59,7 @@ describe('ToolMessage component', () => {
     const message: ToolMessageType = {
       role: 'tool',
       content: longContent,
-      tool_call_id: 'call_long'
+      tool_call_id: 'call_long',
     };
 
     const { lastFrame } = render(<ToolMessage message={message} />);
@@ -77,7 +77,7 @@ describe('ToolMessage component', () => {
     const message: ToolMessageType = {
       role: 'tool',
       content: shortContent,
-      tool_call_id: 'call_short'
+      tool_call_id: 'call_short',
     };
 
     const { lastFrame } = render(<ToolMessage message={message} />);
@@ -92,7 +92,7 @@ describe('ToolMessage component', () => {
     const message: ToolMessageType = {
       role: 'tool',
       content: '',
-      tool_call_id: 'call_empty'
+      tool_call_id: 'call_empty',
     };
 
     const { lastFrame } = render(<ToolMessage message={message} />);
@@ -105,7 +105,7 @@ describe('ToolMessage component', () => {
     const message: ToolMessageType = {
       role: 'tool',
       content: '{"status": "success", "data": [1, 2, 3]}',
-      tool_call_id: 'call_json'
+      tool_call_id: 'call_json',
     };
 
     const { lastFrame } = render(<ToolMessage message={message} />);
@@ -129,7 +129,7 @@ describe('ToolMessage component', () => {
     const message: ToolMessageType = {
       role: 'tool',
       content: diffContent,
-      tool_call_id: 'call_diff'
+      tool_call_id: 'call_diff',
     };
 
     const { lastFrame } = render(<ToolMessage message={message} />);
@@ -144,7 +144,7 @@ describe('ToolMessage component', () => {
     const message: ToolMessageType = {
       role: 'tool',
       content: longContent,
-      tool_call_id: 'call_expanded'
+      tool_call_id: 'call_expanded',
     };
 
     const { lastFrame } = render(<ToolMessage message={message} expanded={true} />);

@@ -11,8 +11,7 @@ export interface PublishWechatResult {
   dryRun: boolean;
 }
 
-const DEFAULT_DEVTOOLS_CLI =
-  'C:/Program Files (x86)/Tencent/微信web开发者工具/cli.bat';
+const DEFAULT_DEVTOOLS_CLI = 'C:/Program Files (x86)/Tencent/微信web开发者工具/cli.bat';
 
 export function publishWechat(
   projectRoot: string,
@@ -37,7 +36,7 @@ export function publishWechat(
     return {
       ok: false,
       command: '',
-      message: 'Missing wechat.appid in spark-cli.config.yaml or WECHAT_APPID env',
+      message: 'Missing wechat.appid in .spark/settings.json or WECHAT_APPID env',
       dryRun: Boolean(options.dryRun),
     };
   }
@@ -83,7 +82,10 @@ export function publishWechat(
   return {
     ok: r.status === 0,
     command: cmd,
-    message: r.status === 0 ? `Published (${options.env})` : (r.stderr || r.stdout || 'Publish failed').slice(0, 800),
+    message:
+      r.status === 0
+        ? `Published (${options.env})`
+        : (r.stderr || r.stdout || 'Publish failed').slice(0, 800),
     dryRun: false,
   };
 }

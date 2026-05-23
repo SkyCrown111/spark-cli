@@ -36,9 +36,7 @@ describe('useKeybindings', () => {
 
   it('calls handler when key matches binding', () => {
     const handler = vi.fn();
-    const bindings: KeyBinding[] = [
-      { key: 'c', ctrl: true, handler, description: 'Interrupt' },
-    ];
+    const bindings: KeyBinding[] = [{ key: 'c', ctrl: true, handler, description: 'Interrupt' }];
 
     render(<TestComponent bindings={bindings} />);
 
@@ -48,9 +46,7 @@ describe('useKeybindings', () => {
 
   it('does not call handler when modifiers do not match', () => {
     const handler = vi.fn();
-    const bindings: KeyBinding[] = [
-      { key: 'c', ctrl: true, handler },
-    ];
+    const bindings: KeyBinding[] = [{ key: 'c', ctrl: true, handler }];
 
     render(<TestComponent bindings={bindings} />);
 
@@ -60,9 +56,7 @@ describe('useKeybindings', () => {
 
   it('does not call handler when key does not match', () => {
     const handler = vi.fn();
-    const bindings: KeyBinding[] = [
-      { key: 'c', ctrl: true, handler },
-    ];
+    const bindings: KeyBinding[] = [{ key: 'c', ctrl: true, handler }];
 
     render(<TestComponent bindings={bindings} />);
 
@@ -72,9 +66,7 @@ describe('useKeybindings', () => {
 
   it('matches shift modifier', () => {
     const handler = vi.fn();
-    const bindings: KeyBinding[] = [
-      { key: 'tab', shift: true, handler },
-    ];
+    const bindings: KeyBinding[] = [{ key: 'tab', shift: true, handler }];
 
     render(<TestComponent bindings={bindings} />);
 
@@ -84,9 +76,7 @@ describe('useKeybindings', () => {
 
   it('matches meta/alt modifier', () => {
     const handler = vi.fn();
-    const bindings: KeyBinding[] = [
-      { key: 'h', meta: true, handler },
-    ];
+    const bindings: KeyBinding[] = [{ key: 'h', meta: true, handler }];
 
     render(<TestComponent bindings={bindings} />);
 
@@ -111,9 +101,7 @@ describe('useKeybindings', () => {
 
   it('ignores input when enabled is false', () => {
     const handler = vi.fn();
-    const bindings: KeyBinding[] = [
-      { key: 'c', ctrl: true, handler },
-    ];
+    const bindings: KeyBinding[] = [{ key: 'c', ctrl: true, handler }];
 
     render(<TestComponent bindings={bindings} enabled={false} />);
 

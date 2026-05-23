@@ -34,9 +34,7 @@ export const SelectItem: React.FC<SelectItemProps> = ({
       >
         {label}
       </Text>
-      {description && isFocused && (
-        <Text dimColor> — {description}</Text>
-      )}
+      {description && isFocused && <Text dimColor> — {description}</Text>}
     </Box>
   );
 };

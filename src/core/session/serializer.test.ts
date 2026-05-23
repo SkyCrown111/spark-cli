@@ -1,9 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import {
-  serializeSession,
-  deserializeSession,
-  type SessionSnapshot,
-} from './serializer.js';
+import { serializeSession, deserializeSession, type SessionSnapshot } from './serializer.js';
 
 function makeSnapshot(overrides?: Partial<SessionSnapshot>): SessionSnapshot {
   return {

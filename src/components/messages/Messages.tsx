@@ -42,7 +42,16 @@ export interface MessagesProps {
 function renderMessage(msg: ChatMessage | DisplayMessage, key: number | string) {
   // Handle display-only types first
   if (isProgressMessage(msg)) {
-    return <ProgressMessage key={key} label={msg.label} current={msg.current} total={msg.total} percent={msg.percent} status={msg.status} />;
+    return (
+      <ProgressMessage
+        key={key}
+        label={msg.label}
+        current={msg.current}
+        total={msg.total}
+        percent={msg.percent}
+        status={msg.status}
+      />
+    );
   }
 
   // Standard ChatMessage types

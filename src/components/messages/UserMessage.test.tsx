@@ -12,12 +12,12 @@ describe('UserMessage component', () => {
   it('renders simple text message', () => {
     const message: UserMessageType = {
       role: 'user',
-      content: 'Hello, world!'
+      content: 'Hello, world!',
     };
-    
+
     const { lastFrame } = render(<UserMessage message={message} />);
     const output = lastFrame();
-    
+
     expect(output).toContain('>');
     expect(output).toContain('Hello, world!');
   });
@@ -25,12 +25,12 @@ describe('UserMessage component', () => {
   it('renders multiline text message', () => {
     const message: UserMessageType = {
       role: 'user',
-      content: 'Line 1\nLine 2\nLine 3'
+      content: 'Line 1\nLine 2\nLine 3',
     };
-    
+
     const { lastFrame } = render(<UserMessage message={message} />);
     const output = lastFrame();
-    
+
     expect(output).toContain('>');
     expect(output).toContain('Line 1');
     expect(output).toContain('Line 2');
@@ -40,14 +40,12 @@ describe('UserMessage component', () => {
   it('renders message with content parts (text)', () => {
     const message: UserMessageType = {
       role: 'user',
-      content: [
-        { type: 'text', text: 'Text content' }
-      ]
+      content: [{ type: 'text', text: 'Text content' }],
     };
-    
+
     const { lastFrame } = render(<UserMessage message={message} />);
     const output = lastFrame();
-    
+
     expect(output).toContain('>');
     expect(output).toContain('Text content');
   });
@@ -57,13 +55,13 @@ describe('UserMessage component', () => {
       role: 'user',
       content: [
         { type: 'text', text: 'Check this image:' },
-        { type: 'image_url', image_url: { url: 'https://example.com/image.png' } }
-      ]
+        { type: 'image_url', image_url: { url: 'https://example.com/image.png' } },
+      ],
     };
-    
+
     const { lastFrame } = render(<UserMessage message={message} />);
     const output = lastFrame();
-    
+
     expect(output).toContain('>');
     expect(output).toContain('Check this image:');
     expect(output).toContain('[Image]');
@@ -72,12 +70,12 @@ describe('UserMessage component', () => {
   it('renders empty message', () => {
     const message: UserMessageType = {
       role: 'user',
-      content: ''
+      content: '',
     };
-    
+
     const { lastFrame } = render(<UserMessage message={message} />);
     const output = lastFrame();
-    
+
     expect(output).toContain('>');
   });
 
@@ -87,13 +85,13 @@ describe('UserMessage component', () => {
       content: [
         { type: 'text', text: 'Part 1' },
         { type: 'text', text: 'Part 2' },
-        { type: 'text', text: 'Part 3' }
-      ]
+        { type: 'text', text: 'Part 3' },
+      ],
     };
-    
+
     const { lastFrame } = render(<UserMessage message={message} />);
     const output = lastFrame();
-    
+
     expect(output).toContain('>');
     expect(output).toContain('Part 1');
     expect(output).toContain('Part 2');
@@ -103,15 +101,12 @@ describe('UserMessage component', () => {
   it('filters out empty content parts', () => {
     const message: UserMessageType = {
       role: 'user',
-      content: [
-        { type: 'text', text: 'Valid text' },
-        { type: 'unknown' } as any
-      ]
+      content: [{ type: 'text', text: 'Valid text' }, { type: 'unknown' } as any],
     };
-    
+
     const { lastFrame } = render(<UserMessage message={message} />);
     const output = lastFrame();
-    
+
     expect(output).toContain('>');
     expect(output).toContain('Valid text');
   });

@@ -7,11 +7,7 @@
  * messages, computing duration where possible.
  */
 
-import type {
-  ChatMessage,
-  AssistantMessage,
-  ToolMessage,
-} from '../providers/openai-compatible.js';
+import type { ChatMessage, AssistantMessage, ToolMessage } from '../providers/openai-compatible.js';
 import type { ToolCall } from '../providers/types.js';
 
 // ── Types ──────────────────────────────────────────────────
@@ -70,9 +66,7 @@ export function buildTranscriptData(history: ChatMessage[]): TranscriptEntry[] {
     if (msg.role === 'system') continue;
 
     if (msg.role === 'user') {
-      const content = typeof msg.content === 'string'
-        ? msg.content
-        : extractTextParts(msg.content);
+      const content = typeof msg.content === 'string' ? msg.content : extractTextParts(msg.content);
       entries.push({
         key: `msg-${i}`,
         role: 'user',
@@ -83,23 +77,22 @@ export function buildTranscriptData(history: ChatMessage[]): TranscriptEntry[] {
       });
     } else if (msg.role === 'assistant') {
       const assistant = msg as AssistantMessage;
-      const content = typeof assistant.content === 'string'
-        ? assistant.content
-        : extractTextParts(assistant.content);
+      const content =
+        typeof assistant.content === 'string'
+          ? assistant.content
+          : extractTextParts(assistant.content);
 
       // Pair tool calls with their results
-      const toolCalls: TranscriptToolCall[] = (assistant.tool_calls ?? []).map(
-        (tc: ToolCall) => {
-          const result = toolResults.get(tc.id);
-          return {
-            id: tc.id,
-            name: tc.function.name,
-            args: tc.function.arguments,
-            result: result?.content,
-            durationMs: result?.durationMs,
-          };
-        },
-      );
+      const toolCalls: TranscriptToolCall[] = (assistant.tool_calls ?? []).map((tc: ToolCall) => {
+        const result = toolResults.get(tc.id);
+        return {
+          id: tc.id,
+          name: tc.function.name,
+          args: tc.function.arguments,
+          result: result?.content,
+          durationMs: result?.durationMs,
+        };
+      });
 
       entries.push({
         key: `msg-${i}`,
@@ -176,9 +169,7 @@ function estimateDuration(history: ChatMessage[], toolIndex: number): number | u
 /**
  * Extract text from an array of content parts.
  */
-function extractTextParts(
-  parts: Array<{ type: string; text?: string }>,
-): string {
+function extractTextParts(parts: Array<{ type: string; text?: string }>): string {
   return parts
     .filter((p) => p.type === 'text' && p.text)
     .map((p) => p.text!)

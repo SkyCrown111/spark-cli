@@ -1,20 +1,17 @@
 /**
- * TTY viewport helpers for the REPL.
+ * TTY viewport helpers for the default (main-screen) REPL.
  *
- * Default: main terminal buffer so mouse wheel / scrollback works.
- * Opt-in alternate screen via SPARK_CLI_ALT_SCREEN=1 (disables scrollback in most hosts).
+ * Default renderer keeps native scrollback — do not enter alternate screen
+ * or clear scrollback here. Fullscreen renderer uses Ink AlternateScreen.
  */
 
 import * as readline from 'node:readline';
 
 /**
- * Use DEC alternate screen (1049). Off by default — alt buffer has no scrollback,
- * so the mouse wheel cannot review earlier agent output.
+ * @deprecated Default renderer never uses alternate screen. Fullscreen uses Ink.
  */
 export function shouldUseAlternateScreen(): boolean {
-  if (!process.stdout.isTTY) return false;
-  if (process.env.SPARK_CLI_NO_ALT_SCREEN === '1') return false;
-  return process.env.SPARK_CLI_ALT_SCREEN === '1';
+  return false;
 }
 
 /** @deprecated use shouldUseAlternateScreen */
@@ -66,7 +63,7 @@ export interface WatchTtyResizeOptions {
 /**
  * Invoke `onResize` when terminal columns or rows change.
  * Combines Node's `resize` event with a lightweight poll.
- * 
+ *
  * Fixed to prevent duplicate resize handling:
  * - Task 3.1: Added resizePending flag to prevent multiple queued calls
  * - Task 3.2: Deduplicate Windows dual-trigger by tracking last processed size
@@ -79,11 +76,9 @@ export function watchTtyResize(
 ): UnwatchTty {
   const stdout = process.stdout;
   const debounceMs = opts.debounceMs ?? 200; // Task 3.4: Increased from 150ms to 200ms
-  
+
   // Polling + resize together can fire multiple full redraws on Windows.
-  const pollMs =
-    opts.pollMs ??
-    (process.platform === 'win32' && !process.env.WT_SESSION ? 0 : 250);
+  const pollMs = opts.pollMs ?? (process.platform === 'win32' && !process.env.WT_SESSION ? 0 : 250);
   let cols = stdout.columns ?? 80;
   let rows = stdout.rows ?? 24;
   let timer: NodeJS.Timeout | undefined;
@@ -94,32 +89,33 @@ export function watchTtyResize(
   const schedule = (): void => {
     const nextCols = stdout.columns ?? 80;
     const nextRows = stdout.rows ?? 24;
-    
+
     // Task 3.2: Skip if size hasn't actually changed (deduplicates Windows dual-trigger)
     if (nextCols === cols && nextRows === rows) return;
-    
+
     cols = nextCols;
     rows = nextRows;
-    
+
     // Task 3.1: Skip if a resize is already pending
     if (resizePending) return;
-    
+
     if (timer) clearTimeout(timer);
-    timer = setTimeout(async () => { // Task 3.3: Made async to await callback
+    timer = setTimeout(async () => {
+      // Task 3.3: Made async to await callback
       timer = undefined;
-      
+
       // Task 3.2: Check if this size was already processed (Windows dual-trigger)
       if (cols === lastProcessedCols && rows === lastProcessedRows) {
         return;
       }
-      
+
       // Task 3.1: Set flag before calling onResize
       resizePending = true;
-      
+
       try {
         // Task 3.3: Await the callback to ensure serialization
         await onResize();
-        
+
         // Task 3.2: Update last processed size
         lastProcessedCols = cols;
         lastProcessedRows = rows;

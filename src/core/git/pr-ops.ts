@@ -50,10 +50,7 @@ export function createPr(
  * @returns The PR merge status and URL.
  * @throws If `gh` is not available or the PR doesn't exist.
  */
-export function getPrStatus(
-  number: number,
-  options?: { cwd?: string },
-): PrStatus {
+export function getPrStatus(number: number, options?: { cwd?: string }): PrStatus {
   const cmd = `gh pr view ${number} --json state,url`;
   const output = execSync(cmd, {
     cwd: options?.cwd ?? process.cwd(),
@@ -74,10 +71,7 @@ export function getPrStatus(
  * Combines the PR diff and review comments into a single string
  * that can be injected into the agent's context.
  */
-export function loadPrContext(
-  number: number,
-  options?: { cwd?: string },
-): string {
+export function loadPrContext(number: number, options?: { cwd?: string }): string {
   const cwd = options?.cwd ?? process.cwd();
   const parts: string[] = [];
 
@@ -108,10 +102,11 @@ export function loadPrContext(
 
   // Get PR issue comments
   try {
-    const issueComments = execSync(
-      `gh pr view ${number} --json comments --jq '.comments[].body'`,
-      { cwd, stdio: 'pipe', encoding: 'utf8' },
-    );
+    const issueComments = execSync(`gh pr view ${number} --json comments --jq '.comments[].body'`, {
+      cwd,
+      stdio: 'pipe',
+      encoding: 'utf8',
+    });
     if (issueComments.trim()) {
       parts.push(`## PR #${number} Comments\n\n${issueComments}`);
     }

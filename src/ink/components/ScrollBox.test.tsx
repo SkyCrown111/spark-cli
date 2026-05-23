@@ -30,7 +30,13 @@ describe('ScrollBox', () => {
   it('renders content through children callback (autoPin=false)', () => {
     let capturedRange: [number, number] = [0, 0];
     render(
-      <ScrollBox rowCount={50} estimatedRowHeight={1} maxHeight={10} autoPinToBottom={false} stickyScroll={false}>
+      <ScrollBox
+        rowCount={50}
+        estimatedRowHeight={1}
+        maxHeight={10}
+        autoPinToBottom={false}
+        stickyScroll={false}
+      >
         {(start, end) => {
           capturedRange = [start, end];
           return null;
@@ -86,7 +92,14 @@ describe('ScrollBox', () => {
   it('accepts buffer parameter for overscan (autoPin=false)', () => {
     let capturedRange: [number, number] = [0, 0];
     render(
-      <ScrollBox rowCount={50} estimatedRowHeight={1} maxHeight={10} buffer={5} autoPinToBottom={false} stickyScroll={false}>
+      <ScrollBox
+        rowCount={50}
+        estimatedRowHeight={1}
+        maxHeight={10}
+        buffer={5}
+        autoPinToBottom={false}
+        stickyScroll={false}
+      >
         {(start, end) => {
           capturedRange = [start, end];
           return null;

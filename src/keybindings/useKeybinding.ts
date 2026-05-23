@@ -24,11 +24,7 @@ import type { KeybindingContextName } from './types.js';
  * @param handler - The callback to invoke when the action triggers
  * @param enabled - Whether this binding is active (default: true)
  */
-export function useKeybinding(
-  action: string,
-  handler: () => void,
-  enabled = true,
-): void {
+export function useKeybinding(action: string, handler: () => void, enabled = true): void {
   const ctx = useKeybindingContext();
 
   useEffect(() => {
@@ -56,10 +52,7 @@ export interface ActionBinding {
  * @param bindings - Array of action/handler pairs
  * @param enabled - Whether all bindings are active (default: true)
  */
-export function useKeybindings(
-  bindings: ActionBinding[],
-  enabled = true,
-): void {
+export function useKeybindings(bindings: ActionBinding[], enabled = true): void {
   const ctx = useKeybindingContext();
 
   useEffect(() => {
@@ -86,10 +79,7 @@ export function useKeybindings(
  * @param context - The context name (e.g., "Autocomplete")
  * @param enabled - Whether the context should be active (default: true)
  */
-export function useRegisterKeybindingContext(
-  context: KeybindingContextName,
-  enabled = true,
-): void {
+export function useRegisterKeybindingContext(context: KeybindingContextName, enabled = true): void {
   const ctx = useKeybindingContext();
 
   useEffect(() => {

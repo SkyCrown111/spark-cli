@@ -22,23 +22,29 @@ let confirmChain: Promise<unknown> = Promise.resolve();
 
 function enqueueConfirm<T>(fn: () => Promise<T>): Promise<T> {
   const next = confirmChain.then(fn, fn);
-  confirmChain = next.then(() => undefined, () => undefined);
+  confirmChain = next.then(
+    () => undefined,
+    () => undefined,
+  );
   return next;
 }
 
 function askToolConfirmInk(req: ToolConfirmRequest): Promise<InkToolConfirmAnswer> {
-  return enqueueConfirm(() => new Promise<InkToolConfirmAnswer>((resolve) => {
-    const state: PermissionRequestState = {
-      tool: req.tool,
-      argsSummary: req.argsSummary,
-      showAlwaysAllow: true,
-      resolve: (answer) => {
-        appState.setState({ permissionRequest: undefined });
-        resolve(answer);
-      },
-    };
-    appState.setState({ permissionRequest: state });
-  }));
+  return enqueueConfirm(
+    () =>
+      new Promise<InkToolConfirmAnswer>((resolve) => {
+        const state: PermissionRequestState = {
+          tool: req.tool,
+          argsSummary: req.argsSummary,
+          showAlwaysAllow: true,
+          resolve: (answer) => {
+            appState.setState({ permissionRequest: undefined });
+            resolve(answer);
+          },
+        };
+        appState.setState({ permissionRequest: state });
+      }),
+  );
 }
 
 /**

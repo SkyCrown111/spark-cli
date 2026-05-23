@@ -52,7 +52,11 @@ export function watchPluginDirs(opts: PluginWatcherOptions): () => void {
   return () => {
     if (debounceTimer) clearTimeout(debounceTimer);
     for (const w of watchers) {
-      try { w.close(); } catch { /* ignore */ }
+      try {
+        w.close();
+      } catch {
+        /* ignore */
+      }
     }
   };
 }

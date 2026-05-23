@@ -188,6 +188,7 @@ describe('KeybindingResolver', () => {
     const resolver = new KeybindingResolver(undefined, [
       { context: 'Chat', key: 'ctrl+g', action: 'chat:externalEditor' },
     ]);
+    resolver.pushContext('Chat');
     const event = { key: 'g', ctrl: true, shift: false, meta: false };
     expect(resolver.resolve(event)).toBe('chat:externalEditor');
   });

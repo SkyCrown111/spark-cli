@@ -104,7 +104,8 @@ function findExternalReferences(
   removedIds: Set<number>,
   allowed: { fromEntryId: number; childId: number },
 ): Array<{ ownerEntryId: number; ownerType: string; refId: number; pathHint: string }> {
-  const hits: Array<{ ownerEntryId: number; ownerType: string; refId: number; pathHint: string }> = [];
+  const hits: Array<{ ownerEntryId: number; ownerType: string; refId: number; pathHint: string }> =
+    [];
 
   function walk(value: unknown, ownerId: number, pathHint: string): void {
     if (value === null || typeof value !== 'object') return;
@@ -156,16 +157,18 @@ function compactEntries(entries: SceneEntry[], removed: Set<number>): SceneEntry
   function remapValue(value: unknown): unknown {
     if (value === null || typeof value !== 'object') return value;
     if (Array.isArray(value)) {
-      return value
-        .map(remapValue)
-        // also drop any `{__id__: removed}` items that survived inside arrays
-        .filter((item) => {
-          if (item && typeof item === 'object' && '__id__' in (item as object)) {
-            const x = (item as { __id__: unknown }).__id__;
-            if (typeof x === 'number' && x === -1) return false;
-          }
-          return true;
-        });
+      return (
+        value
+          .map(remapValue)
+          // also drop any `{__id__: removed}` items that survived inside arrays
+          .filter((item) => {
+            if (item && typeof item === 'object' && '__id__' in (item as object)) {
+              const x = (item as { __id__: unknown }).__id__;
+              if (typeof x === 'number' && x === -1) return false;
+            }
+            return true;
+          })
+      );
     }
     const obj = value as Record<string, unknown>;
     if (typeof obj.__id__ === 'number') {
@@ -254,9 +257,7 @@ export function removeSceneNodeFromStaging(
   const removedComponentCount = Array.from(subtreeIds).filter(
     (id) => entries[id]?.__type__ !== 'cc.Node',
   ).length;
-  const removedNodeIds = Array.from(subtreeIds).filter(
-    (id) => entries[id]?.__type__ === 'cc.Node',
-  );
+  const removedNodeIds = Array.from(subtreeIds).filter((id) => entries[id]?.__type__ === 'cc.Node');
 
   return {
     scenePath: sceneRelPath,
@@ -381,7 +382,8 @@ export function reorderSceneChildrenInStaging(
   const newChildren: { __id__: number }[] = [];
   for (const name of childOrder) {
     const ref = byName.get(name);
-    if (!ref) throw new Error(`reorderSceneChildren: child '${name}' not found under ${parentPath}`);
+    if (!ref)
+      throw new Error(`reorderSceneChildren: child '${name}' not found under ${parentPath}`);
     newChildren.push(ref);
   }
   parent._children = newChildren;

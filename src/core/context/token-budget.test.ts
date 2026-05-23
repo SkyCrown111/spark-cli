@@ -1,9 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import {
-  estimateTokens,
-  estimateMessageTokens,
-  computeBudgetStatus,
-} from './token-budget.js';
+import { estimateTokens, estimateMessageTokens, computeBudgetStatus } from './token-budget.js';
 import type { ChatMessage } from '../providers/openai-compatible.js';
 
 describe('estimateMessageTokens', () => {
@@ -44,17 +40,13 @@ describe('estimateTokens', () => {
   it('sums message estimates', () => {
     const a: ChatMessage = { role: 'user', content: 'aaaa' };
     const b: ChatMessage = { role: 'assistant', content: 'bb' };
-    expect(estimateTokens([a, b])).toBe(
-      estimateMessageTokens(a) + estimateMessageTokens(b),
-    );
+    expect(estimateTokens([a, b])).toBe(estimateMessageTokens(a) + estimateMessageTokens(b));
   });
 });
 
 describe('computeBudgetStatus', () => {
   it('flags overThreshold at 75% by default', () => {
-    const msgs: ChatMessage[] = [
-      { role: 'user', content: 'x'.repeat(1000) },
-    ];
+    const msgs: ChatMessage[] = [{ role: 'user', content: 'x'.repeat(1000) }];
     const s = computeBudgetStatus(msgs, 300);
     expect(s.overThreshold).toBe(true);
     expect(s.fraction).toBeGreaterThan(0.75);

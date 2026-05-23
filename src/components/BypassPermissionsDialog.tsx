@@ -35,12 +35,16 @@ export const BypassPermissionsDialog: React.FC<BypassPermissionsDialogProps> = (
   return (
     <Box flexDirection="column" paddingX={1}>
       <Box>
-        <Text bold color="red">! Bypass All Permissions?</Text>
+        <Text bold color="red">
+          ! Bypass All Permissions?
+        </Text>
       </Box>
 
       <Box marginTop={1}>
         <Text>This will automatically approve </Text>
-        <Text bold color="red">ALL</Text>
+        <Text bold color="red">
+          ALL
+        </Text>
         <Text> tool operations without</Text>
       </Box>
       <Box>

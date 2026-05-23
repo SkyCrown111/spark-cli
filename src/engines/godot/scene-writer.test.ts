@@ -32,7 +32,7 @@ afterEach(() => {
 });
 
 function readStaged(): string {
-  return readFileSync(join(tmp, '.spark-cli/staging/files', sceneRel), 'utf8');
+  return readFileSync(join(tmp, '.spark/staging/files', sceneRel), 'utf8');
 }
 
 describe('setGodotSceneProperty', () => {
@@ -58,7 +58,9 @@ describe('setGodotSceneProperty', () => {
   });
 
   it('throws when the node path is not present', () => {
-    expect(() => setGodotSceneProperty(tmp, sceneRel, 'Ghost', 'foo', '1')).toThrow(/Node not found/);
+    expect(() => setGodotSceneProperty(tmp, sceneRel, 'Ghost', 'foo', '1')).toThrow(
+      /Node not found/,
+    );
   });
 });
 
@@ -66,9 +68,7 @@ describe('addGodotSceneNode', () => {
   it('appends a new [node] header under the named parent', () => {
     const r = addGodotSceneNode(tmp, sceneRel, 'Player', 'Sprite2D', 'Icon');
     expect(r.nodePath).toBe('Player/Icon');
-    expect(readStaged()).toContain(
-      '[node name="Icon" type="Sprite2D" parent="Player"]',
-    );
+    expect(readStaged()).toContain('[node name="Icon" type="Sprite2D" parent="Player"]');
   });
 
   it('rejects duplicate sibling names', () => {

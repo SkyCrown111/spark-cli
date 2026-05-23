@@ -46,7 +46,9 @@ describe('pr-ops', () => {
 
   describe('getPrStatus', () => {
     it('parses state and url from gh pr view JSON', () => {
-      mockExecSync.mockReturnValue(JSON.stringify({ state: 'MERGED', url: 'https://github.com/o/r/pull/5' }));
+      mockExecSync.mockReturnValue(
+        JSON.stringify({ state: 'MERGED', url: 'https://github.com/o/r/pull/5' }),
+      );
       const status = getPrStatus(5);
       expect(status.status).toBe('MERGED');
       expect(status.url).toBe('https://github.com/o/r/pull/5');
@@ -76,7 +78,9 @@ describe('pr-ops', () => {
 
     it('handles missing diff gracefully', () => {
       mockExecSync
-        .mockImplementationOnce(() => { throw new Error('no diff'); })
+        .mockImplementationOnce(() => {
+          throw new Error('no diff');
+        })
         .mockReturnValueOnce('')
         .mockReturnValueOnce('');
 

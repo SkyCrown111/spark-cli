@@ -12,18 +12,14 @@
 import type { RegisteredTool, ToolContext, ToolResult } from '../tool-registry.js';
 import { spawnSubAgent } from '../sub-agent.js';
 
-async function handler(
-  args: Record<string, unknown>,
-  ctx: ToolContext,
-): Promise<ToolResult> {
+async function handler(args: Record<string, unknown>, ctx: ToolContext): Promise<ToolResult> {
   const prompt = args.prompt;
   if (typeof prompt !== 'string' || prompt.trim().length === 0) {
     return { content: 'task: `prompt` must be a non-empty string', isError: true };
   }
   if (!ctx.subAgent) {
     return {
-      content:
-        'task: sub-agent dependencies not attached to this context. Cannot spawn.',
+      content: 'task: sub-agent dependencies not attached to this context. Cannot spawn.',
       isError: true,
     };
   }
@@ -52,7 +48,7 @@ async function handler(
 export const taskTool: RegisteredTool = {
   name: 'task',
   description:
-    'Spawn a sub-agent with a fresh context to handle a focused research or read-only subtask. Returns the sub-agent\'s final answer.',
+    "Spawn a sub-agent with a fresh context to handle a focused research or read-only subtask. Returns the sub-agent's final answer.",
   planModeAllowed: true,
   mutates: false,
   parameters: {

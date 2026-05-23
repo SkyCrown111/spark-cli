@@ -32,27 +32,36 @@ const MessageRow: React.FC<{
   message: ChatMessage;
   searchQuery?: string;
 }> = ({ message, searchQuery }) => {
-  const roleColor = message.role === 'user' ? 'cyan'
-    : message.role === 'assistant' ? 'green'
-    : message.role === 'system' ? 'yellow'
-    : 'gray';
+  const roleColor =
+    message.role === 'user'
+      ? 'cyan'
+      : message.role === 'assistant'
+        ? 'green'
+        : message.role === 'system'
+          ? 'yellow'
+          : 'gray';
 
-  const roleLabel = message.role === 'user' ? 'You'
-    : message.role === 'assistant' ? 'Spark'
-    : message.role === 'system' ? 'System'
-    : message.role;
+  const roleLabel =
+    message.role === 'user'
+      ? 'You'
+      : message.role === 'assistant'
+        ? 'Spark'
+        : message.role === 'system'
+          ? 'System'
+          : message.role;
 
   // Split content into lines for rendering
-  const content = typeof message.content === 'string'
-    ? message.content
-    : JSON.stringify(message.content);
+  const content =
+    typeof message.content === 'string' ? message.content : JSON.stringify(message.content);
 
   const lines = content.split('\n');
 
   return (
     <Box flexDirection="column" paddingBottom={1}>
       <Box flexDirection="row">
-        <Text bold color={roleColor}>{roleLabel}: </Text>
+        <Text bold color={roleColor}>
+          {roleLabel}:{' '}
+        </Text>
       </Box>
       {lines.map((line: string, i: number) => (
         <Box key={i}>
@@ -93,9 +102,13 @@ const HighlightLine: React.FC<{ line: string; query: string }> = ({ line, query 
   return (
     <Text wrap="wrap">
       {parts.map((part, i) =>
-        part.match
-          ? <Text key={i} backgroundColor="yellow" color="black">{part.text}</Text>
-          : <Text key={i}>{part.text}</Text>
+        part.match ? (
+          <Text key={i} backgroundColor="yellow" color="black">
+            {part.text}
+          </Text>
+        ) : (
+          <Text key={i}>{part.text}</Text>
+        ),
       )}
     </Text>
   );
@@ -105,7 +118,9 @@ const HighlightLine: React.FC<{ line: string; query: string }> = ({ line, query 
 
 const UnseenDivider: React.FC = () => (
   <Box flexDirection="row" paddingBottom={1}>
-    <Text color="yellow" bold>── new messages ──</Text>
+    <Text color="yellow" bold>
+      ── new messages ──
+    </Text>
   </Box>
 );
 
@@ -132,13 +147,7 @@ export const VirtualMessageList: React.FC<VirtualMessageListProps> = ({
         result.push(<UnseenDivider key={`unseen-${i}`} />);
       }
 
-      result.push(
-        <MessageRow
-          key={`msg-${i}`}
-          message={messages[i]}
-          searchQuery={searchQuery}
-        />,
-      );
+      result.push(<MessageRow key={`msg-${i}`} message={messages[i]} searchQuery={searchQuery} />);
     }
 
     return result;
@@ -149,15 +158,9 @@ export const VirtualMessageList: React.FC<VirtualMessageListProps> = ({
   messageCountRef.current = messages.length;
 
   return (
-    <ScrollBox
-      rowCount={rows.length}
-      maxHeight={maxHeight}
-      autoPinToBottom={shouldAutoPin}
-    >
+    <ScrollBox rowCount={rows.length} maxHeight={maxHeight} autoPinToBottom={shouldAutoPin}>
       {(visibleStart: number, visibleEnd: number) => (
-        <Box flexDirection="column">
-          {rows.slice(visibleStart, visibleEnd)}
-        </Box>
+        <Box flexDirection="column">{rows.slice(visibleStart, visibleEnd)}</Box>
       )}
     </ScrollBox>
   );

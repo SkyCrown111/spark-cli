@@ -2,11 +2,7 @@ import { writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { loadMergedConfig } from '../../config/load.js';
 import { scanProjectContext } from '../context/project-scanner.js';
-import {
-  hasStaging,
-  loadManifest,
-  showDiff,
-} from '../staging/patch-manager.js';
+import { hasStaging, loadManifest, showDiff } from '../staging/patch-manager.js';
 import { readReplayEvents } from './log.js';
 import { detectCocosProject } from '../../engines/cocos/detector.js';
 import { detectUnityProject } from '../../engines/unity/detector.js';
@@ -49,10 +45,7 @@ export async function buildReplayExport(projectRoot: string): Promise<ReplayExpo
   return out;
 }
 
-export async function exportReplay(
-  projectRoot: string,
-  outputPath?: string,
-): Promise<string> {
+export async function exportReplay(projectRoot: string, outputPath?: string): Promise<string> {
   const replay = await buildReplayExport(projectRoot);
   const dest = outputPath ?? join(projectRoot, 'replay.json');
   writeFileSync(dest, JSON.stringify(replay, null, 2), 'utf8');

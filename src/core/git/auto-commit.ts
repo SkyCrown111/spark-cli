@@ -62,10 +62,7 @@ export function generateCommitMessage(manifest: {
  * Runs `git add -A && git commit -m <message>`.
  * Returns true on success, false on failure (e.g. nothing to commit).
  */
-export function autoCommit(
-  projectRoot: string,
-  message: string,
-): boolean {
+export function autoCommit(projectRoot: string, message: string): boolean {
   try {
     execSync('git add -A', { cwd: projectRoot, stdio: 'pipe' });
     execSync(`git commit -m ${JSON.stringify(message)}`, {

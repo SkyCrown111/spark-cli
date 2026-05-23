@@ -1,5 +1,5 @@
 /**
- * Compact REPL welcome card with Claude Code–style restraint.
+ * Shared welcome card for both readline and Ink REPL entry.
  */
 
 import chalk from 'chalk';
@@ -18,7 +18,6 @@ export interface WelcomeSessionInfo {
 export interface RenderWelcomeOptions {
   info: WelcomeSessionInfo;
   showMascot?: boolean;
-  greetingSeed?: number;
 }
 
 function padVisible(text: string, width: number): string {
@@ -96,11 +95,13 @@ export function renderReplWelcome(opts: RenderWelcomeOptions): string {
       ),
     );
     if (info.modelLine) {
-      lines.push(frameRow(chalk.dim(modeLabel) + chalk.dim(` ${dot} `) + chalk.dim(info.modelLine), inner));
+      lines.push(
+        frameRow(chalk.dim(modeLabel) + chalk.dim(` ${dot} `) + chalk.dim(info.modelLine), inner),
+      );
     }
   } else {
     const mascotLines = renderSparkPixel();
-    const leftWidth = Math.max(20, Math.min(30, Math.floor(inner * 0.22)));
+    const leftWidth = Math.max(20, Math.min(30, Math.floor(inner * 0.26)));
     const rightWidth = Math.max(20, inner - leftWidth - 3);
     const rightLines = [
       accentBold('Welcome back!'),
@@ -115,8 +116,8 @@ export function renderReplWelcome(opts: RenderWelcomeOptions): string {
       lines.push(frameSplitRow(mascotLines[i] ?? '', rightLines[i] ?? '', leftWidth, rightWidth));
     }
   }
-  lines.push(frameDim(chars.bottomLeft + chars.horizontal.repeat(inner + 2) + chars.bottomRight));
 
+  lines.push(frameDim(chars.bottomLeft + chars.horizontal.repeat(inner + 2) + chars.bottomRight));
   return lines.join('\n');
 }
 

@@ -4,6 +4,7 @@ import { publishPlatform } from '../engines/platform/publish.js';
 import { publishWechat } from '../engines/wechat/publish.js';
 import type { PlatformId } from '../core/validate/platform-rules.js';
 import { getPlatform } from '../platforms/registry.js';
+import { logger } from '../utils/logger.js';
 import type { GlobalOptions } from '../utils/output.js';
 import { printJson, resolveProjectRoot } from '../utils/output.js';
 
@@ -26,9 +27,9 @@ export async function runPublishPlatform(
   }
 
   const label = getPlatform(platform)?.label ?? platform;
-  console.log(chalk.bold(`\nPublish ${label} (${env})\n`));
-  if (result.command) console.log(chalk.dim('  Command:'), result.command);
-  console.log(result.ok ? chalk.green('✓') : chalk.red('✗'), result.message);
+  logger.info(chalk.bold(`\nPublish ${label} (${env})\n`));
+  if (result.command) logger.info(chalk.dim('  Command:'), result.command);
+  logger.info(result.ok ? chalk.green('✓') : chalk.red('✗'), result.message);
   return result.ok ? 0 : 1;
 }
 

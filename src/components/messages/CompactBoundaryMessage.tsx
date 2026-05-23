@@ -22,10 +22,7 @@ export const CompactBoundaryMessage: React.FC<CompactBoundaryMessageProps> = ({
   tokensSaved,
 }) => {
   return (
-    <Box
-      flexDirection="column"
-      paddingX={1}
-    >
+    <Box flexDirection="column" paddingX={1}>
       <Box flexDirection="row" gap={1}>
         <Text dimColor>──</Text>
         <Text dimColor bold>
@@ -33,9 +30,7 @@ export const CompactBoundaryMessage: React.FC<CompactBoundaryMessageProps> = ({
         </Text>
         <Text dimColor>──</Text>
       </Box>
-      {tokensSaved !== undefined && (
-        <Text dimColor>Saved ~{tokensSaved} tokens</Text>
-      )}
+      {tokensSaved !== undefined && <Text dimColor>Saved ~{tokensSaved} tokens</Text>}
     </Box>
   );
 };

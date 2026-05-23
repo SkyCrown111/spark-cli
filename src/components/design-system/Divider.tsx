@@ -16,16 +16,13 @@ export interface DividerProps {
   label?: string;
 }
 
-export const Divider: React.FC<DividerProps> = ({
-  char = '─',
-  color = 'gray',
-  width,
-  label,
-}) => {
+export const Divider: React.FC<DividerProps> = ({ char = '─', color = 'gray', width, label }) => {
   if (label) {
     return (
       <Box justifyContent="center">
-        <Text color={color}>{char} {label} {char}</Text>
+        <Text color={color}>
+          {char} {label} {char}
+        </Text>
       </Box>
     );
   }

@@ -14,7 +14,7 @@ import type { DisplayMessage } from './DisplayMessage.js';
 
 // Mock ink-markdown to avoid ESM top-level await issues in tests
 vi.mock('ink-markdown', () => ({
-  default: ({ children }: { children: string }) => children
+  default: ({ children }: { children: string }) => children,
 }));
 
 describe('Messages component', () => {
@@ -24,9 +24,7 @@ describe('Messages component', () => {
   });
 
   it('renders user message', () => {
-    const messages: ChatMessage[] = [
-      { role: 'user', content: 'Hello, assistant!' }
-    ];
+    const messages: ChatMessage[] = [{ role: 'user', content: 'Hello, assistant!' }];
 
     const { lastFrame } = render(<Messages messages={messages} />);
     const output = lastFrame();
@@ -36,9 +34,7 @@ describe('Messages component', () => {
   });
 
   it('renders assistant message', () => {
-    const messages: ChatMessage[] = [
-      { role: 'assistant', content: 'Hello, user!' }
-    ];
+    const messages: ChatMessage[] = [{ role: 'assistant', content: 'Hello, user!' }];
 
     const { lastFrame } = render(<Messages messages={messages} />);
     const output = lastFrame();
@@ -48,7 +44,7 @@ describe('Messages component', () => {
 
   it('renders tool message', () => {
     const messages: ChatMessage[] = [
-      { role: 'tool', content: 'Tool result data', tool_call_id: 'call_123' }
+      { role: 'tool', content: 'Tool result data', tool_call_id: 'call_123' },
     ];
 
     const { lastFrame } = render(<Messages messages={messages} />);
@@ -59,9 +55,7 @@ describe('Messages component', () => {
   });
 
   it('does not render system messages', () => {
-    const messages: ChatMessage[] = [
-      { role: 'system', content: 'System prompt' }
-    ];
+    const messages: ChatMessage[] = [{ role: 'system', content: 'System prompt' }];
 
     const { lastFrame } = render(<Messages messages={messages} />);
     expect(lastFrame()).toBe('');
@@ -71,7 +65,7 @@ describe('Messages component', () => {
     const messages: ChatMessage[] = [
       { role: 'user', content: 'First message' },
       { role: 'assistant', content: 'Second message' },
-      { role: 'user', content: 'Third message' }
+      { role: 'user', content: 'Third message' },
     ];
 
     const { lastFrame } = render(<Messages messages={messages} />);
@@ -85,7 +79,7 @@ describe('Messages component', () => {
   it('renders with maxHeight constraint', () => {
     const messages: ChatMessage[] = [
       { role: 'user', content: 'Message 1' },
-      { role: 'assistant', content: 'Message 2' }
+      { role: 'assistant', content: 'Message 2' },
     ];
 
     const { lastFrame } = render(<Messages messages={messages} maxHeight={10} />);
@@ -100,7 +94,7 @@ describe('Messages component', () => {
       { role: 'user', content: 'User input' },
       { role: 'assistant', content: 'AI response', tool_calls: [] },
       { role: 'tool', content: 'Tool output', tool_call_id: 'call_456' },
-      { role: 'system', content: 'System message' }
+      { role: 'system', content: 'System message' },
     ];
 
     const { lastFrame } = render(<Messages messages={messages} />);

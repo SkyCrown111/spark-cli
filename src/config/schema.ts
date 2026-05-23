@@ -106,6 +106,18 @@ export const SparkCLIConfigSchema = z.object({
       priority: z.array(z.string()).optional(),
     })
     .optional(),
+  ui: z
+    .object({
+      theme: z.string().optional(),
+      showStatusLine: z.boolean().optional(),
+      showThinking: z.boolean().optional(),
+      /**
+       * REPL renderer: `default` (main screen + native scrollback) or
+       * `fullscreen` (alternate screen + Ink). Default: `default`.
+       */
+      renderer: z.enum(['default', 'fullscreen']).optional(),
+    })
+    .optional(),
   agent: z
     .object({
       /** Hard cap on ReAct iterations per turn. Default 25. */
@@ -132,9 +144,7 @@ export const SparkCLIConfigSchema = z.object({
       /** Per-hook timeout in ms. Default 10000. */
       timeoutMs: z.number().int().positive().optional(),
       /** Allowed handler types. Default: all types enabled. */
-      handlerTypes: z
-        .array(z.enum(['command', 'script', 'http', 'prompt']))
-        .optional(),
+      handlerTypes: z.array(z.enum(['command', 'script', 'http', 'prompt'])).optional(),
       /** When true, advisory hooks run asynchronously (non-blocking). Default false. */
       asyncAdvisory: z.boolean().optional(),
     })
@@ -235,16 +245,36 @@ export const SparkCLIConfigSchema = z.object({
        *  Evaluated in order; first match wins. Actions: deny/ask/allow.
        *  Examples: Tool(bash), Tool(write_file:src/**), Tool(*:.git/*)
        */
-      toolRules: z.array(z.object({
-        specifier: z.string(),
-        action: z.enum(['deny', 'ask', 'allow']),
-      })).optional(),
+      toolRules: z
+        .array(
+          z.object({
+            specifier: z.string(),
+            action: z.enum(['deny', 'ask', 'allow']),
+          }),
+        )
+        .optional(),
       /** Paths that are never auto-approved (even in acceptEdits/bypass mode).
-       *  Default: ['.git', '.spark-cli', '.vscode', '.claude', '.kiro', '.husky']
+       *  Default: ['.git', '.spark', '.spark-cli', '.vscode', '.claude', '.kiro', '.husky']
        */
       protectedPaths: z.array(z.string()).optional(),
       /** Persist "always allow" choices across sessions. Default true. */
       persistAlwaysAllow: z.boolean().optional(),
+    })
+    .optional(),
+  sandbox: z
+    .object({
+      /** Enable sandbox mode. Default false. */
+      enabled: z.boolean().optional(),
+      /** Allowed file paths (glob patterns). Empty = all paths under project root. */
+      allowPaths: z.array(z.string()).optional(),
+      /** Denied file paths (glob patterns). Evaluated after allowPaths. */
+      denyPaths: z.array(z.string()).optional(),
+      /** Allowed domains for network access. Empty = all domains. */
+      allowDomains: z.array(z.string()).optional(),
+      /** Denied domains for network access. Evaluated after allowDomains. */
+      denyDomains: z.array(z.string()).optional(),
+      /** Auto-allow bash commands when sandbox is enabled. Default false. */
+      autoAllowBash: z.boolean().optional(),
     })
     .optional(),
   mcp: z

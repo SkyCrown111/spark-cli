@@ -12,11 +12,7 @@ import type { ChatMessage } from '../providers/openai-compatible.js';
 import type { ProviderResponse, ToolDefinition } from '../providers/types.js';
 import { buildAgentSystemPrompt } from './system-prompt.js';
 import { buildDefaultRegistry } from './tools/index.js';
-import {
-  runAgentTurn,
-  type IterationInfo,
-  type RunAgentTurnResult,
-} from './agent-loop.js';
+import { runAgentTurn, type IterationInfo, type RunAgentTurnResult } from './agent-loop.js';
 import type { ToolRunMode, ToolWriteMode } from './tool-registry.js';
 import { loadHookConfig } from '../hooks/config.js';
 import { createSkillRegistry } from '../skills/registry.js';
@@ -32,6 +28,8 @@ import {
   type ToolPermissionSession,
 } from './tool-permissions.js';
 import { connectMcpClients } from '../../mcp/client-pool.js';
+import { logger } from '../../utils/logger.js';
+import { getErrorMessage } from '../../utils/errors.js';
 
 export async function resolveCompletionFn(
   globalOpts: GlobalOptions,
@@ -102,9 +100,7 @@ export interface RunTurnResult extends RunAgentTurnResult {
   atRefs?: string[];
 }
 
-export async function runAgentTurnForCli(
-  opts: RunTurnOptions,
-): Promise<RunTurnResult> {
+export async function runAgentTurnForCli(opts: RunTurnOptions): Promise<RunTurnResult> {
   const root = resolveProjectRoot(opts.globalOpts);
   const config = opts.configOverride ?? (await loadMergedConfig(root));
   const llmTask = opts.visualContext?.imageDataUrl ? 'vision' : 'chat';
@@ -139,7 +135,7 @@ export async function runAgentTurnForCli(
       registry.register(tool);
     }
   } catch (e) {
-    console.error(`[spark-cli] MCP client connection error: ${(e as Error).message}`);
+    logger.error(`[spark-cli] MCP client connection error: ${getErrorMessage(e)}`);
   }
 
   const skills = createSkillRegistry();

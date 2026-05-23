@@ -38,7 +38,9 @@ export const PromptInputQueuedCommands: React.FC<PromptInputQueuedCommandsProps>
   return (
     <Box flexDirection="row" gap={1} paddingX={1}>
       <Text color="yellow">{'>'}</Text>
-      <Text color="yellow" bold>{pendingCount}</Text>
+      <Text color="yellow" bold>
+        {pendingCount}
+      </Text>
       <Text dimColor>queued:</Text>
       {preview && <Text dimColor>{preview}</Text>}
     </Box>

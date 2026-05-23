@@ -40,7 +40,9 @@ export const IdleReturnDialog: React.FC<IdleReturnDialogProps> = ({
   return (
     <Box flexDirection="column" paddingX={1}>
       <Box>
-        <Text bold color="cyan">Welcome back!</Text>
+        <Text bold color="cyan">
+          Welcome back!
+        </Text>
       </Box>
 
       <Box marginTop={1}>

@@ -1,6 +1,6 @@
 /**
  * Test for Task 3.3: Verify onResize callback async-awareness
- * 
+ *
  * This test verifies that watchTtyResize properly awaits async callbacks
  * and ensures serialization of resize operations.
  */
@@ -29,7 +29,7 @@ describe('Task 3.3: watchTtyResize async-awareness', () => {
   beforeEach(() => {
     originalStdout = process.stdout;
     mockStdout = new MockStdout();
-    
+
     Object.defineProperty(process, 'stdout', {
       value: mockStdout,
       writable: true,
@@ -48,17 +48,17 @@ describe('Task 3.3: watchTtyResize async-awareness', () => {
   it('should await async callback completion before allowing next resize', async () => {
     const executionOrder: string[] = [];
     let callbackInProgress = false;
-    
+
     const asyncCallback = async (): Promise<void> => {
       executionOrder.push('callback-start');
-      
+
       // Verify no concurrent execution
       expect(callbackInProgress).toBe(false);
       callbackInProgress = true;
-      
+
       // Simulate async work
-      await new Promise(resolve => setTimeout(resolve, 50));
-      
+      await new Promise((resolve) => setTimeout(resolve, 50));
+
       callbackInProgress = false;
       executionOrder.push('callback-end');
     };
@@ -70,28 +70,27 @@ describe('Task 3.3: watchTtyResize async-awareness', () => {
       mockStdout.columns = 100;
       mockStdout.rows = 30;
       mockStdout.emit('resize');
-      
+
       // Wait for debounce
-      await new Promise(resolve => setTimeout(resolve, 150));
-      
+      await new Promise((resolve) => setTimeout(resolve, 150));
+
       // Wait for callback to complete
-      await new Promise(resolve => setTimeout(resolve, 100));
-      
+      await new Promise((resolve) => setTimeout(resolve, 100));
+
       // Verify callback executed
       expect(executionOrder).toEqual(['callback-start', 'callback-end']);
-      
+
       // Trigger second resize
       executionOrder.length = 0;
       mockStdout.columns = 120;
       mockStdout.rows = 35;
       mockStdout.emit('resize');
-      
+
       // Wait for debounce and execution
-      await new Promise(resolve => setTimeout(resolve, 200));
-      
+      await new Promise((resolve) => setTimeout(resolve, 200));
+
       // Verify second callback executed
       expect(executionOrder).toEqual(['callback-start', 'callback-end']);
-      
     } finally {
       unwatch();
     }
@@ -100,14 +99,14 @@ describe('Task 3.3: watchTtyResize async-awareness', () => {
   it('should prevent concurrent resize operations with resizePending flag', async () => {
     let concurrentCallCount = 0;
     let maxConcurrent = 0;
-    
+
     const asyncCallback = async (): Promise<void> => {
       concurrentCallCount++;
       maxConcurrent = Math.max(maxConcurrent, concurrentCallCount);
-      
+
       // Simulate async work
-      await new Promise(resolve => setTimeout(resolve, 50));
-      
+      await new Promise((resolve) => setTimeout(resolve, 50));
+
       concurrentCallCount--;
     };
 
@@ -119,15 +118,14 @@ describe('Task 3.3: watchTtyResize async-awareness', () => {
         mockStdout.columns = 80 + i * 10;
         mockStdout.rows = 24 + i;
         mockStdout.emit('resize');
-        await new Promise(resolve => setTimeout(resolve, 20));
+        await new Promise((resolve) => setTimeout(resolve, 20));
       }
-      
+
       // Wait for all operations to complete
-      await new Promise(resolve => setTimeout(resolve, 300));
-      
+      await new Promise((resolve) => setTimeout(resolve, 300));
+
       // Verify only one callback executed at a time
       expect(maxConcurrent).toBe(1);
-      
     } finally {
       unwatch();
     }
@@ -135,7 +133,7 @@ describe('Task 3.3: watchTtyResize async-awareness', () => {
 
   it('should handle sync callbacks without breaking', async () => {
     let callCount = 0;
-    
+
     const syncCallback = (): void => {
       callCount++;
     };
@@ -147,13 +145,12 @@ describe('Task 3.3: watchTtyResize async-awareness', () => {
       mockStdout.columns = 100;
       mockStdout.rows = 30;
       mockStdout.emit('resize');
-      
+
       // Wait for debounce
-      await new Promise(resolve => setTimeout(resolve, 150));
-      
+      await new Promise((resolve) => setTimeout(resolve, 150));
+
       // Verify callback executed
       expect(callCount).toBe(1);
-      
     } finally {
       unwatch();
     }
@@ -161,10 +158,10 @@ describe('Task 3.3: watchTtyResize async-awareness', () => {
 
   it('should deduplicate same-size resizes (Task 3.2)', async () => {
     let callCount = 0;
-    
+
     const callback = async (): Promise<void> => {
       callCount++;
-      await new Promise(resolve => setTimeout(resolve, 10));
+      await new Promise((resolve) => setTimeout(resolve, 10));
     };
 
     const unwatch = watchTtyResize(callback, { debounceMs: 100 });
@@ -174,32 +171,31 @@ describe('Task 3.3: watchTtyResize async-awareness', () => {
       mockStdout.columns = 100;
       mockStdout.rows = 30;
       mockStdout.emit('resize');
-      
+
       // Wait for debounce and execution
-      await new Promise(resolve => setTimeout(resolve, 200));
-      
+      await new Promise((resolve) => setTimeout(resolve, 200));
+
       expect(callCount).toBe(1);
-      
+
       // Trigger resize to SAME size (should be deduplicated)
       mockStdout.emit('resize');
-      
+
       // Wait for debounce
-      await new Promise(resolve => setTimeout(resolve, 200));
-      
+      await new Promise((resolve) => setTimeout(resolve, 200));
+
       // Should still be 1 (not 2)
       expect(callCount).toBe(1);
-      
+
       // Trigger resize to DIFFERENT size
       mockStdout.columns = 120;
       mockStdout.rows = 35;
       mockStdout.emit('resize');
-      
+
       // Wait for debounce and execution
-      await new Promise(resolve => setTimeout(resolve, 200));
-      
+      await new Promise((resolve) => setTimeout(resolve, 200));
+
       // Should now be 2
       expect(callCount).toBe(2);
-      
     } finally {
       unwatch();
     }

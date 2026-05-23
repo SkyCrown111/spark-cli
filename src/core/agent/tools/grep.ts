@@ -14,6 +14,7 @@ import { readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import type { RegisteredTool, ToolContext, ToolResult } from '../tool-registry.js';
 import { __glob } from './glob.js';
+import { getErrorMessage } from '../../../utils/errors.js';
 
 const DEFAULT_MAX_MATCHES = 200;
 const MAX_FILE_BYTES = 1 * 1024 * 1024;
@@ -33,10 +34,7 @@ interface Match {
   after?: { line: number; text: string }[];
 }
 
-async function handler(
-  args: Record<string, unknown>,
-  ctx: ToolContext,
-): Promise<ToolResult> {
+async function handler(args: Record<string, unknown>, ctx: ToolContext): Promise<ToolResult> {
   const pattern = args.pattern;
   let flags = typeof args.flags === 'string' ? args.flags : '';
   if (args.case_insensitive === true && !flags.includes('i')) flags += 'i';
@@ -57,7 +55,7 @@ async function handler(
   try {
     regex = new RegExp(pattern, flags);
   } catch (e) {
-    return { content: `grep: invalid regex: ${(e as Error).message}`, isError: true };
+    return { content: `grep: invalid regex: ${getErrorMessage(e)}`, isError: true };
   }
 
   let candidateFiles: string[];
@@ -65,7 +63,7 @@ async function handler(
     const matcher = __glob.globToRegExp(globPattern);
     candidateFiles = __glob.walk(ctx.projectRoot, matcher, __glob.DEFAULT_IGNORE, 5000).matches;
   } catch (e) {
-    return { content: `grep: glob filter invalid: ${(e as Error).message}`, isError: true };
+    return { content: `grep: glob filter invalid: ${getErrorMessage(e)}`, isError: true };
   }
 
   const matches: Match[] = [];

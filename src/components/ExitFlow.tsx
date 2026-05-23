@@ -21,10 +21,7 @@ export interface ExitFlowProps {
 
 // ── Component ──────────────────────────────────────────
 
-export const ExitFlow: React.FC<ExitFlowProps> = ({
-  onConfirmExit,
-  onCancel,
-}) => {
+export const ExitFlow: React.FC<ExitFlowProps> = ({ onConfirmExit, onCancel }) => {
   // Register Confirmation context
   useRegisterKeybindingContext('Confirmation');
 

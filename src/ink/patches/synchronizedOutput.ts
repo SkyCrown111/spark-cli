@@ -29,7 +29,6 @@
  */
 
 import { BSU, ESU } from '../termio/dec.js';
-import { isFullscreenEnvEnabled } from '../../utils/fullscreen.js';
 
 // ── State ──────────────────────────────────────────────
 
@@ -47,8 +46,8 @@ function supportsSynchronizedOutput(): boolean {
 
   // Windows Terminal, iTerm2, kitty, Alacritty, WezTerm, etc. all support DEC 2026
   // xterm.js also supports it. Most terminals from 2020+ do.
-  // Conservative: only enable in fullscreen mode where we control the screen
-  return isFullscreenEnvEnabled();
+  // Only installed for fullscreen Ink REPL (alternate-screen renderer).
+  return true;
 }
 
 // ── Heuristic: detect Ink render writes ────────────────
@@ -86,17 +85,14 @@ export function installSynchronizedOutput(): void {
   // We use `any` for the overload signatures because the Node.js
   // type definitions have multiple overloads that are hard to satisfy
   // with a single implementation.
-  process.stdout.write = function (
-    buffer: string | Uint8Array,
-    arg2?: any,
-    arg3?: any,
-  ): boolean {
+  process.stdout.write = function (buffer: string | Uint8Array, arg2?: any, arg3?: any): boolean {
     // Normalize to string for length check
-    const str = typeof buffer === 'string'
-      ? buffer
-      : Buffer.isBuffer(buffer)
-        ? buffer.toString(typeof arg2 === 'string' ? arg2 as BufferEncoding : 'utf8')
-        : new TextDecoder(typeof arg2 === 'string' ? arg2 : 'utf8').decode(buffer);
+    const str =
+      typeof buffer === 'string'
+        ? buffer
+        : Buffer.isBuffer(buffer)
+          ? buffer.toString(typeof arg2 === 'string' ? (arg2 as BufferEncoding) : 'utf8')
+          : new TextDecoder(typeof arg2 === 'string' ? arg2 : 'utf8').decode(buffer);
 
     // Only wrap sufficiently large writes (Ink render frames)
     if (str.length >= MIN_WRAP_LENGTH) {

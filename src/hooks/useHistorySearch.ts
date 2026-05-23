@@ -46,19 +46,20 @@ export function useHistorySearch(history: string[]) {
   /**
    * Update search query and re-filter matches.
    */
-  const updateQuery = useCallback((query: string) => {
-    const lower = query.toLowerCase();
-    const matches = history
-      .filter((entry) => entry.toLowerCase().includes(lower))
-      .reverse(); // Most recent first
+  const updateQuery = useCallback(
+    (query: string) => {
+      const lower = query.toLowerCase();
+      const matches = history.filter((entry) => entry.toLowerCase().includes(lower)).reverse(); // Most recent first
 
-    setState({
-      active: true,
-      query,
-      matches,
-      focusIndex: 0,
-    });
-  }, [history]);
+      setState({
+        active: true,
+        query,
+        matches,
+        focusIndex: 0,
+      });
+    },
+    [history],
+  );
 
   /**
    * Move to the next match (Ctrl+R again).
@@ -77,20 +78,17 @@ export function useHistorySearch(history: string[]) {
    * Accept the currently focused match.
    * Returns the selected history entry.
    */
-  const acceptMatch = useCallback(
-    (): string | undefined => {
-      if (!state.active || state.matches.length === 0) return undefined;
-      const match = state.matches[state.focusIndex];
-      setState({
-        active: false,
-        query: '',
-        matches: [],
-        focusIndex: 0,
-      });
-      return match;
-    },
-    [state],
-  );
+  const acceptMatch = useCallback((): string | undefined => {
+    if (!state.active || state.matches.length === 0) return undefined;
+    const match = state.matches[state.focusIndex];
+    setState({
+      active: false,
+      query: '',
+      matches: [],
+      focusIndex: 0,
+    });
+    return match;
+  }, [state]);
 
   /**
    * Dismiss search without accepting.

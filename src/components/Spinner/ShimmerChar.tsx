@@ -54,7 +54,11 @@ export const ShimmerChar: React.FC<ShimmerCharProps> = ({
   if (dist >= 0 && dist <= 4) {
     // At glimmer position: full shimmer color, bold
     if (dist === 0) {
-      return <Text color={shimmerColor} bold>{char}</Text>;
+      return (
+        <Text color={shimmerColor} bold>
+          {char}
+        </Text>
+      );
     }
     // Tail: progressively dimmer shimmer
     // dist 1 = 80% brightness, dist 2 = 60%, etc.
@@ -62,7 +66,11 @@ export const ShimmerChar: React.FC<ShimmerCharProps> = ({
       return <Text color={shimmerColor}>{char}</Text>;
     }
     // Faint tail
-    return <Text color={shimmerColor} dimColor>{char}</Text>;
+    return (
+      <Text color={shimmerColor} dimColor>
+        {char}
+      </Text>
+    );
   }
 
   // Outside sweep: normal message color

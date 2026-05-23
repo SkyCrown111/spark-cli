@@ -1,19 +1,13 @@
 import chalk from 'chalk';
-import {
-  loadGlobalConfig,
-  saveGlobalConfig,
-  loadMergedConfig,
-} from '../config/load.js';
+import { loadGlobalConfig, saveGlobalConfig, loadMergedConfig } from '../config/load.js';
 import {
   BUILTIN_PROVIDERS,
   formatModelRef,
   parseModelRef,
   resolveConfiguredApiKey,
 } from '../core/providers/registry.js';
-import {
-  resolveModelForTask,
-  testResolvedModel,
-} from '../core/providers/router.js';
+import { resolveModelForTask, testResolvedModel } from '../core/providers/router.js';
+import { logger } from '../utils/logger.js';
 import type { GlobalOptions } from '../utils/output.js';
 import { printJson, resolveProjectRoot } from '../utils/output.js';
 import { SparkCLIError } from '../utils/errors.js';
@@ -29,12 +23,12 @@ export async function runModelList(opts: GlobalOptions, providerFilter?: string)
     return;
   }
 
-  console.log(chalk.bold('\nProviders\n'));
+  logger.info(chalk.bold('\nProviders\n'));
   for (const p of list) {
     const hasKey = Boolean(resolveConfiguredApiKey(config, p.id));
     const keyStatus = hasKey ? chalk.green('key ok') : chalk.dim('no key');
-    console.log(`  ${chalk.cyan(p.id)}  ${p.label}  [${keyStatus}]`);
-    console.log(chalk.dim(`    models: ${p.exampleModels.join(', ')}`));
+    logger.info(`  ${chalk.cyan(p.id)}  ${p.label}  [${keyStatus}]`);
+    logger.info(chalk.dim(`    models: ${p.exampleModels.join(', ')}`));
   }
 }
 
@@ -47,8 +41,8 @@ export async function runModelCurrent(opts: GlobalOptions): Promise<void> {
     printJson({ provider, model });
     return;
   }
-  console.log(chalk.bold('\nCurrent default model\n'));
-  console.log(`  ${chalk.cyan(provider)} / ${chalk.white(String(model))}`);
+  logger.info(chalk.bold('\nCurrent default model\n'));
+  logger.info(`  ${chalk.cyan(provider)} / ${chalk.white(String(model))}`);
 }
 
 export async function runModelUse(
@@ -83,8 +77,12 @@ export async function runModelUse(
     printJson({ provider, model });
     return;
   }
-  console.log(chalk.green('✓'), 'Default model set to', chalk.cyan(formatModelRef(provider, model)));
-  console.log(chalk.dim(`  Saved to ~/.spark-cli/config.yaml`));
+  logger.info(
+    chalk.green('✓'),
+    'Default model set to',
+    chalk.cyan(formatModelRef(provider, model)),
+  );
+  logger.info(chalk.dim(`  Saved to ~/.spark/settings.json`));
 }
 
 export async function runModelTest(opts: GlobalOptions): Promise<void> {
@@ -100,7 +98,7 @@ export async function runModelTest(opts: GlobalOptions): Promise<void> {
   } catch (e) {
     if (e instanceof SparkCLIError) {
       if (opts.json) printJson({ ok: false, error: e.message });
-      else console.log(chalk.red('✗'), e.message);
+      else logger.info(chalk.red('✗'), e.message);
       process.exitCode = 1;
       return;
     }
@@ -108,17 +106,15 @@ export async function runModelTest(opts: GlobalOptions): Promise<void> {
   }
 
   if (opts.json) {
-    console.log(
-      JSON.stringify({
-        ok: true,
-        provider: resolved.providerId,
-        model: resolved.model,
-        baseUrl: resolved.baseUrl,
-        testing: true,
-      }),
-    );
+    logger.json({
+      ok: true,
+      provider: resolved.providerId,
+      model: resolved.model,
+      baseUrl: resolved.baseUrl,
+      testing: true,
+    });
   } else {
-    console.log(
+    logger.info(
       chalk.dim(`Pinging ${resolved.providerId}/${resolved.model} at ${resolved.baseUrl}...`),
     );
   }
@@ -128,12 +124,12 @@ export async function runModelTest(opts: GlobalOptions): Promise<void> {
     if (opts.json) {
       printJson({ ok: true, provider: resolved.providerId, model: resolved.model });
     } else {
-      console.log(chalk.green('✓'), `Model ${resolved.providerId}/${resolved.model} is reachable`);
+      logger.info(chalk.green('✓'), `Model ${resolved.providerId}/${resolved.model} is reachable`);
     }
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     if (opts.json) printJson({ ok: false, error: msg });
-    else console.log(chalk.red('✗'), msg);
+    else logger.info(chalk.red('✗'), msg);
     process.exitCode = 1;
   }
 }

@@ -2,8 +2,8 @@
  * Agent definition loader.
  *
  * Sources (lowest → highest precedence; later overrides same `name`):
- * 1. `~/.spark-cli/agents/`
- * 2. `<projectRoot>/.spark-cli/agents/`
+ * 1. `~/.spark/agents/`
+ * 2. `<projectRoot>/.spark/agents/`
  *
  * Each agent is a folder containing `AGENT.md` with YAML-ish frontmatter:
  *   name: code-reviewer
@@ -17,7 +17,7 @@
 import { readFileSync, readdirSync, existsSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import type { AgentDefinition, AgentRegistry, AgentContextMode } from './registry.js';
-import { getGlobalConfigDir } from '../../config/paths.js';
+import { getGlobalConfigDir, getLegacyGlobalConfigDir } from '../../config/paths.js';
 
 interface AgentFrontmatter {
   name?: string;
@@ -65,7 +65,10 @@ export function parseAgentFile(raw: string): ParsedAgent {
       }
     }
   }
-  const body = lines.slice(fmEnd + 1).join('\n').trim();
+  const body = lines
+    .slice(fmEnd + 1)
+    .join('\n')
+    .trim();
   return { frontmatter: fm, body };
 }
 
@@ -79,11 +82,15 @@ function parseList(value: string): string[] {
 }
 
 function globalAgentsDir(): string {
-  return join(getGlobalConfigDir(), 'agents');
+  return existsSync(join(getGlobalConfigDir(), 'agents'))
+    ? join(getGlobalConfigDir(), 'agents')
+    : join(getLegacyGlobalConfigDir(), 'agents');
 }
 
 function projectAgentsDir(projectRoot: string): string {
-  return join(projectRoot, '.spark-cli', 'agents');
+  return existsSync(join(projectRoot, '.spark', 'agents'))
+    ? join(projectRoot, '.spark', 'agents')
+    : join(projectRoot, '.spark-cli', 'agents');
 }
 
 /**
@@ -129,28 +136,19 @@ export function loadAgentsFromParentDir(
       name,
       systemPrompt: parsed.body,
       source,
-      ...(parsed.frontmatter.description
-        ? { description: parsed.frontmatter.description }
-        : {}),
-      ...(parsed.frontmatter.allowedTools
-        ? { allowedTools: parsed.frontmatter.allowedTools }
-        : {}),
-      ...(parsed.frontmatter.contextMode
-        ? { contextMode: parsed.frontmatter.contextMode }
-        : {}),
+      ...(parsed.frontmatter.description ? { description: parsed.frontmatter.description } : {}),
+      ...(parsed.frontmatter.allowedTools ? { allowedTools: parsed.frontmatter.allowedTools } : {}),
+      ...(parsed.frontmatter.contextMode ? { contextMode: parsed.frontmatter.contextMode } : {}),
     };
     registry.register(agent);
   }
 }
 
 /**
- * Load agents from `~/.spark-cli/agents/`, then project `.spark-cli/agents/`
+ * Load agents from `~/.spark/agents/`, then project `.spark/agents/`
  * (project wins on duplicate names).
  */
-export function loadAgentsFromDisk(
-  registry: AgentRegistry,
-  projectRoot: string,
-): void {
+export function loadAgentsFromDisk(registry: AgentRegistry, projectRoot: string): void {
   loadAgentsFromParentDir(registry, globalAgentsDir(), 'global');
   loadAgentsFromParentDir(registry, projectAgentsDir(projectRoot), 'project');
 }

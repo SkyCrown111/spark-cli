@@ -35,9 +35,7 @@ function ProgressBar({ percent, width = 20 }: { percent: number; width?: number 
   const empty = width - filled;
   const bar = '█'.repeat(filled) + '░'.repeat(empty);
 
-  return (
-    <Text color="cyan">{bar}</Text>
-  );
+  return <Text color="cyan">{bar}</Text>;
 }
 
 /**
@@ -56,14 +54,12 @@ export const ProgressMessage: React.FC<ProgressMessageProps> = ({
   return (
     <Box flexDirection="column" marginY={0}>
       <Box flexDirection="row" gap={1}>
-        <Text color="cyan" bold>{'⏺'}</Text>
+        <Text color="cyan" bold>
+          {'⏺'}
+        </Text>
         <Text bold>{label}</Text>
-        {pct !== undefined && (
-          <Text dimColor>{pct}%</Text>
-        )}
-        {status && (
-          <Text dimColor>— {status}</Text>
-        )}
+        {pct !== undefined && <Text dimColor>{pct}%</Text>}
+        {status && <Text dimColor>— {status}</Text>}
       </Box>
       {pct !== undefined && pct < 100 && (
         <Box paddingLeft={2}>

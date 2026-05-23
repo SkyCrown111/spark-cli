@@ -4,10 +4,7 @@ import { stripAnsi } from './terminal.js';
 
 describe('tool-confirm', () => {
   it('renders numbered options', () => {
-    const lines = renderConfirmCard(
-      { tool: 'write_file', argsSummary: 'client/tools/x.sh' },
-      0,
-    );
+    const lines = renderConfirmCard({ tool: 'write_file', argsSummary: 'client/tools/x.sh' }, 0);
     const text = stripAnsi(lines.join('\n'));
     expect(text).toContain('1');
     expect(text).toContain('2');

@@ -134,7 +134,11 @@ export function renderConfirmCard(req: ToolConfirmRequest, selected: number): st
       frame(` ${chars.horizontal.repeat(Math.max(0, inner - 18))}${chars.topRight}`),
   );
   lines.push(frame(`${chars.vertical} `) + toolLabel + argsPart + frame(` ${chars.vertical}`));
-  lines.push(frame(`${chars.vertical} `) + chalk.dim('选择操作 (↑↓ 或按 1/2/3，Enter 确认)') + frame(` ${chars.vertical}`));
+  lines.push(
+    frame(`${chars.vertical} `) +
+      chalk.dim('选择操作 (↑↓ 或按 1/2/3，Enter 确认)') +
+      frame(` ${chars.vertical}`),
+  );
 
   for (let i = 0; i < OPTIONS.length; i++) {
     const opt = OPTIONS[i]!;

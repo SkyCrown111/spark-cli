@@ -39,11 +39,7 @@ export function getProjectMemory(projectRoot: string): MemoryFile {
   return loadFile(projectPath(projectRoot));
 }
 
-export function addProjectMemory(
-  projectRoot: string,
-  key: string,
-  value: string,
-): void {
+export function addProjectMemory(projectRoot: string, key: string, value: string): void {
   const path = projectPath(projectRoot);
   const data = loadFile(path);
   const existing = data.entries.findIndex((e) => e.key === key);

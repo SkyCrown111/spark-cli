@@ -98,9 +98,7 @@ export function selectRelevantMemories(
  * Format relevant memories as a prompt section with full bodies
  * (beyond just the index line).
  */
-export function formatRelevantMemoriesForPrompt(
-  memories: MemoryRecord[],
-): string {
+export function formatRelevantMemoriesForPrompt(memories: MemoryRecord[]): string {
   if (memories.length === 0) return '';
 
   const lines = ['## Relevant memories (auto-selected)'];

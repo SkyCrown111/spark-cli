@@ -1,5 +1,5 @@
 /**
- * Durable cron job store under `~/.spark-cli/cron.json`.
+ * Durable cron job store under `~/.spark/cron.json`.
  *
  * Each entry is `{ id, cron, prompt, recurring, createdAt, expiresAt? }`. The
  * scheduler is fired by `spark-cli cron tick` (or the in-REPL ticker) — there is
@@ -51,7 +51,12 @@ export function listJobs(): CronJob[] {
   return load().jobs;
 }
 
-export function addJob(input: { cron: string; prompt: string; recurring?: boolean; ttlDays?: number }): CronJob {
+export function addJob(input: {
+  cron: string;
+  prompt: string;
+  recurring?: boolean;
+  ttlDays?: number;
+}): CronJob {
   parseCron(input.cron); // throws on invalid cron
   const file = load();
   const recurring = input.recurring !== false;
@@ -61,9 +66,8 @@ export function addJob(input: { cron: string; prompt: string; recurring?: boolea
     prompt: input.prompt,
     recurring,
     createdAt: Date.now(),
-    expiresAt: recurring && input.ttlDays
-      ? Date.now() + input.ttlDays * 24 * 3600 * 1000
-      : undefined,
+    expiresAt:
+      recurring && input.ttlDays ? Date.now() + input.ttlDays * 24 * 3600 * 1000 : undefined,
   };
   file.jobs.push(job);
   save(file);

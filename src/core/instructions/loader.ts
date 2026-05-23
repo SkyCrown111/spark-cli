@@ -1,15 +1,15 @@
 /**
- * Project instructions loader — auto-loads SPARKCLI.md files.
+ * Project instructions loader — auto-loads SPARK.md files.
  *
- * Equivalent to Claude Code's CLAUDE.md system. Loads instructions from
+ * Spark-native equivalent to Claude Code's CLAUDE.md system. Loads instructions from
  * multiple scopes (user → project → local → rules) and injects them
  * into the system prompt.
  *
  * Scopes (in order, later scopes can override earlier):
- *   1. ~/.spark-cli/SPARKCLI.md          — user-level (all projects)
- *   2. <project>/SPARKCLI.md             — project-level (team-shared)
- *   3. <project>/SPARKCLI.local.md       — local-level (personal, gitignored)
- *   4. <project>/.spark-cli/rules/*.md   — path-scoped rules
+ *   1. ~/.spark/SPARK.md                 — user-level (all projects)
+ *   2. <project>/SPARK.md                — project-level (team-shared)
+ *   3. <project>/SPARK.local.md          — local-level (personal, gitignored)
+ *   4. <project>/.spark/rules/*.md       — path-scoped rules
  *
  * Features:
  *   - @path/to/import syntax to import other files
@@ -19,7 +19,7 @@
 
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { join, resolve } from 'node:path';
-import { getGlobalConfigDir } from '../../config/paths.js';
+import { getGlobalConfigDir, getLegacyProjectSparkDir } from '../../config/paths.js';
 
 const MAX_IMPORT_DEPTH = 5;
 const MAX_INSTRUCTION_BYTES = 128 * 1024; // 128KB cap
@@ -49,25 +49,22 @@ function stripHtmlComments(text: string): string {
 function processImports(text: string, baseDir: string, depth: number): string {
   if (depth >= MAX_IMPORT_DEPTH) return text;
 
-  return text.replace(
-    /^@([\w./\\-]+)\s*$/gm,
-    (_match, importPath: string) => {
-      const absPath = resolve(baseDir, importPath);
-      if (!existsSync(absPath)) {
-        return `<!-- import not found: ${importPath} -->`;
-      }
-      try {
-        let content = readFileSync(absPath, 'utf8');
-        content = stripHtmlComments(content);
-        // Recursively process nested imports
-        const nestedDir = absPath.replace(/[\\/][^\\/]+$/, '');
-        content = processImports(content, nestedDir, depth + 1);
-        return content.trim();
-      } catch {
-        return `<!-- import error: ${importPath} -->`;
-      }
-    },
-  );
+  return text.replace(/^@([\w./\\-]+)\s*$/gm, (_match, importPath: string) => {
+    const absPath = resolve(baseDir, importPath);
+    if (!existsSync(absPath)) {
+      return `<!-- import not found: ${importPath} -->`;
+    }
+    try {
+      let content = readFileSync(absPath, 'utf8');
+      content = stripHtmlComments(content);
+      // Recursively process nested imports
+      const nestedDir = absPath.replace(/[\\/][^\\/]+$/, '');
+      content = processImports(content, nestedDir, depth + 1);
+      return content.trim();
+    } catch {
+      return `<!-- import error: ${importPath} -->`;
+    }
+  });
 }
 
 /**
@@ -116,10 +113,12 @@ function loadInstructionFile(filePath: string): string | undefined {
 }
 
 /**
- * Load all rule files from .spark-cli/rules/*.md
+ * Load all rule files from .spark/rules/*.md (with legacy .spark-cli fallback)
  */
 function loadRuleFiles(projectRoot: string): RuleFile[] {
-  const rulesDir = join(projectRoot, '.spark-cli', 'rules');
+  const rulesDir = existsSync(join(projectRoot, '.spark', 'rules'))
+    ? join(projectRoot, '.spark', 'rules')
+    : join(getLegacyProjectSparkDir(projectRoot), 'rules');
   if (!existsSync(rulesDir)) return [];
 
   try {
@@ -150,13 +149,13 @@ function loadRuleFiles(projectRoot: string): RuleFile[] {
  * Result of loading all instruction files.
  */
 export interface ProjectInstructions {
-  /** User-level instructions (~/.spark-cli/SPARKCLI.md) */
+  /** User-level instructions (~/.spark/SPARK.md) */
   userInstructions: string;
-  /** Project-level instructions (<project>/SPARKCLI.md) */
+  /** Project-level instructions (<project>/SPARK.md) */
   projectInstructions: string;
-  /** Local instructions (<project>/SPARKCLI.local.md) */
+  /** Local instructions (<project>/SPARK.local.md) */
   localInstructions: string;
-  /** Path-scoped rules (.spark-cli/rules/*.md) */
+  /** Path-scoped rules (.spark/rules/*.md) */
   rules: RuleFile[];
   /** Combined instructions for system prompt injection */
   combined: string;
@@ -166,13 +165,18 @@ export interface ProjectInstructions {
  * Load all project instructions from all scopes.
  */
 export function loadProjectInstructions(projectRoot: string): ProjectInstructions {
-  const userPath = join(getGlobalConfigDir(), 'SPARKCLI.md');
-  const projectPath = join(projectRoot, 'SPARKCLI.md');
-  const localPath = join(projectRoot, 'SPARKCLI.local.md');
-
-  const userInstructions = loadInstructionFile(userPath) ?? '';
-  const projectInstructions = loadInstructionFile(projectPath) ?? '';
-  const localInstructions = loadInstructionFile(localPath) ?? '';
+  const userInstructions =
+    loadInstructionFile(join(getGlobalConfigDir(), 'SPARK.md')) ??
+    loadInstructionFile(join(getGlobalConfigDir(), 'SPARKCLI.md')) ??
+    '';
+  const projectInstructions =
+    loadInstructionFile(join(projectRoot, 'SPARK.md')) ??
+    loadInstructionFile(join(projectRoot, 'SPARKCLI.md')) ??
+    '';
+  const localInstructions =
+    loadInstructionFile(join(projectRoot, 'SPARK.local.md')) ??
+    loadInstructionFile(join(projectRoot, 'SPARKCLI.local.md')) ??
+    '';
   const rules = loadRuleFiles(projectRoot);
 
   // Build combined output

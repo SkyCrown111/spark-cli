@@ -1,9 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { join } from 'node:path';
 import { readFileSync } from 'node:fs';
-import {
-  parseUnityScene,
-} from './scene-graph.js';
+import { parseUnityScene } from './scene-graph.js';
 import {
   parseNestedPath,
   setNestedProperty,
@@ -78,9 +76,7 @@ describe('removeComponent', () => {
     const heroIdx = lines.findIndex((l) => l.includes('m_Name: Hero'));
     expect(heroIdx).toBeGreaterThan(0);
     // walk backwards to the GameObject doc start, then forward to find m_Component block
-    const heroComponents = r.text
-      .split('--- !u!')
-      .find((doc) => doc.startsWith('1 &100100'));
+    const heroComponents = r.text.split('--- !u!').find((doc) => doc.startsWith('1 &100100'));
     expect(heroComponents).toBeDefined();
     expect(heroComponents).not.toMatch(/fileID: 100102/);
     // Hero still has its Transform.
@@ -122,12 +118,12 @@ describe('replacePrefabInstance', () => {
 });
 
 describe('scene-writer staging integration', () => {
-  it('stages nested-property write under .spark-cli/staging/', () => {
+  it('stages nested-property write under .spark/staging/', () => {
     if (hasStaging(fixture)) clearStaging(fixture);
     const r = setUnitySceneNestedProperty(fixture, sceneRel, '100101', 'm_LocalScale.x', '2');
     expect(r.changed).toBe(true);
     expect(hasStaging(fixture)).toBe(true);
-    const staged = readFileSync(join(fixture, '.spark-cli/staging/files', sceneRel), 'utf8');
+    const staged = readFileSync(join(fixture, '.spark/staging/files', sceneRel), 'utf8');
     expect(staged).toContain('m_LocalScale: {x: 2, y: 1, z: 1}');
     clearStaging(fixture);
   });
@@ -136,7 +132,7 @@ describe('scene-writer staging integration', () => {
     if (hasStaging(fixture)) clearStaging(fixture);
     const r = removeUnitySceneComponent(fixture, sceneRel, '100100', '100102');
     expect(r.removedComponentFileId).toBe('100102');
-    const staged = readFileSync(join(fixture, '.spark-cli/staging/files', sceneRel), 'utf8');
+    const staged = readFileSync(join(fixture, '.spark/staging/files', sceneRel), 'utf8');
     expect(staged).not.toMatch(/&100102\b/);
     clearStaging(fixture);
   });
@@ -149,7 +145,7 @@ describe('scene-writer staging integration', () => {
       newPrefabGuid: newGuid,
     });
     expect(r.changed).toBe(true);
-    const staged = readFileSync(join(fixture, '.spark-cli/staging/files', sceneRel), 'utf8');
+    const staged = readFileSync(join(fixture, '.spark/staging/files', sceneRel), 'utf8');
     expect(staged).toContain(`guid: ${newGuid}`);
     clearStaging(fixture);
   });

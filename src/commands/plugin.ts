@@ -1,9 +1,6 @@
 import chalk from 'chalk';
-import {
-  installPlugin,
-  listPlugins,
-  uninstallPlugin,
-} from '../core/plugin/manager.js';
+import { installPlugin, listPlugins, uninstallPlugin } from '../core/plugin/manager.js';
+import { logger } from '../utils/logger.js';
 import type { GlobalOptions } from '../utils/output.js';
 import { printJson, resolveProjectRoot } from '../utils/output.js';
 
@@ -14,14 +11,14 @@ export function runPluginList(opts: GlobalOptions): void {
     printJson({ plugins });
     return;
   }
-  console.log(chalk.bold('\nInstalled plugins\n'));
+  logger.info(chalk.bold('\nInstalled plugins\n'));
   if (!plugins.length) {
-    console.log(chalk.dim('  None — run: spark-cli plugin install <path>'));
+    logger.info(chalk.dim('  None — run: spark-cli plugin install <path>'));
     return;
   }
   for (const p of plugins) {
-    console.log(`  ${chalk.cyan(p.name)}@${p.version}  ${chalk.dim(p.path)}`);
-    if (p.description) console.log(chalk.dim(`    ${p.description}`));
+    logger.info(`  ${chalk.cyan(p.name)}@${p.version}  ${chalk.dim(p.path)}`);
+    if (p.description) logger.info(chalk.dim(`    ${p.description}`));
   }
 }
 
@@ -32,7 +29,10 @@ export function runPluginInstall(opts: GlobalOptions, source: string): void {
     printJson({ installed });
     return;
   }
-  console.log(chalk.green('✓'), `Installed plugin ${chalk.cyan(installed.name)}@${installed.version}`);
+  logger.info(
+    chalk.green('✓'),
+    `Installed plugin ${chalk.cyan(installed.name)}@${installed.version}`,
+  );
 }
 
 export function runPluginUninstall(opts: GlobalOptions, name: string): void {
@@ -42,5 +42,5 @@ export function runPluginUninstall(opts: GlobalOptions, name: string): void {
     printJson({ uninstalled: name });
     return;
   }
-  console.log(chalk.green('✓'), `Removed plugin ${chalk.cyan(name)}`);
+  logger.info(chalk.green('✓'), `Removed plugin ${chalk.cyan(name)}`);
 }

@@ -40,9 +40,7 @@ function renderTemplate(template: string, data: unknown): string {
   });
 }
 
-export async function executePromptHook(
-  opts: PromptHandlerOptions,
-): Promise<SingleHookResult> {
+export async function executePromptHook(opts: PromptHandlerOptions): Promise<SingleHookResult> {
   const label = opts.label ?? 'prompt-hook';
 
   if (!opts.completeFn) {
@@ -58,9 +56,7 @@ export async function executePromptHook(
   const prompt = renderTemplate(opts.promptTemplate, opts.payload);
 
   try {
-    const response = await opts.completeFn([
-      { role: 'user', content: prompt },
-    ]);
+    const response = await opts.completeFn([{ role: 'user', content: prompt }]);
 
     if (response) {
       process.stdout.write(response);

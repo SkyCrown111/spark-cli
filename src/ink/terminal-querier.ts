@@ -52,12 +52,10 @@ export function detectTerminalCapabilities(): TerminalCapabilities {
     term === 'xterm-kitty';
 
   // Mouse tracking: most modern terminals support it
-  const supportsMouseTracking =
-    !isWindows || supportsKittyProtocol;
+  const supportsMouseTracking = !isWindows || supportsKittyProtocol;
 
   // ANSI hyperlinks: supported by most terminals except very old ones
-  const supportsAnsiHyperlinks =
-    termProgram !== 'Apple_Terminal'; // macOS Terminal.app doesn't support them
+  const supportsAnsiHyperlinks = termProgram !== 'Apple_Terminal'; // macOS Terminal.app doesn't support them
 
   // Windows VT mode: Node 24.2+ and Bun 1.2.23+ enable VT processing
   const supportsVTMode = !isWindows; // Assume VT on non-Windows; Windows needs runtime check

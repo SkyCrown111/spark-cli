@@ -9,6 +9,7 @@ import { validateUnrealLayout, runUnrealBuild } from '../engines/unreal/validate
 import { validateGodotLayout, runGodotHeadlessCheck } from '../engines/godot/validate.js';
 import { checkSceneIntegrity } from '../core/validate/scene-integrity.js';
 import { appendReplayEvent } from '../core/replay/log.js';
+import { logger } from '../utils/logger.js';
 import type { GlobalOptions } from '../utils/output.js';
 import { printJson, resolveProjectRoot } from '../utils/output.js';
 
@@ -86,7 +87,8 @@ export async function runValidate(opts: GlobalOptions): Promise<number> {
       results.push({
         name: 'typescript',
         ok: r.status === 0,
-        message: r.status === 0 ? 'tsc passed' : (r.stderr || r.stdout || 'tsc failed').slice(0, 500),
+        message:
+          r.status === 0 ? 'tsc passed' : (r.stderr || r.stdout || 'tsc failed').slice(0, 500),
       });
     } else {
       results.push({
@@ -146,9 +148,9 @@ export async function runValidate(opts: GlobalOptions): Promise<number> {
     return ok ? 0 : 1;
   }
 
-  console.log(chalk.bold('\nValidate\n'));
+  logger.info(chalk.bold('\nValidate\n'));
   for (const r of results) {
-    console.log(`  ${r.ok ? chalk.green('✓') : chalk.red('✗')} ${r.name}: ${r.message}`);
+    logger.info(`  ${r.ok ? chalk.green('✓') : chalk.red('✗')} ${r.name}: ${r.message}`);
   }
   return ok ? 0 : 1;
 }

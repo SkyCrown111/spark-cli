@@ -21,7 +21,7 @@ export function buildLevelAgentPrompt(name: string, hint?: string): string {
   return (
     `Create or edit level data for "${name}".` +
     (hint ? ` Context: ${hint}` : '') +
-    `\nPrefer level JSON under .spark-cli/ or engine-appropriate assets; stage changes.`
+    `\nPrefer level JSON under .spark/ or engine-appropriate assets; stage changes.`
   );
 }
 

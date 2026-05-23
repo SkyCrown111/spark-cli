@@ -106,7 +106,9 @@ describe('auditAssets', () => {
   it('lists unused assets when nothing references them', async () => {
     writeFileSync(join(tmp, 'assets/textures/orphan.png'), makePng(64, 64));
     const issues = await auditAssets(tmp);
-    expect(issues.find((i) => i.rule === 'asset-unused' && i.path.endsWith('orphan.png'))).toBeDefined();
+    expect(
+      issues.find((i) => i.rule === 'asset-unused' && i.path.endsWith('orphan.png')),
+    ).toBeDefined();
   });
 });
 

@@ -1,29 +1,21 @@
 /**
- * Fullscreen / AlternateScreen configuration utilities.
+ * Fullscreen / alternate-screen environment helpers.
  *
- * Determines whether the Ink REPL should run in alternate screen buffer
- * mode (no flicker, full terminal control) vs. inline mode (terminal
- * scrollback preserved).
- *
- * Inspired by Claude Code's fullscreen.ts, simplified for gamecli.
+ * Maps to Claude Code's CLAUDE_CODE_NO_FLICKER (opt-in fullscreen renderer).
+ * Renderer selection itself lives in `core/repl/renderer.ts`.
  */
 
 /**
- * Whether the fullscreen alternate-screen layout should be active.
+ * Whether env opts into the fullscreen renderer (SPARK_CLI_NO_FLICKER=1).
  *
- * - SPARK_CLI_NO_FLICKER=1 → enable fullscreen (explicit opt-in)
- * - SPARK_CLI_NO_FLICKER=0 → disable fullscreen (explicit opt-out)
- * - Default → enabled (opposite of Claude Code which defaults off for
- *   external users, but gamecli is always the end-user tool)
+ * - SPARK_CLI_NO_FLICKER=1 / true → fullscreen renderer
+ * - SPARK_CLI_NO_FLICKER=0 / false → explicit opt-out
+ * - unset → no env preference (default renderer stays main-screen)
  */
 export function isFullscreenEnvEnabled(): boolean {
   const val = process.env.SPARK_CLI_NO_FLICKER;
-
-  // Explicit opt-out
   if (val === '0' || val === 'false') return false;
-
-  // Explicit opt-in or default
-  return true;
+  return val === '1' || val === 'true';
 }
 
 /**

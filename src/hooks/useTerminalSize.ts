@@ -15,16 +15,16 @@ export interface TerminalSize {
 
 /**
  * Hook to monitor terminal size changes
- * 
+ *
  * Returns the current terminal dimensions and automatically updates
  * when the terminal is resized.
- * 
+ *
  * @returns Current terminal size (width and height)
- * 
+ *
  * @example
  * ```tsx
  * const { width, height } = useTerminalSize();
- * 
+ *
  * return (
  *   <Box width={width} height={height}>
  *     <Text>Terminal is {width}x{height}</Text>
@@ -34,7 +34,7 @@ export interface TerminalSize {
  */
 export const useTerminalSize = (): TerminalSize => {
   const { stdout } = useStdout();
-  
+
   const getSize = (): TerminalSize => ({
     width: stdout.columns || 80,
     height: stdout.rows || 24,

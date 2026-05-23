@@ -16,6 +16,7 @@ import type { RegisteredTool, ToolContext, ToolResult } from '../tool-registry.j
 import { stageWriteFile } from '../../staging/patch-manager.js';
 import { appendReplayEvent } from '../../replay/log.js';
 import { resolveProjectPath } from './read-file.js';
+import { getErrorMessage } from '../../../utils/errors.js';
 
 interface EditPair {
   old_string: string;
@@ -33,10 +34,7 @@ function countOccurrences(s: string, sub: string): number {
   return n;
 }
 
-async function handler(
-  args: Record<string, unknown>,
-  ctx: ToolContext,
-): Promise<ToolResult> {
+async function handler(args: Record<string, unknown>, ctx: ToolContext): Promise<ToolResult> {
   const path = args.path;
   const single = typeof args.old_string === 'string' && typeof args.new_string === 'string';
   const editsRaw = args.edits;
@@ -80,7 +78,7 @@ async function handler(
     current = readFileSync(target, 'utf8');
   } catch (e) {
     return {
-      content: `edit_file: could not read ${r.rel}: ${(e as Error).message}`,
+      content: `edit_file: could not read ${r.rel}: ${getErrorMessage(e)}`,
       isError: true,
     };
   }
@@ -119,7 +117,7 @@ async function handler(
       stageWriteFile(ctx.projectRoot, r.rel, current);
     } catch (e) {
       return {
-        content: `edit_file: staging failed: ${(e as Error).message}`,
+        content: `edit_file: staging failed: ${getErrorMessage(e)}`,
         isError: true,
       };
     }
@@ -142,7 +140,7 @@ async function handler(
     writeFileSync(target, current, 'utf8');
   } catch (e) {
     return {
-      content: `edit_file: direct write failed: ${(e as Error).message}`,
+      content: `edit_file: direct write failed: ${getErrorMessage(e)}`,
       isError: true,
     };
   }

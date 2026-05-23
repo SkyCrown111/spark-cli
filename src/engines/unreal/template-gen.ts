@@ -1,10 +1,7 @@
 import { initStaging, stageWriteFile } from '../../core/staging/patch-manager.js';
 import { detectUnrealProject } from './detector.js';
 
-export function stageUnrealTemplateGen(
-  projectRoot: string,
-  prompt: string,
-): { files: string[] } {
+export function stageUnrealTemplateGen(projectRoot: string, prompt: string): { files: string[] } {
   const info = detectUnrealProject(projectRoot);
   const module = info?.projectName ?? 'SparkCLI';
   const className = 'SparkCLI_GeneratedActor';
@@ -46,10 +43,7 @@ void ${className}::OnSparkCLIInit()
 }
 `;
 
-  const paths = [
-    `Source/${module}/${className}.h`,
-    `Source/${module}/${className}.cpp`,
-  ];
+  const paths = [`Source/${module}/${className}.h`, `Source/${module}/${className}.cpp`];
 
   initStaging(projectRoot);
   stageWriteFile(projectRoot, paths[0]!, header);

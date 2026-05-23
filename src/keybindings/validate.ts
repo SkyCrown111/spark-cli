@@ -43,10 +43,26 @@ export function validateUserBindings(bindings: UserKeybinding[]): ValidationResu
   const issues: ValidationIssue[] = [];
   const knownActions = new Set(getAllActions());
   const knownContexts: Set<string> = new Set([
-    'Global', 'Chat', 'Autocomplete', 'Settings', 'Confirmation',
-    'Tabs', 'Transcript', 'HistorySearch', 'Task', 'ThemePicker',
-    'ModelPicker', 'Scroll', 'Help', 'Attachments', 'Footer',
-    'MessageSelector', 'MessageActions', 'DiffDialog', 'Select', 'Plugin',
+    'Global',
+    'Chat',
+    'Autocomplete',
+    'Settings',
+    'Confirmation',
+    'Tabs',
+    'Transcript',
+    'HistorySearch',
+    'Task',
+    'ThemePicker',
+    'ModelPicker',
+    'Scroll',
+    'Help',
+    'Attachments',
+    'Footer',
+    'MessageSelector',
+    'MessageActions',
+    'DiffDialog',
+    'Select',
+    'Plugin',
   ]);
 
   // Track per-context key assignments for conflict detection

@@ -69,8 +69,7 @@ export async function startMcpServer(): Promise<void> {
     }
 
     if (uri === 'spark-cli://scene/tree') {
-      const sceneRel =
-        process.env.SPARK_CLI_SCENE ?? findSceneFiles(projectRoot)[0];
+      const sceneRel = process.env.SPARK_CLI_SCENE ?? findSceneFiles(projectRoot)[0];
       if (!sceneRel) {
         return {
           contents: [
@@ -115,12 +114,7 @@ export async function startMcpServer(): Promise<void> {
 
   server.setRequestHandler(CallToolRequestSchema, async (request) => {
     const { name, arguments: args } = request.params;
-    return handleMcpTool(
-      name,
-      (args as Record<string, unknown>) ?? {},
-      projectRoot,
-      config,
-    );
+    return handleMcpTool(name, (args as Record<string, unknown>) ?? {}, projectRoot, config);
   });
 
   const transport = new StdioServerTransport();

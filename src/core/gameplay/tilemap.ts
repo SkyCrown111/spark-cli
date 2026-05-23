@@ -25,12 +25,17 @@ export function parseTmx(xml: string, source = 'map.tmx'): TilemapIR {
   const tileHeight = Number(/<map[^>]*tileheight="(\d+)"/i.exec(xml)?.[1] ?? 32);
   const layers: TilemapLayerIR[] = [];
 
-  const layerRe = /<layer[^>]*name="([^"]*)"[^>]*width="(\d+)"[^>]*height="(\d+)"[^>]*>([\s\S]*?)<\/layer>/gi;
+  const layerRe =
+    /<layer[^>]*name="([^"]*)"[^>]*width="(\d+)"[^>]*height="(\d+)"[^>]*>([\s\S]*?)<\/layer>/gi;
   let m: RegExpExecArray | null;
   while ((m = layerRe.exec(xml)) !== null) {
     const [, name, w, h, body] = m;
     const dataMatch = /<data[^>]*>([\s\S]*?)<\/data>/i.exec(body);
-    const csv = (dataMatch?.[1] ?? '').trim().split(/[\s,]+/).filter(Boolean).map(Number);
+    const csv = (dataMatch?.[1] ?? '')
+      .trim()
+      .split(/[\s,]+/)
+      .filter(Boolean)
+      .map(Number);
     const collision = /collision|block/i.test(name);
     layers.push({
       name,

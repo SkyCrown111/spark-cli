@@ -30,9 +30,7 @@ vi.mock('@modelcontextprotocol/sdk/client/index.js', () => {
         content: [{ type: 'text', text: 'tool result' }],
       }),
       listResources: vi.fn().mockResolvedValue({
-        resources: [
-          { uri: 'test://resource', name: 'Test Resource', description: 'A test' },
-        ],
+        resources: [{ uri: 'test://resource', name: 'Test Resource', description: 'A test' }],
       }),
       close: vi.fn().mockResolvedValue(undefined),
     })),
@@ -51,12 +49,7 @@ vi.mock('@modelcontextprotocol/sdk/client/sse.js', () => {
   };
 });
 
-import {
-  connectToServer,
-  callTool,
-  discoverResources,
-  disconnectClient,
-} from './client.js';
+import { connectToServer, callTool, discoverResources, disconnectClient } from './client.js';
 import { connectAll, buildRegisteredTools, connectMcpClients } from './client-pool.js';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 

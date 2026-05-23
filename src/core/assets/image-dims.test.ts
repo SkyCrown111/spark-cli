@@ -2,7 +2,11 @@ import { describe, it, expect } from 'vitest';
 import { mkdtempSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { readImageDimensions, readImageDimensionsHeader, getImageDimBackend } from './image-dims.js';
+import {
+  readImageDimensions,
+  readImageDimensionsHeader,
+  getImageDimBackend,
+} from './image-dims.js';
 
 function makePng(width: number, height: number): Buffer {
   const sig = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);

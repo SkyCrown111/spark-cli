@@ -51,9 +51,7 @@ export const CustomSelect: React.FC<CustomSelectProps> = ({
   maxVisible = 10,
 }) => {
   const { width } = useTerminalSize();
-  const initialIdx = initialFocus
-    ? options.findIndex((o) => o.value === initialFocus)
-    : 0;
+  const initialIdx = initialFocus ? options.findIndex((o) => o.value === initialFocus) : 0;
   const [focusIndex, setFocusIndex] = useState(Math.max(0, initialIdx));
 
   // Navigation
@@ -129,9 +127,7 @@ export const CustomSelect: React.FC<CustomSelectProps> = ({
             >
               {option.label}
             </Text>
-            {option.description && isFocused && (
-              <Text dimColor> — {option.description}</Text>
-            )}
+            {option.description && isFocused && <Text dimColor> — {option.description}</Text>}
           </Box>
         );
       })}

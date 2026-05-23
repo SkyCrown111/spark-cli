@@ -10,6 +10,7 @@ import { getProjectSparkDir } from '../config/paths.js';
 import { createSkillRegistry } from '../core/skills/registry.js';
 import { loadSkillsFromDisk } from '../core/skills/loader.js';
 import { validateSkills } from '../core/skills/validate.js';
+import { logger } from '../utils/logger.js';
 import type { GlobalOptions } from '../utils/output.js';
 import { printJson, resolveProjectRoot } from '../utils/output.js';
 
@@ -23,23 +24,30 @@ export async function runSkillsList(globals: GlobalOptions): Promise<void> {
   loadSkillsFromDisk(reg, root);
   const skills = reg.list();
   if (globals.json) {
-    printJson({ skills: skills.map((s) => ({ name: s.name, description: s.description ?? null, triggers: s.triggers, allowedTools: s.allowedTools ?? [] })) });
+    printJson({
+      skills: skills.map((s) => ({
+        name: s.name,
+        description: s.description ?? null,
+        triggers: s.triggers,
+        allowedTools: s.allowedTools ?? [],
+      })),
+    });
     return;
   }
   if (skills.length === 0) {
-    console.log(chalk.dim('No skills loaded (bundled, ~/.spark-cli/skills/, or .spark-cli/skills/).'));
-    console.log(chalk.dim('  Run: spark-cli skills init <name>'));
+    logger.info(chalk.dim('No skills loaded (bundled, ~/.spark/skills/, or .spark/skills/).'));
+    logger.info(chalk.dim('  Run: spark-cli skills init <name>'));
     return;
   }
   const max = Math.max(...skills.map((s) => s.name.length));
   for (const s of skills) {
     const desc = s.description ? ` — ${s.description}` : '';
-    console.log(`  ${chalk.cyan(s.name.padEnd(max))}${desc}`);
+    logger.info(`  ${chalk.cyan(s.name.padEnd(max))}${desc}`);
     if (s.triggers.length > 0) {
-      console.log(chalk.dim(`    triggers: ${s.triggers.join(', ')}`));
+      logger.info(chalk.dim(`    triggers: ${s.triggers.join(', ')}`));
     }
     if (s.allowedTools && s.allowedTools.length > 0) {
-      console.log(chalk.dim(`    allowedTools: ${s.allowedTools.join(', ')}`));
+      logger.info(chalk.dim(`    allowedTools: ${s.allowedTools.join(', ')}`));
     }
   }
 }
@@ -63,14 +71,14 @@ export async function runSkillsValidate(globals: GlobalOptions): Promise<number>
     return report.errors.length === 0 ? 0 : 2;
   }
   if (report.errors.length === 0 && report.warnings.length === 0) {
-    console.log(chalk.green('✓'), `Skills OK (${report.definitions.length} definition(s)).`);
+    logger.info(chalk.green('✓'), `Skills OK (${report.definitions.length} definition(s)).`);
     return 0;
   }
   for (const e of report.errors) {
-    console.log(chalk.red('✗'), e);
+    logger.info(chalk.red('✗'), e);
   }
   for (const w of report.warnings) {
-    console.log(chalk.yellow('!'), w);
+    logger.info(chalk.yellow('!'), w);
   }
   return report.errors.length === 0 ? 0 : 2;
 }
@@ -109,8 +117,8 @@ export async function runSkillsInit(
   mkdirSync(dir, { recursive: true });
   writeFileSync(file, SKILL_TEMPLATE.replaceAll('{name}', raw), 'utf8');
   if (!globals.json) {
-    console.log(chalk.green('✓'), `Created ${file}`);
-    console.log(chalk.dim('  Edit triggers and body, then run: spark-cli skills validate'));
+    logger.info(chalk.green('✓'), `Created ${file}`);
+    logger.info(chalk.dim('  Edit triggers and body, then run: spark-cli skills validate'));
   } else {
     printJson({ created: file });
   }

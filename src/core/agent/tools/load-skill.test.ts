@@ -54,10 +54,7 @@ describe('load_skill tool', () => {
     expect(noReg.content).toMatch(/no skill registry/);
 
     const skills = createSkillRegistry();
-    const notFound = await loadSkillTool.handler(
-      { name: 'missing' },
-      ctx({ skills }),
-    );
+    const notFound = await loadSkillTool.handler({ name: 'missing' }, ctx({ skills }));
     expect(notFound.isError).toBe(true);
     expect(notFound.content).toMatch(/not found/);
   });

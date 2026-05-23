@@ -20,7 +20,9 @@ export function planUnrealBuild(
   return {
     ok: true,
     command: cmd,
-    message: options.dryRun ? 'Dry run — Unreal build command' : 'Run UnrealBuildTool (requires UE SDK)',
+    message: options.dryRun
+      ? 'Dry run — Unreal build command'
+      : 'Run UnrealBuildTool (requires UE SDK)',
     dryRun: options.dryRun,
   };
 }

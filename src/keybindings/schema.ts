@@ -1,6 +1,6 @@
 /**
  * Keybindings JSON schema — defines the schema for
- * ~/.spark-cli/keybindings.json user configuration files.
+ * ~/.spark/keybindings.json user configuration files.
  *
  * Used for validation and documentation. The schema describes
  * the expected structure: a `bindings` array of objects with
@@ -29,10 +29,26 @@ export const keybindingsSchema = {
             type: 'string',
             description: 'The keybinding context (e.g., "Chat", "Autocomplete")',
             enum: [
-              'Global', 'Chat', 'Autocomplete', 'Settings', 'Confirmation',
-              'Tabs', 'Transcript', 'HistorySearch', 'Task', 'ThemePicker',
-              'ModelPicker', 'Scroll', 'Help', 'Attachments', 'Footer',
-              'MessageSelector', 'MessageActions', 'DiffDialog', 'Select', 'Plugin',
+              'Global',
+              'Chat',
+              'Autocomplete',
+              'Settings',
+              'Confirmation',
+              'Tabs',
+              'Transcript',
+              'HistorySearch',
+              'Task',
+              'ThemePicker',
+              'ModelPicker',
+              'Scroll',
+              'Help',
+              'Attachments',
+              'Footer',
+              'MessageSelector',
+              'MessageActions',
+              'DiffDialog',
+              'Select',
+              'Plugin',
             ],
           },
           key: {
@@ -79,7 +95,7 @@ export const exampleKeybindingsConfig: { bindings: UserKeybinding[] } = {
  */
 export function generateTemplate(): string {
   const header = `// SparkCLI User Keybindings
-// Place this file at ~/.spark-cli/keybindings.json
+// Place this file at ~/.spark/keybindings.json
 // Override default keybindings by specifying context, key, and action.
 // Reserved shortcuts (ctrl+c, ctrl+d) cannot be overridden.
 //

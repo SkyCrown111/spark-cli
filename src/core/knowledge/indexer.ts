@@ -2,6 +2,7 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSy
 import { join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { dirname } from 'node:path';
+import { getProjectSparkDir } from '../../config/paths.js';
 
 export interface KnowledgeChunk {
   id: string;
@@ -106,7 +107,7 @@ export function buildKnowledgeIndex(dirs: string[]): KnowledgeIndex {
 }
 
 export function saveIndex(projectRoot: string, index: KnowledgeIndex): string {
-  const cacheDir = join(projectRoot, '.spark-cli', 'cache');
+  const cacheDir = join(getProjectSparkDir(projectRoot), 'cache');
   if (!existsSync(cacheDir)) mkdirSync(cacheDir, { recursive: true });
   const path = join(cacheDir, 'knowledge-index.json');
   writeFileSync(path, JSON.stringify(index, null, 2), 'utf8');
@@ -114,7 +115,7 @@ export function saveIndex(projectRoot: string, index: KnowledgeIndex): string {
 }
 
 export function loadIndex(projectRoot: string): KnowledgeIndex | null {
-  const path = join(projectRoot, '.spark-cli', 'cache', 'knowledge-index.json');
+  const path = join(getProjectSparkDir(projectRoot), 'cache', 'knowledge-index.json');
   if (!existsSync(path)) return null;
   return JSON.parse(readFileSync(path, 'utf8')) as KnowledgeIndex;
 }

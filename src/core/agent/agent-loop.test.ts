@@ -34,11 +34,7 @@ describe('runAgentTurn', () => {
     const stub = createProviderStub();
     stub.enqueueText('hello world');
 
-    const result = await runAgentTurn(
-      [],
-      'hi',
-      baseOpts({ completeFn: stub.complete }),
-    );
+    const result = await runAgentTurn([], 'hi', baseOpts({ completeFn: stub.complete }));
 
     expect(result.stopReason).toBe('no_tools');
     expect(result.iterations).toBe(1);
@@ -85,9 +81,7 @@ describe('runAgentTurn', () => {
     // Second provider call should include the assistant tool_call message and
     // a tool message tagged with the matching tool_call_id.
     const secondCall = stub.calls[1]!;
-    const assistantMsg = secondCall.messages.find(
-      (m) => m.role === 'assistant',
-    );
+    const assistantMsg = secondCall.messages.find((m) => m.role === 'assistant');
     const toolMsg = secondCall.messages.find((m) => m.role === 'tool');
     expect(assistantMsg?.role).toBe('assistant');
     expect(assistantMsg && 'tool_calls' in assistantMsg && assistantMsg.tool_calls?.[0]?.id).toBe(
@@ -114,18 +108,11 @@ describe('runAgentTurn', () => {
     stub.enqueueToolCall('t', { n: 2 }, 'call_b');
     stub.enqueueText('done');
 
-    const result = await runAgentTurn(
-      [],
-      'do two things',
-      baseOpts({ completeFn: stub.complete }),
-    );
+    const result = await runAgentTurn([], 'do two things', baseOpts({ completeFn: stub.complete }));
 
     expect(result.iterations).toBe(3);
     expect(result.stopReason).toBe('end_turn');
-    expect(result.toolCalls.map((c) => c.result.content)).toEqual([
-      't-result:1',
-      't-result:2',
-    ]);
+    expect(result.toolCalls.map((c) => c.result.content)).toEqual(['t-result:1', 't-result:2']);
     expect(result.finalContent).toBe('done');
   });
 
@@ -168,11 +155,7 @@ describe('runAgentTurn', () => {
     stub.enqueueToolCall('bad', {}, 'call_x');
     stub.enqueueText('recovered');
 
-    const result = await runAgentTurn(
-      [],
-      'try',
-      baseOpts({ completeFn: stub.complete }),
-    );
+    const result = await runAgentTurn([], 'try', baseOpts({ completeFn: stub.complete }));
 
     expect(result.stopReason).toBe('end_turn');
     const toolMsg = stub.calls[1]?.messages.find((m) => m.role === 'tool');
@@ -203,11 +186,7 @@ describe('runAgentTurn', () => {
     });
     stub.enqueueText('moved on');
 
-    const result = await runAgentTurn(
-      [],
-      'try malformed',
-      baseOpts({ completeFn: stub.complete }),
-    );
+    const result = await runAgentTurn([], 'try malformed', baseOpts({ completeFn: stub.complete }));
 
     expect(result.stopReason).toBe('end_turn');
     expect(result.toolCalls[0]?.result.isError).toBe(true);
@@ -260,11 +239,7 @@ describe('runAgentTurn', () => {
       usage: { prompt_tokens: 20, completion_tokens: 6 },
     });
 
-    const result = await runAgentTurn(
-      [],
-      'go',
-      baseOpts({ completeFn: stub.complete }),
-    );
+    const result = await runAgentTurn([], 'go', baseOpts({ completeFn: stub.complete }));
 
     expect(result.usage?.prompt_tokens).toBe(20);
     expect(result.usage?.completion_tokens).toBe(10);

@@ -83,7 +83,11 @@ export function parseSpecifier(specifier: string): ParsedSpecifier {
         return { kind: 'webfetch', toolPattern: 'web_fetch', domainPattern: value };
       }
       if (key === 'url') {
-        return { kind: 'webfetch', toolPattern: 'web_fetch', urlPattern: value === '*' ? undefined : value };
+        return {
+          kind: 'webfetch',
+          toolPattern: 'web_fetch',
+          urlPattern: value === '*' ? undefined : value,
+        };
       }
     }
     // No prefix — treat as domain pattern
@@ -146,8 +150,7 @@ export function specifierMatches(
   agentName?: string,
 ): boolean {
   // Tool name match: "*" matches any tool; otherwise use minimatch glob
-  const toolMatch =
-    parsed.toolPattern === '*' || minimatch(toolName, parsed.toolPattern);
+  const toolMatch = parsed.toolPattern === '*' || minimatch(toolName, parsed.toolPattern);
 
   if (!toolMatch) return false;
 

@@ -9,10 +9,7 @@
 import type { RegisteredTool, ToolContext, ToolResult } from '../tool-registry.js';
 import { getBackgroundManager } from '../background-tasks.js';
 
-async function handler(
-  args: Record<string, unknown>,
-  _ctx: ToolContext,
-): Promise<ToolResult> {
+async function handler(args: Record<string, unknown>, _ctx: ToolContext): Promise<ToolResult> {
   const id = args.id;
   if (typeof id !== 'string' || id.length === 0) {
     return { content: 'task_stop: `id` must be a non-empty string', isError: true };

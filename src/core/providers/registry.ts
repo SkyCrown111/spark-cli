@@ -80,10 +80,10 @@ export function suggestEnvVarNameForProvider(providerId: string): string {
   return base.endsWith('_API_KEY') ? base : `${base}_API_KEY`;
 }
 
-export function resolveCustomProviderApiKey(custom: {
-  api_key?: string;
-  key_env?: string;
-}): { apiKey?: string; keyEnvMisuse?: boolean } {
+export function resolveCustomProviderApiKey(custom: { api_key?: string; key_env?: string }): {
+  apiKey?: string;
+  keyEnvMisuse?: boolean;
+} {
   if (custom.api_key?.trim()) {
     return { apiKey: custom.api_key.trim() };
   }

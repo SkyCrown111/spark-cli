@@ -8,7 +8,7 @@ import { Box as InkBox } from 'ink';
 
 export interface BoxProps {
   children?: React.ReactNode;
-  
+
   // Layout
   flexDirection?: 'row' | 'column' | 'row-reverse' | 'column-reverse';
   flexGrow?: number;
@@ -17,7 +17,7 @@ export interface BoxProps {
   alignItems?: 'flex-start' | 'center' | 'flex-end' | 'stretch';
   alignSelf?: 'flex-start' | 'center' | 'flex-end' | 'auto';
   justifyContent?: 'flex-start' | 'center' | 'flex-end' | 'space-between' | 'space-around';
-  
+
   // Spacing
   padding?: number;
   paddingX?: number;
@@ -33,7 +33,7 @@ export interface BoxProps {
   marginBottom?: number;
   marginLeft?: number;
   marginRight?: number;
-  
+
   // Dimensions
   width?: number | string;
   height?: number | string;
@@ -41,19 +41,26 @@ export interface BoxProps {
   minHeight?: number;
   maxWidth?: number;
   maxHeight?: number;
-  
+
   // Border
-  borderStyle?: 'single' | 'double' | 'round' | 'bold' | 'singleDouble' | 'doubleSingle' | 'classic';
+  borderStyle?:
+    | 'single'
+    | 'double'
+    | 'round'
+    | 'bold'
+    | 'singleDouble'
+    | 'doubleSingle'
+    | 'classic';
   borderColor?: string;
   borderTop?: boolean;
   borderBottom?: boolean;
   borderLeft?: boolean;
   borderRight?: boolean;
-  
+
   // Display
   display?: 'flex' | 'none';
   overflow?: 'visible' | 'hidden';
-  
+
   // Gap
   gap?: number;
   columnGap?: number;
@@ -62,7 +69,7 @@ export interface BoxProps {
 
 /**
  * Box component for layout and spacing
- * 
+ *
  * @example
  * ```tsx
  * <Box flexDirection="column" padding={2}>

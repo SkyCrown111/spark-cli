@@ -4,8 +4,8 @@ import { writeFileSync, mkdirSync, rmSync } from 'node:fs';
 import { loadWechatRules } from './wechat-limits.js';
 
 describe('wechat-limits hot reload', () => {
-  it('prefers project .spark-cli/rules/wechat.json', () => {
-    const tmp = join(process.cwd(), 'fixtures/cocos-3.8-mini/.spark-cli/rules');
+  it('prefers project .spark/rules/wechat.json', () => {
+    const tmp = join(process.cwd(), 'fixtures/cocos-3.8-mini/.spark/rules');
     mkdirSync(tmp, { recursive: true });
     const customPath = join(tmp, 'wechat.json');
     const builtin = loadWechatRules();

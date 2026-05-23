@@ -4,9 +4,6 @@
  * Supports multi-line input, cursor movement, mode switching,
  * input history, typeahead (/slash commands, @files), history
  * search (Ctrl+R), and external editor (Ctrl+G).
- *
- * After Phase 16-H: integrates useTypeahead, useHistorySearch,
- * and editPromptInEditor for full Claude Code input parity.
  */
 
 import React, { useState, useCallback, useRef, useEffect } from 'react';
@@ -17,91 +14,92 @@ import { useTypeahead } from '../../hooks/useTypeahead.js';
 import { useHistorySearch } from '../../hooks/useHistorySearch.js';
 import { useImagePaste } from '../../hooks/useImagePaste.js';
 import { editPromptInEditor } from '../../utils/promptEditor.js';
-import { filterFileSuggestions, getFileSuggestions, type FileSuggestion } from '../../utils/suggestions/fileSuggestions.js';
+import {
+  filterFileSuggestions,
+  getFileSuggestions,
+  type FileSuggestion,
+} from '../../utils/suggestions/fileSuggestions.js';
 import type { SuggestionItem } from '../../utils/suggestions/commandSuggestions.js';
-import { handleVimNormalKey, type VimInputState, type VimInputSetters, type VimInputConfig } from './VimTextInput.js';
+import {
+  handleVimNormalKey,
+  type VimInputState,
+  type VimInputSetters,
+  type VimInputConfig,
+} from './VimTextInput.js';
 import type { VimMode } from '../../state/AppState.js';
 
 export type InputMode = 'chat' | 'direct' | 'plan' | 'bash';
 
 export interface PromptInputProps {
-  /** Callback when user submits input (presses Enter) */
   onSubmit: (text: string) => void;
-
-  /** Callback when user submits a bash command (! prefix). If not provided, bash commands go through onSubmit. */
   onBashSubmit?: (command: string) => void;
-
-  /** Placeholder text when input is empty */
   placeholder?: string;
-
-  /** Current input mode */
   mode?: InputMode;
-
-  /** Callback when mode changes (Shift+Tab) */
   onModeChange?: (mode: InputMode) => void;
-
-  /** Whether the input is disabled (e.g., during AI response) */
   disabled?: boolean;
-
-  /** Input history for up/down arrow navigation */
   history?: string[];
-
-  /** Callback when history navigation occurs */
   onHistoryNavigate?: (index: number) => void;
-
-  /** Whether to support multi-line input (Shift+Enter for new line) */
   multiline?: boolean;
-
-  /** Maximum number of lines for multi-line input */
   maxLines?: number;
-
-  /** Project root for @-file suggestions */
   projectRoot?: string;
-
-  /** Whether Vim input mode is enabled */
   vimEnabled?: boolean;
-
-  /** Current Vim mode (only used when vimEnabled=true) */
   vimMode?: VimMode;
-
-  /** Callback when Vim mode changes */
   onVimModeChange?: (mode: VimMode) => void;
-
-  /** Callback when an image is pasted (file path detected in pasted text) */
-  onImagePaste?: (image: { id: string; filename: string; filePath: string; extension: string; size: number }) => void;
-
-  /** Dynamic command suggestions from the slash registry */
-  commandSuggestions?: Array<{ value: string; label: string; description?: string; category?: string }>;
-
-  /** Git-based prompt suggestions (shown as gray hints) */
+  onImagePaste?: (image: {
+    id: string;
+    filename: string;
+    filePath: string;
+    extension: string;
+    size: number;
+  }) => void;
+  commandSuggestions?: Array<{
+    value: string;
+    label: string;
+    description?: string;
+    category?: string;
+  }>;
   gitSuggestions?: Array<{ value: string; label: string; source: string }>;
 }
 
-// ── Mode color helper ──────────────────────────────────────
+const PINK = '#F472B6';
+const PINK_SOFT = '#F9A8D4';
+const PINK_DEEP = '#EC4899';
+const BORDER = '#A1A1AA';
+const BORDER_ACTIVE = '#F472B6';
+const PLACEHOLDER = '#71717A';
+const PROMPT = '>';
+const CURSOR = '|';
 
 function getModeColor(m: InputMode): string {
   switch (m) {
-    case 'chat':   return 'cyan';
-    case 'direct': return 'green';
-    case 'plan':   return 'magenta';
-    default:       return 'white';
+    case 'chat':
+      return PINK;
+    case 'direct':
+      return PINK_SOFT;
+    case 'plan':
+      return PINK_DEEP;
+    case 'bash':
+      return '#E879F9';
+    default:
+      return PINK;
   }
 }
 
-/**
- * PromptInput component for user input with advanced features.
- *
- * Features:
- * - Multi-line input support (Shift+Enter)
- * - Cursor movement (Left/Right arrows)
- * - Backspace and Delete
- * - Mode switching (Shift+Tab)
- * - Input history (Up/Down arrows)
- * - Typeahead for /slash commands and @files (Tab to accept, Escape to dismiss)
- * - History search (Ctrl+R, n/N to navigate)
- * - External editor (Ctrl+G launches $EDITOR)
- * - Submit on Enter (or Ctrl+Enter for multi-line)
- */
+function getModeLabel(m: InputMode): string {
+  switch (m) {
+    case 'chat':
+      return 'Chat';
+    case 'direct':
+      return 'Direct';
+    case 'plan':
+      return 'Plan';
+    case 'bash':
+      return 'Shell';
+    default:
+      return 'Chat';
+  }
+}
+
 export const PromptInput: React.FC<PromptInputProps> = ({
   onSubmit,
   onBashSubmit,
@@ -121,40 +119,23 @@ export const PromptInput: React.FC<PromptInputProps> = ({
   commandSuggestions,
   gitSuggestions = [],
 }) => {
-  // ── Core input state ──
   const [input, setInput] = useState('');
   const [cursorPosition, setCursorPosition] = useState(0);
   const [historyIndex, setHistoryIndex] = useState(-1);
   const [lines, setLines] = useState<string[]>(['']);
   const [currentLine, setCurrentLine] = useState(0);
 
-  // ── Vim pending key tracker (for dd command) ──
   const vimPendingRef = useRef({});
-
-  // ── Yank ring (Ctrl+Y / Alt+Y) ──
   const yankRingRef = useRef<string[]>([]);
   const yankIndexRef = useRef(-1);
-
-  // ── Double-Esc tracker ──
   const lastEscTimeRef = useRef(0);
   const escCountRef = useRef(0);
-
-  // ── Paste detection ──
   const lastInputTimeRef = useRef(0);
-  const PASTE_THRESHOLD_MS = 50; // If characters arrive faster than this, it's likely a paste
+  const PASTE_THRESHOLD_MS = 50;
 
-  // ── Typeahead integration ──
   const typeahead = useTypeahead();
-
-  // ── History search integration ──
   const historySearch = useHistorySearch(history);
-
-  // ── Image paste integration ──
-  const imagePaste = useImagePaste({
-    onImagePaste: onImagePaste,
-  });
-
-  // ── File suggestions (lazy-loaded) ──
+  const imagePaste = useImagePaste({ onImagePaste });
   const fileSuggestionsRef = useRef<FileSuggestion[] | null>(null);
 
   const getFileSuggestionsCached = useCallback(() => {
@@ -169,32 +150,26 @@ export const PromptInput: React.FC<PromptInputProps> = ({
     return fileSuggestionsRef.current;
   }, [projectRoot]);
 
-  // ── Update input helper ──
   const updateInput = useCallback((newInput: string) => {
     const newLines = newInput.split('\n');
     setInput(newInput);
     setLines(newLines);
-    // Place cursor at end of last line
     setCurrentLine(newLines.length - 1);
     setCursorPosition(newLines[newLines.length - 1].length);
   }, []);
 
-  // ── Update typeahead on input change ──
   useEffect(() => {
-    if (historySearch.active) return; // Don't update typeahead during history search
+    if (historySearch.active) return;
 
     if (input.startsWith('/')) {
       typeahead.updateCommandSuggestions(input, commandSuggestions);
     } else if (input.includes('@')) {
-      // Find the @-reference portion after the last space
       const lastAtIndex = input.lastIndexOf('@');
       const beforeAt = input.slice(0, lastAtIndex);
-      // Only trigger if @ is at start or preceded by a space/newline
       if (lastAtIndex === 0 || beforeAt.endsWith(' ') || beforeAt.endsWith('\n')) {
         const query = input.slice(lastAtIndex + 1);
         const files = getFileSuggestionsCached();
         const filtered = filterFileSuggestions(files, query);
-        // Convert FileSuggestion[] to SuggestionItem[] for typeahead
         const items: SuggestionItem[] = filtered.map((f) => ({
           value: beforeAt + '@' + f.value,
           label: '@' + f.label,
@@ -208,60 +183,50 @@ export const PromptInput: React.FC<PromptInputProps> = ({
     } else {
       typeahead.dismiss();
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [input, historySearch.active, commandSuggestions]);
 
-  // ── Detect bash mode ──
   const effectiveMode: InputMode = input.startsWith('!') && !disabled ? 'bash' : mode;
 
-  // ── Mode cycling: chat -> direct -> plan -> chat ──
   const cycleMode = useCallback(() => {
     if (!onModeChange) return;
-
     const modes: InputMode[] = ['chat', 'direct', 'plan'];
     const currentIndex = modes.indexOf(mode);
     const nextIndex = (currentIndex + 1) % modes.length;
     onModeChange(modes[nextIndex]);
   }, [mode, onModeChange]);
 
-  // ── History navigation ──
-  const navigateHistory = useCallback((direction: 'up' | 'down') => {
-    if (history.length === 0) return;
+  const navigateHistory = useCallback(
+    (direction: 'up' | 'down') => {
+      if (history.length === 0) return;
 
-    let newIndex = historyIndex;
+      let newIndex = historyIndex;
+      if (direction === 'up') {
+        newIndex = historyIndex < history.length - 1 ? historyIndex + 1 : historyIndex;
+      } else {
+        newIndex = historyIndex > -1 ? historyIndex - 1 : -1;
+      }
 
-    if (direction === 'up') {
-      newIndex = historyIndex < history.length - 1 ? historyIndex + 1 : historyIndex;
-    } else {
-      newIndex = historyIndex > -1 ? historyIndex - 1 : -1;
-    }
+      setHistoryIndex(newIndex);
+      if (newIndex === -1) {
+        setInput('');
+        setLines(['']);
+        setCurrentLine(0);
+        setCursorPosition(0);
+      } else {
+        const historyText = history[history.length - 1 - newIndex];
+        updateInput(historyText);
+      }
 
-    setHistoryIndex(newIndex);
+      onHistoryNavigate?.(newIndex);
+    },
+    [history, historyIndex, onHistoryNavigate, updateInput],
+  );
 
-    if (newIndex === -1) {
-      setInput('');
-      setLines(['']);
-      setCurrentLine(0);
-      setCursorPosition(0);
-    } else {
-      const historyText = history[history.length - 1 - newIndex];
-      updateInput(historyText);
-    }
-
-    if (onHistoryNavigate) {
-      onHistoryNavigate(newIndex);
-    }
-  }, [history, historyIndex, onHistoryNavigate, updateInput]);
-
-  // ── Submit handler ──
   const handleSubmit = useCallback(() => {
     if (input.trim() && !disabled) {
-      // Bash mode: strip ! prefix and execute as shell command
       if (input.startsWith('!') && onBashSubmit) {
         const command = input.slice(1).trim();
-        if (command) {
-          onBashSubmit(command);
-        }
+        if (command) onBashSubmit(command);
       } else {
         onSubmit(input);
       }
@@ -275,11 +240,9 @@ export const PromptInput: React.FC<PromptInputProps> = ({
     }
   }, [input, disabled, onSubmit, onBashSubmit, typeahead, historySearch]);
 
-  // ── Input handler ──
   useInput((inputChar, key) => {
     if (disabled) return;
 
-    // ── Vim NORMAL mode: intercept all keys ──
     if (vimEnabled && vimMode === 'NORMAL') {
       const vimState: VimInputState = { input, lines, cursorPosition, currentLine };
       const vimSetters: VimInputSetters = {
@@ -291,28 +254,29 @@ export const PromptInput: React.FC<PromptInputProps> = ({
         onSubmit: handleSubmit,
       };
       const vimConfig: VimInputConfig = { multiline, maxLines, disabled };
-      const consumed = handleVimNormalKey(vimPendingRef.current, inputChar, key, vimState, vimSetters, vimConfig);
+      const consumed = handleVimNormalKey(
+        vimPendingRef.current,
+        inputChar,
+        key,
+        vimState,
+        vimSetters,
+        vimConfig,
+      );
       if (consumed) return;
     }
 
-    // ── Vim INSERT mode: Esc returns to NORMAL ──
     if (vimEnabled && vimMode === 'INSERT' && key.escape) {
       onVimModeChange?.('NORMAL');
-      // Move cursor back one position (Vim behavior on Esc)
-      if (cursorPosition > 0) {
-        setCursorPosition(cursorPosition - 1);
-      }
+      if (cursorPosition > 0) setCursorPosition(cursorPosition - 1);
       return;
     }
 
-    // ── Double-Esc: first clears input, second (within 300ms) signals backtrack ──
     if (key.escape && !vimEnabled && !typeahead.visible && !historySearch.active) {
       const now = Date.now();
       const timeSinceLastEsc = now - lastEscTimeRef.current;
       lastEscTimeRef.current = now;
 
       if (input.length > 0) {
-        // First Esc with content: clear input
         setInput('');
         setLines(['']);
         setCurrentLine(0);
@@ -322,9 +286,7 @@ export const PromptInput: React.FC<PromptInputProps> = ({
       }
 
       if (timeSinceLastEsc < 300 && escCountRef.current >= 1) {
-        // Double-Esc on empty input: signal backtrack (handled by parent via callback)
         escCountRef.current = 0;
-        // For now, just clear — the REPL can listen for this event
         return;
       }
 
@@ -332,18 +294,13 @@ export const PromptInput: React.FC<PromptInputProps> = ({
       return;
     }
 
-    // ── History search mode ──
     if (historySearch.active) {
       if (key.return) {
-        // Accept the focused match
         const match = historySearch.acceptMatch();
-        if (match) {
-          updateInput(match);
-        }
+        if (match) updateInput(match);
         return;
       }
       if (inputChar === 'r' && key.ctrl) {
-        // Ctrl+R again: next match
         historySearch.nextMatch();
         return;
       }
@@ -359,44 +316,34 @@ export const PromptInput: React.FC<PromptInputProps> = ({
         }
         return;
       }
-      // Regular chars update the search query
       if (!key.ctrl && !key.meta && inputChar && inputChar.length === 1) {
         historySearch.updateQuery(historySearch.query + inputChar);
       }
       return;
     }
 
-    // ── Ctrl+R: activate history search ──
     if (inputChar === 'r' && key.ctrl) {
       historySearch.activateSearch();
       return;
     }
 
-    // ── Ctrl+G: open external editor ──
     if (inputChar === 'g' && key.ctrl) {
       const edited = editPromptInEditor(input);
-      if (edited !== undefined) {
-        updateInput(edited);
-      }
+      if (edited !== undefined) updateInput(edited);
       return;
     }
 
-    // ── Typeahead: Tab to accept ──
     if (key.tab && typeahead.visible) {
       const accepted = typeahead.acceptSuggestion();
-      if (accepted !== undefined) {
-        updateInput(accepted);
-      }
+      if (accepted !== undefined) updateInput(accepted);
       return;
     }
 
-    // ── Typeahead: Escape to dismiss ──
     if (key.escape && typeahead.visible) {
       typeahead.dismiss();
       return;
     }
 
-    // ── Typeahead: arrow navigation ──
     if (typeahead.visible) {
       if (key.upArrow) {
         typeahead.focusPrev();
@@ -408,13 +355,10 @@ export const PromptInput: React.FC<PromptInputProps> = ({
       }
     }
 
-    // ── Submit: Enter (or Ctrl+Enter for multiline) ──
     if (key.return) {
-      // Backslash at end of line + Enter = newline shortcut
       if (multiline && input.endsWith('\\')) {
         const newLines = [...lines];
         const currentLineText = newLines[currentLine];
-        // Remove the trailing backslash
         newLines[currentLine] = currentLineText.slice(0, -1);
         newLines.splice(currentLine + 1, 0, '');
         if (newLines.length <= maxLines) {
@@ -425,16 +369,13 @@ export const PromptInput: React.FC<PromptInputProps> = ({
         }
         return;
       }
-      // Option+Enter (Alt+Enter) or Shift+Enter: new line
       if (multiline && (key.shift || key.meta)) {
         const newLines = [...lines];
         const currentLineText = newLines[currentLine];
         const beforeCursor = currentLineText.slice(0, cursorPosition);
         const afterCursor = currentLineText.slice(cursorPosition);
-
         newLines[currentLine] = beforeCursor;
         newLines.splice(currentLine + 1, 0, afterCursor);
-
         if (newLines.length <= maxLines) {
           setLines(newLines);
           setCurrentLine(currentLine + 1);
@@ -442,19 +383,16 @@ export const PromptInput: React.FC<PromptInputProps> = ({
           setInput(newLines.join('\n'));
         }
       } else {
-        // Regular Enter: submit
         handleSubmit();
       }
       return;
     }
 
-    // ── Mode switching: Shift+Tab ──
     if (key.shift && key.tab) {
       cycleMode();
       return;
     }
 
-    // ── History navigation: Up/Down arrows (only when typeahead is not visible) ──
     if (!typeahead.visible) {
       if (key.upArrow) {
         navigateHistory('up');
@@ -466,38 +404,32 @@ export const PromptInput: React.FC<PromptInputProps> = ({
       }
     }
 
-    // ── Cursor movement: Left/Right arrows ──
     if (key.leftArrow) {
-      setCursorPosition(prev => Math.max(0, prev - 1));
+      setCursorPosition((prev) => Math.max(0, prev - 1));
       return;
     }
     if (key.rightArrow) {
       const currentLineText = lines[currentLine];
-      setCursorPosition(prev => Math.min(currentLineText.length, prev + 1));
+      setCursorPosition((prev) => Math.min(currentLineText.length, prev + 1));
       return;
     }
 
-    // ── Home/End or Ctrl+A: jump to start of line ──
     if (key.home || (inputChar === 'a' && key.ctrl)) {
       setCursorPosition(0);
       return;
     }
-    // ── End or Ctrl+E: jump to end of line ──
     if (key.end || (inputChar === 'e' && key.ctrl)) {
       setCursorPosition(lines[currentLine].length);
       return;
     }
 
-    // ── Ctrl+W: delete word before cursor ──
     if (inputChar === 'w' && key.ctrl) {
       const currentLineText = lines[currentLine];
       const before = currentLineText.slice(0, cursorPosition);
       const after = currentLineText.slice(cursorPosition);
-      // Find last word boundary
       const trimmed = before.trimEnd();
       const lastSpace = trimmed.lastIndexOf(' ');
       const newBefore = lastSpace === -1 ? '' : before.slice(0, lastSpace + 1);
-      // Save deleted text to yank ring
       const deleted = before.slice(lastSpace + 1);
       if (deleted) {
         yankRingRef.current.push(deleted);
@@ -511,8 +443,6 @@ export const PromptInput: React.FC<PromptInputProps> = ({
       return;
     }
 
-    // ── Ctrl+U: delete from cursor to start of line (also save to yank) ──
-    // (modify existing Ctrl+U to save deleted text)
     if (inputChar === 'u' && key.ctrl) {
       const currentLineText = lines[currentLine];
       const deleted = currentLineText.slice(0, cursorPosition);
@@ -528,7 +458,6 @@ export const PromptInput: React.FC<PromptInputProps> = ({
       return;
     }
 
-    // ── Ctrl+K: delete from cursor to end of line (also save to yank) ──
     if (inputChar === 'k' && key.ctrl) {
       const currentLineText = lines[currentLine];
       const deleted = currentLineText.slice(cursorPosition);
@@ -543,7 +472,6 @@ export const PromptInput: React.FC<PromptInputProps> = ({
       return;
     }
 
-    // ── Ctrl+Y: yank (paste from yank ring) ──
     if (inputChar === 'y' && key.ctrl) {
       if (yankRingRef.current.length === 0) return;
       yankIndexRef.current = yankRingRef.current.length - 1;
@@ -552,7 +480,6 @@ export const PromptInput: React.FC<PromptInputProps> = ({
       const currentLineText = newLines[currentLine];
       const beforeCursor = currentLineText.slice(0, cursorPosition);
       const afterCursor = currentLineText.slice(cursorPosition);
-      // Handle multi-line yank
       const yankLines = text.split('\n');
       if (yankLines.length === 1) {
         newLines[currentLine] = beforeCursor + text + afterCursor;
@@ -573,13 +500,11 @@ export const PromptInput: React.FC<PromptInputProps> = ({
       return;
     }
 
-    // ── Alt+Y: cycle yank ring (after Ctrl+Y) ──
     if (inputChar === 'y' && key.meta) {
       if (yankRingRef.current.length === 0) return;
-      // Cycle backwards through the ring
-      yankIndexRef.current = (yankIndexRef.current - 1 + yankRingRef.current.length) % yankRingRef.current.length;
+      yankIndexRef.current =
+        (yankIndexRef.current - 1 + yankRingRef.current.length) % yankRingRef.current.length;
       const text = yankRingRef.current[yankIndexRef.current];
-      // Replace current line content with yank text
       const newLines = [...lines];
       newLines[currentLine] = text;
       setLines(newLines);
@@ -588,16 +513,13 @@ export const PromptInput: React.FC<PromptInputProps> = ({
       return;
     }
 
-    // ── Alt+B: move cursor back one word ──
     if (inputChar === 'b' && key.meta) {
       const currentLineText = lines[currentLine];
       const before = currentLineText.slice(0, cursorPosition);
-      // Find previous word boundary
       const trimmed = before.trimEnd();
       if (trimmed.length === 0) {
         setCursorPosition(0);
       } else {
-        // Find the last space before the trailing word
         let lastSpace = -1;
         for (let i = trimmed.length - 1; i >= 0; i--) {
           if (trimmed[i] === ' ' || trimmed[i] === '\t') {
@@ -610,11 +532,9 @@ export const PromptInput: React.FC<PromptInputProps> = ({
       return;
     }
 
-    // ── Alt+F: move cursor forward one word ──
     if (inputChar === 'f' && key.meta) {
       const currentLineText = lines[currentLine];
       const after = currentLineText.slice(cursorPosition);
-      // Find next word boundary
       let firstNonSpace = -1;
       for (let i = 0; i < after.length; i++) {
         if (after[i] !== ' ' && after[i] !== '\t') {
@@ -625,7 +545,6 @@ export const PromptInput: React.FC<PromptInputProps> = ({
       if (firstNonSpace === -1) {
         setCursorPosition(currentLineText.length);
       } else {
-        // Find end of the word
         let wordEnd = after.length;
         for (let i = firstNonSpace + 1; i < after.length; i++) {
           if (after[i] === ' ' || after[i] === '\t') {
@@ -638,7 +557,6 @@ export const PromptInput: React.FC<PromptInputProps> = ({
       return;
     }
 
-    // ── Ctrl+J: alternative newline ──
     if (inputChar === 'j' && key.ctrl && multiline) {
       const newLines = [...lines];
       const currentLineText = newLines[currentLine];
@@ -655,33 +573,21 @@ export const PromptInput: React.FC<PromptInputProps> = ({
       return;
     }
 
-    // ── Backslash + newline hint: when user types \ before Enter ──
-    // (handled in the Enter block below — \ at end of line is treated as newline trigger)
-
-    // ── Backspace/Delete ──
     if (key.backspace || key.delete) {
       if (cursorPosition > 0) {
         const newLines = [...lines];
         const currentLineText = newLines[currentLine];
-        const deletedChar = currentLineText[cursorPosition - 1];
-        // Save to yank ring on word-boundary delete (after accumulating)
-        if (deletedChar === ' ' || deletedChar === '\t') {
-          // Space deleted — don't add to ring, just continue
-        }
         const beforeCursor = currentLineText.slice(0, cursorPosition - 1);
         const afterCursor = currentLineText.slice(cursorPosition);
         newLines[currentLine] = beforeCursor + afterCursor;
-
         setLines(newLines);
         setCursorPosition(cursorPosition - 1);
         setInput(newLines.join('\n'));
       } else if (currentLine > 0) {
-        // Backspace at start of line: merge with previous line
         const newLines = [...lines];
         const prevLineLength = newLines[currentLine - 1].length;
         newLines[currentLine - 1] += newLines[currentLine];
         newLines.splice(currentLine, 1);
-
         setLines(newLines);
         setCurrentLine(currentLine - 1);
         setCursorPosition(prevLineLength);
@@ -690,63 +596,44 @@ export const PromptInput: React.FC<PromptInputProps> = ({
       return;
     }
 
-    // ── Regular character input ──
     if (!key.ctrl && !key.meta && inputChar) {
-      // Check for image file path paste (single large paste = image drag-and-drop)
-      // A single inputChar is just one character, but pasted text comes as
-      // a single string. We check if the accumulated input looks like an image path.
       const imgRef = imagePaste.tryParseImagePaste(inputChar);
       if (imgRef) {
-        // It's an image file path — insert [image: filename] reference
         const newLines = [...lines];
         const currentLineText = newLines[currentLine];
         const imageTag = `[image: ${imgRef.filename}]`;
         const beforeCursor = currentLineText.slice(0, cursorPosition);
         const afterCursor = currentLineText.slice(cursorPosition);
         newLines[currentLine] = beforeCursor + imageTag + afterCursor;
-
         setLines(newLines);
         setCursorPosition(cursorPosition + imageTag.length);
         setInput(newLines.join('\n'));
         return;
       }
 
-      // Paste detection: check if this is a multi-character paste
       const now = Date.now();
       const timeSinceLastInput = now - lastInputTimeRef.current;
       lastInputTimeRef.current = now;
-
-      // If inputChar contains newlines or arrives very rapidly, it's likely a paste
       const isPaste = inputChar.length > 1 || timeSinceLastInput < PASTE_THRESHOLD_MS;
 
       if (isPaste && inputChar.includes('\n') && multiline) {
-        // Multi-line paste: split into lines and insert
         const pasteLines = inputChar.split('\n');
         const newLines = [...lines];
         const currentLineText = newLines[currentLine];
         const beforeCursor = currentLineText.slice(0, cursorPosition);
         const afterCursor = currentLineText.slice(cursorPosition);
-
-        // Insert first paste line at cursor
         newLines[currentLine] = beforeCursor + pasteLines[0];
-
-        // Insert remaining paste lines
         for (let i = 1; i < pasteLines.length; i++) {
           newLines.splice(currentLine + i, 0, pasteLines[i]);
         }
-
-        // Append remaining original line to last paste line
         const lastPasteLineIdx = currentLine + pasteLines.length - 1;
         newLines[lastPasteLineIdx] += afterCursor;
-
-        // Limit to maxLines
-        if (newLines.length > maxLines) {
-          newLines.length = maxLines;
-        }
-
+        if (newLines.length > maxLines) newLines.length = maxLines;
         setLines(newLines);
         setCurrentLine(Math.min(lastPasteLineIdx, maxLines - 1));
-        setCursorPosition(newLines[Math.min(lastPasteLineIdx, maxLines - 1)].length - afterCursor.length);
+        setCursorPosition(
+          newLines[Math.min(lastPasteLineIdx, maxLines - 1)].length - afterCursor.length,
+        );
         setInput(newLines.join('\n'));
         return;
       }
@@ -756,148 +643,165 @@ export const PromptInput: React.FC<PromptInputProps> = ({
       const beforeCursor = currentLineText.slice(0, cursorPosition);
       const afterCursor = currentLineText.slice(cursorPosition);
       newLines[currentLine] = beforeCursor + inputChar + afterCursor;
-
       setLines(newLines);
       setCursorPosition(cursorPosition + inputChar.length);
       setInput(newLines.join('\n'));
     }
   });
 
-  // ── Render input with cursor ──
   const renderInputWithCursor = () => {
     return lines.map((line, lineIndex) => {
       if (lineIndex === currentLine) {
         const beforeCursor = line.slice(0, cursorPosition);
         const afterCursor = line.slice(cursorPosition);
-
         return (
           <Box key={lineIndex}>
-            {lineIndex === 0 && <Text color={getModeColor(mode)} bold>{'❯ '}</Text>}
-            <Text>{beforeCursor}</Text>
-            <Text color={getModeColor(mode)} bold>█</Text>
-            <Text>{afterCursor}</Text>
+            {lineIndex === 0 && (
+              <Text color={getModeColor(effectiveMode)} bold>{`${PROMPT} `}</Text>
+            )}
+            <Text color="white">{beforeCursor}</Text>
+            <Text color={getModeColor(effectiveMode)} bold>
+              {CURSOR}
+            </Text>
+            <Text color="white">{afterCursor}</Text>
           </Box>
         );
       }
 
       return (
         <Box key={lineIndex}>
-          {lineIndex === 0 && <Text color={getModeColor(mode)} bold>{'❯ '}</Text>}
-          <Text>{line || ' '}</Text>
+          {lineIndex === 0 && <Text color={getModeColor(effectiveMode)} bold>{`${PROMPT} `}</Text>}
+          <Text color="white">{line || ' '}</Text>
         </Box>
       );
     });
   };
 
-  // ── Render typeahead suggestions ──
   const renderTypeahead = () => {
     if (!typeahead.visible || typeahead.suggestions.length === 0) return null;
 
-    const maxLabelLen = Math.min(
-      24,
-      Math.max(...typeahead.suggestions.map((s) => s.label.length)),
-    );
-
-    const borderColor = typeahead.kind === 'file' ? 'yellow' : 'cyan';
+    const maxLabelLen = Math.min(24, Math.max(...typeahead.suggestions.map((s) => s.label.length)));
+    const borderColor = typeahead.kind === 'file' ? PINK_SOFT : BORDER_ACTIVE;
     const header = typeahead.kind === 'file' ? 'Files' : 'Commands';
 
     return (
-      <Box flexDirection="column" borderStyle="round" borderColor={borderColor} paddingLeft={0} paddingRight={1}>
-        {/* Header row */}
+      <Box
+        flexDirection="column"
+        borderStyle="round"
+        borderColor={borderColor}
+        width="100%"
+        marginTop={1}
+        paddingLeft={0}
+        paddingRight={1}
+      >
         <Box paddingLeft={1}>
-          <Text dimColor>{header} ({typeahead.suggestions.length})</Text>
+          <Text color={PINK_SOFT}>
+            {header} ({typeahead.suggestions.length})
+          </Text>
         </Box>
         {typeahead.suggestions.slice(0, 8).map((suggestion, idx) => {
           const isFocused = idx === typeahead.focusIndex;
           return (
             <Box key={suggestion.value} paddingLeft={1}>
-              <Text color={isFocused ? borderColor : undefined} bold={isFocused}>
-                {isFocused ? '❯ ' : '  '}
+              <Text color={isFocused ? borderColor : PLACEHOLDER} bold={isFocused}>
+                {isFocused ? '> ' : '  '}
               </Text>
-              <Text color={isFocused ? 'white' : 'gray'} bold={isFocused}>
+              <Text color={isFocused ? 'white' : '#D4D4D8'} bold={isFocused}>
                 {suggestion.label.padEnd(maxLabelLen)}
               </Text>
-              {suggestion.description && (
-                <Text dimColor>  {suggestion.description}</Text>
-              )}
+              {suggestion.description && <Text color={PLACEHOLDER}> {suggestion.description}</Text>}
             </Box>
           );
         })}
         {typeahead.suggestions.length > 8 && (
           <Box paddingLeft={1}>
-            <Text dimColor>  +{typeahead.suggestions.length - 8} more</Text>
+            <Text color={PLACEHOLDER}> +{typeahead.suggestions.length - 8} more</Text>
           </Box>
         )}
         <Box paddingLeft={1}>
-          <Text dimColor>Tab accept · Esc dismiss · ↑↓ navigate</Text>
+          <Text color={PLACEHOLDER}>Tab accept * Esc dismiss * Up/Down navigate</Text>
         </Box>
       </Box>
     );
   };
 
-  // ── Render history search overlay ──
   const renderHistorySearch = () => {
     if (!historySearch.active) return null;
-
     return (
-      <Box flexDirection="column" borderStyle="single" borderColor="yellow" paddingX={1}>
+      <Box
+        flexDirection="column"
+        borderStyle="round"
+        borderColor={PINK_SOFT}
+        width="100%"
+        paddingX={1}
+      >
         <Box flexDirection="row" gap={1}>
-          <Text color="yellow" bold>{'>'}</Text>
+          <Text color={PINK_SOFT} bold>
+            {PROMPT}
+          </Text>
           <Text color="white">{historySearch.query}</Text>
-          <Text color={getModeColor(effectiveMode)} bold>█</Text>
+          <Text color={getModeColor(effectiveMode)} bold>
+            {CURSOR}
+          </Text>
         </Box>
         {historySearch.focusedMatch && (
           <Box paddingLeft={2}>
-            <Text dimColor>{historySearch.focusedMatch}</Text>
+            <Text color={PLACEHOLDER}>{historySearch.focusedMatch}</Text>
           </Box>
         )}
-        <Text dimColor>  Ctrl+R: next · Enter: accept · Esc: cancel</Text>
+        <Text color={PLACEHOLDER}>Ctrl+R next * Enter accept * Esc cancel</Text>
       </Box>
     );
   };
 
-  // ── Render git suggestions (gray hints when input is empty) ──
   const renderGitSuggestions = () => {
     if (input.length > 0 || gitSuggestions.length === 0 || disabled) return null;
-
     return (
-      <Box flexDirection="column" paddingLeft={2} paddingTop={1}>
-        <Text dimColor>Suggestions:</Text>
+      <Box flexDirection="column" paddingLeft={1} paddingTop={1}>
+        <Text color={PLACEHOLDER}>Suggestions</Text>
         {gitSuggestions.slice(0, 3).map((suggestion) => (
           <Box key={suggestion.source} paddingLeft={1}>
-            <Text dimColor>{'  '}</Text>
-            <Text color="gray" dimColor>{suggestion.label}</Text>
+            <Text color={PLACEHOLDER}>{'> '}</Text>
+            <Text color="#A1A1AA">{suggestion.label}</Text>
           </Box>
         ))}
-        <Text dimColor>{'  Tab to accept'}</Text>
+        <Text color={PLACEHOLDER}>{'  Tab to accept'}</Text>
       </Box>
     );
   };
 
   return (
-    <Box flexDirection="column">
-      {/* Main input box */}
-      <Box flexDirection="column" borderStyle="round">
-        <Box flexDirection="column" paddingX={1} paddingY={0}>
+    <Box flexDirection="column" width="100%">
+      <Box
+        flexDirection="column"
+        width="100%"
+        borderStyle="round"
+        borderColor={disabled || input.length === 0 ? BORDER : BORDER_ACTIVE}
+      >
+        <Box flexDirection="column" width="100%" paddingX={1} paddingY={0}>
+          <Box paddingLeft={1} paddingTop={0}>
+            <Text color={PLACEHOLDER}>{getModeLabel(effectiveMode)}</Text>
+          </Box>
           {historySearch.active ? (
-            // History search overlay replaces the input area
             renderHistorySearch()
           ) : input.length === 0 ? (
-            <Box>
-              <Text color={getModeColor(effectiveMode)} bold>{'❯ '}</Text>
-              <Text dimColor>{disabled ? 'Waiting for response...' : placeholder}</Text>
-              <Text color={getModeColor(effectiveMode)} bold>█</Text>
+            <Box paddingLeft={1}>
+              <Text color={getModeColor(effectiveMode)} bold>{`${PROMPT} `}</Text>
+              <Text color={disabled ? '#A1A1AA' : PLACEHOLDER}>
+                {disabled ? 'Waiting for response...' : placeholder}
+              </Text>
+              <Text color={getModeColor(effectiveMode)} bold>
+                {CURSOR}
+              </Text>
             </Box>
           ) : (
-            renderInputWithCursor()
+            <Box paddingLeft={1} flexDirection="column">
+              {renderInputWithCursor()}
+            </Box>
           )}
         </Box>
       </Box>
-
-      {/* Git suggestions (below input when empty) */}
       {renderGitSuggestions()}
-
-      {/* Typeahead suggestions (below the input box) */}
       {typeahead.visible && renderTypeahead()}
     </Box>
   );

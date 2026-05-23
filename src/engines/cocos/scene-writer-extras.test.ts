@@ -84,7 +84,7 @@ afterEach(() => {
 });
 
 function readStaged(): string {
-  return readFileSync(join(tmp, '.spark-cli/staging/files', sceneRel), 'utf8');
+  return readFileSync(join(tmp, '.spark/staging/files', sceneRel), 'utf8');
 }
 
 describe('removeSceneNodeFromStaging', () => {
@@ -148,9 +148,11 @@ describe('duplicateSceneNodeInStaging', () => {
     const clonedComp = staged[player2._components[0].__id__];
     expect(clonedComp.node.__id__).toBe(staged.indexOf(player2));
     // The clone gets the SAME parent as the source.
-    expect(player2._parent.__id__).toBe(staged.indexOf(origPlayer._parent ? origPlayer._parent : {}) === -1
-      ? staged.findIndex((e: { _name?: string }) => e._name === 'Canvas')
-      : player2._parent.__id__);
+    expect(player2._parent.__id__).toBe(
+      staged.indexOf(origPlayer._parent ? origPlayer._parent : {}) === -1
+        ? staged.findIndex((e: { _name?: string }) => e._name === 'Canvas')
+        : player2._parent.__id__,
+    );
     // _prefab is deep-cloned — same uuid string but separate object.
     expect(player2._prefab.__uuid__).toBe(PREFAB_UUID);
   });
@@ -167,9 +169,9 @@ describe('reorderSceneChildrenInStaging', () => {
   });
 
   it('rejects a reorder with mismatched count', () => {
-    expect(() =>
-      reorderSceneChildrenInStaging(tmp, sceneRel, 'Canvas', ['Enemy']),
-    ).toThrow(/childOrder size/);
+    expect(() => reorderSceneChildrenInStaging(tmp, sceneRel, 'Canvas', ['Enemy'])).toThrow(
+      /childOrder size/,
+    );
   });
 
   it('rejects an unknown child name', () => {

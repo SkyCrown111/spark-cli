@@ -16,12 +16,7 @@
 import { spawnSync } from 'node:child_process';
 import { BLOCKING_EVENTS } from './events.js';
 import type { HookEvent, HookPayload } from './events.js';
-import {
-  loadHookConfig,
-  selectHooks,
-  type HookConfig,
-  type HookEntry,
-} from './config.js';
+import { loadHookConfig, selectHooks, type HookConfig, type HookEntry } from './config.js';
 import { appendReplayEvent } from '../replay/log.js';
 
 export type HookDecision = 'allow' | 'deny' | 'ask' | 'defer';
@@ -81,8 +76,7 @@ export function runHooks(
     const r = executeHook(entry, payload, isBlockingEvent, opts.completeFn);
     results.push(r);
     const blockingNow = entry.blocking ?? isBlockingEvent;
-    const didBlock =
-      blockingNow && (r.status !== 0 || r.signal || r.timedOut);
+    const didBlock = blockingNow && (r.status !== 0 || r.signal || r.timedOut);
     appendReplayEvent(projectRoot, 'hook_fired', {
       event,
       label: r.label,
@@ -170,10 +164,7 @@ function executeHook(
 }
 
 /** Synchronous wrapper for HTTP hooks (blocks until response). */
-function executeHttpHookSync(
-  entry: HookEntry,
-  payload: HookPayload,
-): SingleHookResult {
+function executeHttpHookSync(entry: HookEntry, payload: HookPayload): SingleHookResult {
   const label = entry.label ?? entry.url ?? entry.event;
   // HTTP hooks are async but we run them synchronously via spawnSync-style blocking.
   // For the synchronous runner, we use a child process approach or just do it inline.

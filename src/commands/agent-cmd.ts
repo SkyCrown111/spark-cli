@@ -17,9 +17,8 @@ import {
   getAgentLogs,
   killBackgroundAgent,
 } from '../core/agent/background-agent.js';
-import {
-  loadAllAgentDefinitions,
-} from '../core/agent/agent-defs.js';
+import { loadAllAgentDefinitions } from '../core/agent/agent-defs.js';
+import { logger } from '../utils/logger.js';
 
 export async function runAgentsList(opts: GlobalOptions): Promise<void> {
   const root = resolveProjectRoot(opts);
@@ -27,97 +26,86 @@ export async function runAgentsList(opts: GlobalOptions): Promise<void> {
   // List running/historical background agents
   const agents = listBackgroundAgents(root);
 
-  // Also list agent definitions from .spark-cli/agents/*.md
+  // Also list agent definitions from .spark/agents/*.md
   const defs = loadAllAgentDefinitions(root);
 
   if (opts.json) {
-    printJson({ agents, definitions: defs.map((d) => ({ name: d.name, model: d.model, bg: d.bg })) });
+    printJson({
+      agents,
+      definitions: defs.map((d) => ({ name: d.name, model: d.model, bg: d.bg })),
+    });
     return;
   }
 
   if (agents.length === 0 && defs.length === 0) {
-    console.log(chalk.dim('No background agents or agent definitions found.'));
+    logger.info(chalk.dim('No background agents or agent definitions found.'));
     return;
   }
 
   if (agents.length > 0) {
-    console.log(chalk.bold('Background agents:'));
+    logger.info(chalk.bold('Background agents:'));
     for (const a of agents) {
       const statusColor =
-        a.status === 'running'
-          ? chalk.green
-          : a.status === 'completed'
-            ? chalk.dim
-            : chalk.red;
+        a.status === 'running' ? chalk.green : a.status === 'completed' ? chalk.dim : chalk.red;
       const started = a.startedAt.slice(0, 19).replace('T', ' ');
-      console.log(
+      logger.info(
         `  ${chalk.cyan(a.id)}  ${a.name}  ${statusColor(a.status)}  ${chalk.dim(started)}`,
       );
     }
   }
 
   if (defs.length > 0) {
-    if (agents.length > 0) console.log('');
-    console.log(chalk.bold('Agent definitions:'));
+    if (agents.length > 0) logger.info('');
+    logger.info(chalk.bold('Agent definitions:'));
     for (const d of defs) {
       const bgTag = d.bg ? chalk.yellow(' [bg]') : '';
       const modelTag = d.model ? chalk.dim(` (${d.model})`) : '';
-      console.log(`  ${chalk.cyan(d.name)}${bgTag}${modelTag}`);
+      logger.info(`  ${chalk.cyan(d.name)}${bgTag}${modelTag}`);
     }
   }
 }
 
-export async function runAgentAttach(
-  opts: GlobalOptions,
-  id: string,
-): Promise<void> {
+export async function runAgentAttach(opts: GlobalOptions, id: string): Promise<void> {
   const root = resolveProjectRoot(opts);
   try {
     const output = attachToAgent(root, id);
     if (opts.json) {
       printJson({ id, output });
     } else {
-      console.log(output);
+      logger.info(output);
     }
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     if (opts.json) {
       printJson({ error: msg });
     } else {
-      console.error(chalk.red(msg));
+      logger.error(chalk.red(msg));
     }
     process.exitCode = 1;
   }
 }
 
-export async function runAgentLogs(
-  opts: GlobalOptions,
-  id: string,
-  tail?: number,
-): Promise<void> {
+export async function runAgentLogs(opts: GlobalOptions, id: string, tail?: number): Promise<void> {
   const root = resolveProjectRoot(opts);
   try {
     const logs = getAgentLogs(root, id, tail);
     if (opts.json) {
       printJson({ id, logs });
     } else {
-      console.log(logs);
+      logger.info(logs);
     }
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     if (opts.json) {
       printJson({ error: msg });
     } else {
-      console.error(chalk.red(msg));
+      logger.error(chalk.red(msg));
     }
     process.exitCode = 1;
   }
 }
 
-export async function runAgentKill(
-  opts: GlobalOptions,
-  id: string,
-): Promise<void> {
+export async function runAgentKill(opts: GlobalOptions, id: string): Promise<void> {
   const root = resolveProjectRoot(opts);
   const killed = killBackgroundAgent(root, id);
   if (opts.json) {
@@ -125,8 +113,8 @@ export async function runAgentKill(
     return;
   }
   if (killed) {
-    console.log(chalk.green(`Agent ${id} killed.`));
+    logger.info(chalk.green(`Agent ${id} killed.`));
   } else {
-    console.log(chalk.yellow(`Agent ${id} is not running or not found.`));
+    logger.warn(chalk.yellow(`Agent ${id} is not running or not found.`));
   }
 }

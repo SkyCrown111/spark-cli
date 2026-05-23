@@ -81,14 +81,19 @@ export const ModelPicker: React.FC<ModelPickerProps> = ({
     return opts;
   }, [currentModel, availableModels]);
 
-  const handleSelect = useCallback((value: string) => {
-    onSelect(value);
-  }, [onSelect]);
+  const handleSelect = useCallback(
+    (value: string) => {
+      onSelect(value);
+    },
+    [onSelect],
+  );
 
   return (
     <Box flexDirection="column" paddingX={2}>
       <Box paddingBottom={1}>
-        <Text bold color="cyan">Select Model</Text>
+        <Text bold color="cyan">
+          Select Model
+        </Text>
         <Text dimColor> — current: {currentModel}</Text>
       </Box>
 

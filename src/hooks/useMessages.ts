@@ -32,31 +32,31 @@ export interface UseMessagesReturn {
 
 /**
  * Hook to manage chat message state
- * 
+ *
  * Provides utilities for managing a list of chat messages with
  * automatic history limiting to prevent memory issues.
- * 
+ *
  * @param options - Configuration options
  * @returns Message state and management functions
- * 
+ *
  * @example
  * ```tsx
  * const { messages, addMessage, clearMessages } = useMessages({
  *   maxMessages: 1000
  * });
- * 
+ *
  * // Add a user message
  * addMessage({
  *   role: 'user',
  *   content: 'Hello!'
  * });
- * 
+ *
  * // Add an assistant message
  * addMessage({
  *   role: 'assistant',
  *   content: 'Hi there!'
  * });
- * 
+ *
  * // Clear all messages
  * clearMessages();
  * ```
@@ -71,35 +71,41 @@ export const useMessages = ({
    * Add a single message to the history
    * Automatically trims history if it exceeds maxMessages
    */
-  const addMessage = useCallback((message: ChatMessage) => {
-    setMessages(prev => {
-      const newMessages = [...prev, message];
-      
-      // Trim history if it exceeds max
-      if (newMessages.length > maxMessages) {
-        return newMessages.slice(newMessages.length - maxMessages);
-      }
-      
-      return newMessages;
-    });
-  }, [maxMessages]);
+  const addMessage = useCallback(
+    (message: ChatMessage) => {
+      setMessages((prev) => {
+        const newMessages = [...prev, message];
+
+        // Trim history if it exceeds max
+        if (newMessages.length > maxMessages) {
+          return newMessages.slice(newMessages.length - maxMessages);
+        }
+
+        return newMessages;
+      });
+    },
+    [maxMessages],
+  );
 
   /**
    * Add multiple messages to the history
    * Automatically trims history if it exceeds maxMessages
    */
-  const addMessages = useCallback((newMessages: ChatMessage[]) => {
-    setMessages(prev => {
-      const combined = [...prev, ...newMessages];
-      
-      // Trim history if it exceeds max
-      if (combined.length > maxMessages) {
-        return combined.slice(combined.length - maxMessages);
-      }
-      
-      return combined;
-    });
-  }, [maxMessages]);
+  const addMessages = useCallback(
+    (newMessages: ChatMessage[]) => {
+      setMessages((prev) => {
+        const combined = [...prev, ...newMessages];
+
+        // Trim history if it exceeds max
+        if (combined.length > maxMessages) {
+          return combined.slice(combined.length - maxMessages);
+        }
+
+        return combined;
+      });
+    },
+    [maxMessages],
+  );
 
   /**
    * Clear all messages
@@ -112,18 +118,18 @@ export const useMessages = ({
    * Remove the last message from history
    */
   const removeLastMessage = useCallback(() => {
-    setMessages(prev => prev.slice(0, -1));
+    setMessages((prev) => prev.slice(0, -1));
   }, []);
 
   /**
    * Update a message at a specific index
    */
   const updateMessage = useCallback((index: number, update: Partial<ChatMessage>) => {
-    setMessages(prev => {
+    setMessages((prev) => {
       if (index < 0 || index >= prev.length) {
         return prev;
       }
-      
+
       const newMessages = [...prev];
       newMessages[index] = { ...newMessages[index], ...update } as ChatMessage;
       return newMessages;
